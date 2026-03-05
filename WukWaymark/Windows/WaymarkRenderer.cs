@@ -1,4 +1,9 @@
-using Dalamud.Bindings.ImGui;using System;using System.Numerics;using WukWaymark.Models;namespace WukWaymark.Windows
+using Dalamud.Bindings.ImGui;
+using System;
+using System.Numerics;
+using WukWaymark.Models;
+
+namespace WukWaymark.Windows
 {
     /// <summary>
     /// Static utility class responsible for rendering waymark shapes on ImGui draw lists.
