@@ -30,19 +30,7 @@ namespace WukWaymark.Windows
         }
 
         /// <summary>
-        /// Calculates zoom-based scaling multiplier for minimap marker positioning.
-        /// Uses the same quadratic scaling formula as the full map, though minimap zoom may differ.
-        /// </summary>
-        private static float GetMultiplier(float zoomIndex, float uiScale)
-        {
-            // Retain quadratic scaling logic. (May need tuning specific to NaviMap)
-            var x = Math.Clamp(zoomIndex, 0, 7);
-            var result = ((107f * x * x) + x + 750f) / 3000f;
-            result *= uiScale;
-            return result;
-        }
 
-        /// <summary>
         /// Called before rendering to detect and configure the minimap addon.
         /// Ensures the overlay window is positioned and sized correctly to match the minimap.
         /// </summary>

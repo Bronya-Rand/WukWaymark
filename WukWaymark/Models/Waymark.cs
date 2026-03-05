@@ -37,7 +37,7 @@ public class Waymark
     /// <summary>
     /// World ID for this waymark location.
     /// </summary>
-    /// <remarks>Used to differenciate waymarks between different worlds.</remarks>
+    /// <remarks>Used to differentiate waymarks between different worlds.</remarks>
     public uint WorldId { get; set; }
 
     /// <summary>

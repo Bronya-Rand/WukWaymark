@@ -48,7 +48,7 @@ public sealed class Plugin : IDalamudPlugin
     // PLUGIN CONFIGURATION & SERVICES
     // ═══════════════════════════════════════════════════════════════
 
-    /// <summary>Primary slash command: /waymark</summary>
+    /// <summary>Primary slash command: /wwaymark</summary>
     private const string WaymarkCommandName = "/wwaymark";
 
     /// <summary>Persistent configuration storage for waymarks and settings</summary>

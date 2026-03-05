@@ -42,7 +42,7 @@ public class MainWindow : Window, IDisposable
     private WaymarkShape editingShape = WaymarkShape.Circle;
 
     /// <summary>Tracks whether the delete confirmation dialog is displayed</summary>
-    private bool showDeleteWaypointConfirmation;
+    private bool showDeleteWaymarkConfirmation;
 
     public MainWindow(Plugin plugin)
         : base("WukWaymark - Saved Locations##MainWindow", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
@@ -108,7 +108,7 @@ public class MainWindow : Window, IDisposable
             {
                 ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "No waymarks saved yet. Create one!");
                 ImGui.Indent(5);
-                ImGui.Text("Use '/waymark here' or the");
+                ImGui.Text("Use '/wwaymark here' or the");
                 ImGui.SameLine();
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
                 {
@@ -222,9 +222,9 @@ public class MainWindow : Window, IDisposable
                     {
                         ImGui.SetTooltip("Delete Waymark");
                     }
-
-                    ImGui.EndTable();
                 }
+
+                ImGui.EndTable();
             }
         }
     }

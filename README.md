@@ -5,7 +5,7 @@ A Final Fantasy XIV plugin for making custom waymarks around Eorzea.
 
 ## What is WukWaymark?
 
-WukWaymark is a plugin for Final Fantasy XIV that allows players to create and manage custom waymarks around Eorzea. Whether its that one spot you use often for GPosing, a venue you frequented once but decided to go again or simply anything that you find interesting, WukWaymark will allow you to create a custom waymark for it and make it appear on both the main map and the minimap itself! Think of it as `<flag>` but permanent.
+WukWaymark is a plugin for Final Fantasy XIV that allows players to create and manage custom waymarks around Eorzea. Whether it's that one spot you use often for GPosing, a venue you frequented once but decided to go again or simply anything that you find interesting, WukWaymark will allow you to create a custom waymark for it and make it appear on both the main map and the minimap itself! Think of it as `<flag>` but permanent.
 
 ## Features
 - Create and manage custom waymarks
