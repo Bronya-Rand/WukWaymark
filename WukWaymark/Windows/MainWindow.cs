@@ -70,9 +70,9 @@ public class MainWindow : Window, IDisposable
         ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.0f, 1.0f), "Custom Waymark Locations");
 
         // Position buttons on the right side of the header
-        float buttonWidth = 30.0f;
-        float buttonSpacing = 5.0f;
-        float totalButtonWidth = (buttonWidth * 2) + buttonSpacing + 8;
+        var buttonWidth = 30.0f;
+        var buttonSpacing = 5.0f;
+        var totalButtonWidth = (buttonWidth * 2) + buttonSpacing + 8;
         ImGui.SameLine(ImGui.GetWindowWidth() - totalButtonWidth);
 
         // Save Location button (pin icon)
@@ -204,7 +204,7 @@ public class MainWindow : Window, IDisposable
                     ImGui.SameLine();
                     if (ImGuiComponents.IconButton(FontAwesomeIcon.Flag))
                     {
-                        MapHelper.FlagMapLocation(waymark.Position, waymark.Name);
+                        MapHelper.FlagMapLocation(waymark.Position, waymark.TerritoryId, waymark.MapId, waymark.Name);
                     }
                     if (ImGui.IsItemHovered())
                     {
@@ -216,7 +216,7 @@ public class MainWindow : Window, IDisposable
                     if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash))
                     {
                         waymarkToDelete = waymark;
-                        showDeleteWaypointConfirmation = true;
+                        showDeleteWaymarkConfirmation = true;
                     }
                     if (ImGui.IsItemHovered())
                     {
@@ -279,14 +279,14 @@ public class MainWindow : Window, IDisposable
     }
     private void DrawDeleteWaypointModal()
     {
-        if (!showDeleteWaypointConfirmation || waymarkToDelete == null) return;
+        if (!showDeleteWaymarkConfirmation || waymarkToDelete == null) return;
 
         ImGui.OpenPopup("Delete Waypoint?");
 
         var center = ImGui.GetMainViewport().GetCenter();
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
 
-        if (ImGui.BeginPopupModal("Delete Waypoint?", ref showDeleteWaypointConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
+        if (ImGui.BeginPopupModal("Delete Waypoint?", ref showDeleteWaymarkConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
         {
             ImGui.Text($"Are you sure you want to delete the waymark '{waymarkToDelete.Name}'?");
             ImGui.Text("This action cannot be undone!");
@@ -310,7 +310,7 @@ public class MainWindow : Window, IDisposable
             {
                 plugin.Configuration.Waymarks.Remove(waymarkToDelete);
                 plugin.Configuration.Save();
-                showDeleteWaypointConfirmation = false;
+                showDeleteWaymarkConfirmation = false;
                 ImGui.CloseCurrentPopup();
             }
 
@@ -318,7 +318,7 @@ public class MainWindow : Window, IDisposable
 
             if (ImGui.Button("Cancel", new Vector2(buttonWidth, 0)))
             {
-                showDeleteWaypointConfirmation = false;
+                showDeleteWaymarkConfirmation = false;
                 ImGui.CloseCurrentPopup();
             }
 

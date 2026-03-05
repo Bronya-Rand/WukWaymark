@@ -23,11 +23,11 @@ namespace WukWaymark.Helpers
         /// </summary>
         /// <param name="position">The world coordinates of the location to flag (X, Y, Z)</param>
         /// <param name="title">Optional custom title to display on the flagged location. If null, no title is shown.</param>
-        public static unsafe void FlagMapLocation(Vector3 position, string? title = null)
+        public static unsafe void FlagMapLocation(Vector3 position, uint territoryId, uint mapId, string? title = null)
         {
             var agent = AgentMap.Instance();
-            agent->SetFlagMapMarker(agent->CurrentTerritoryId, agent->CurrentMapId, position);
-            agent->OpenMap(agent->CurrentMapId, agent->CurrentTerritoryId, title, MapType.FlagMarker);
+            agent->SetFlagMapMarker(territoryId, mapId, position);
+            agent->OpenMap(mapId, territoryId, title, MapType.FlagMarker);
         }
     }
 }
