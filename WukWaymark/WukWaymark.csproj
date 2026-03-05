@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/14.0.2">
   <PropertyGroup>
-    <Version>0.0.0.1</Version>
+    <Version>1.0.0</Version>
+    <Author>Bronya Rand</Author>
+    <Name>WukWaymark</Name>
+    <AssemblyName>WukWaymark</AssemblyName>
+    <Punchline>XIV's map flagging but permanent</Punchline>
+    <Description>WukWaymark is a plugin for Final Fantasy XIV that allows players to create and manage custom map markers around Eorzea. Whether it's that one spot you use often for GPosing, a venue you frequented once but decided to go again or simply anything that you find interesting, WukWaymark will allow you to create a custom waymark for it and make it appear on both the main map and the minimap itself! Think of it as XIV's map flagging but permanent.</Description>
+    <Tags>utility;ui;other;waymark;marker;flag;wuk;wukwaymark</Tags>
     <PackageProjectUrl>https://github.com/Bronya-Rand/WukWaymark</PackageProjectUrl>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Content Include="..\Data\goat.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Visible>false</Visible>
-    </Content>
-  </ItemGroup>
 </Project>

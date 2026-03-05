@@ -1,59 +1,124 @@
-﻿using System;
-using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
+using System;
+using System.Numerics;
+using WukWaymark.Models;
 
 namespace WukWaymark.Windows;
 
+/// <summary>
+/// Configuration window for customizing waymark display behavior and managing data.
+/// </summary>
 public class ConfigWindow : Window, IDisposable
 {
     private readonly Configuration configuration;
 
-    // We give this window a constant ID using ###.
-    // This allows for labels to be dynamic, like "{FPS Counter}fps###XYZ counter window",
-    // and the window ID will always be "###XYZ counter window" for ImGui
-    public ConfigWindow(Plugin plugin) : base("A Wonderful Configuration Window###With a constant ID")
+    /// <summary>Tracks whether the "Clear All" confirmation dialog is shown</summary>
+    private bool showClearConfirmation = false;
+
+    public ConfigWindow(Plugin plugin) : base("WukWaymark Settings###ConfigWindow")
     {
-        Flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar |
-                ImGuiWindowFlags.NoScrollWithMouse;
-
-        Size = new Vector2(232, 90);
-        SizeCondition = ImGuiCond.Always;
-
+        Size = new Vector2(400, 300);
         configuration = plugin.Configuration;
     }
 
-    public void Dispose() { }
-
-    public override void PreDraw()
+    public void Dispose()
     {
-        // Flags must be added or removed before Draw() is being called, or they won't apply
-        if (configuration.IsConfigWindowMovable)
-        {
-            Flags &= ~ImGuiWindowFlags.NoMove;
-        }
-        else
-        {
-            Flags |= ImGuiWindowFlags.NoMove;
-        }
+        GC.SuppressFinalize(this);
     }
 
     public override void Draw()
     {
-        // Can't ref a property, so use a local copy
-        var configValue = configuration.SomePropertyToBeSavedAndWithADefault;
-        if (ImGui.Checkbox("Random Config Bool", ref configValue))
+        ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.0f, 1.0f), "Waymark Display Settings");
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        // Enable/Disable waymark map display
+        var waymarksMapEnabled = configuration.WaymarksMapEnabled;
+        if (ImGui.Checkbox("Enable Waymark Display on Map", ref waymarksMapEnabled))
         {
-            configuration.SomePropertyToBeSavedAndWithADefault = configValue;
-            // Can save immediately on change if you don't want to provide a "Save and Close" button
+            configuration.WaymarksMapEnabled = waymarksMapEnabled;
             configuration.Save();
         }
 
-        var movable = configuration.IsConfigWindowMovable;
-        if (ImGui.Checkbox("Movable Config Window", ref movable))
+        // Enable/Disable waymark minimap display
+        var waymarksMinimapEnabled = configuration.WaymarksMinimapEnabled;
+        if (ImGui.Checkbox("Enable Waymark Display on Minimap", ref waymarksMinimapEnabled))
         {
-            configuration.IsConfigWindowMovable = movable;
+            configuration.WaymarksMinimapEnabled = waymarksMinimapEnabled;
             configuration.Save();
+        }
+
+        ImGui.Spacing();
+
+        // Marker size slider
+        var markerSize = configuration.WaymarkMarkerSize;
+        ImGui.Text("Marker Size:");
+        ImGui.SetNextItemWidth(200);
+        if (ImGui.SliderFloat("##MarkerSize", ref markerSize, 4.0f, 20.0f, "%.1f"))
+        {
+            configuration.WaymarkMarkerSize = markerSize;
+            configuration.Save();
+        }
+
+        ImGui.Spacing();
+
+        ImGui.Text("Default Shape for New Waymarks:");
+        ImGui.SetNextItemWidth(200);
+        var shapeIndex = (int)configuration.DefaultWaymarkShape;
+        if (ImGui.Combo("##DefaultShape", ref shapeIndex, "Circle\0Square\0Triangle\0Diamond\0Star\0", 5))
+        {
+            configuration.DefaultWaymarkShape = (WaymarkShape)shapeIndex;
+            configuration.Save();
+        }
+
+        // Show tooltips
+        var showTooltips = configuration.ShowWaymarkTooltips;
+        if (ImGui.Checkbox("Show Tooltips on Hover", ref showTooltips))
+        {
+            configuration.ShowWaymarkTooltips = showTooltips;
+            configuration.Save();
+        }
+
+        ImGui.Spacing();
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), "Data Management");
+        ImGui.Spacing();
+
+        // Clear all waymarks button with confirmation
+        if (ImGui.Button("Clear All Waymarks"))
+        {
+            showClearConfirmation = true;
+            ImGui.OpenPopup("ClearConfirmation");
+        }
+
+        // Confirmation popup
+        if (ImGui.BeginPopupModal("ClearConfirmation", ref showClearConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
+        {
+            ImGui.Text($"Are you sure you want to delete all {configuration.Waymarks.Count} waymarks?");
+            ImGui.Text("This action cannot be undone!");
+            ImGui.Spacing();
+
+            if (ImGui.Button("Yes, Delete All", new Vector2(150, 0)))
+            {
+                configuration.Waymarks.Clear();
+                configuration.Save();
+                Plugin.ChatGui.Print("[WukWaymark] All waymarks have been deleted.");
+                ImGui.CloseCurrentPopup();
+            }
+
+            ImGui.SameLine();
+
+            if (ImGui.Button("Cancel", new Vector2(150, 0)))
+            {
+                ImGui.CloseCurrentPopup();
+            }
+
+            ImGui.EndPopup();
         }
     }
 }
