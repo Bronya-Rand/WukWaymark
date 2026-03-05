@@ -65,8 +65,8 @@ namespace WukWaymark.Windows
                     break;
 
                 case WaymarkShape.Triangle:
-                    float sqrt3_2 = 0.866025f;
-                    float outSize = markerSize + 1.0f + outlineThickness;
+                    var sqrt3_2 = 0.866025f;
+                    var outSize = markerSize + 1.0f + outlineThickness;
 
                     var ot1 = position + new Vector2(0, -outSize);
                     var ot2 = position + new Vector2(outSize * sqrt3_2, outSize * 0.5f);
@@ -74,7 +74,7 @@ namespace WukWaymark.Windows
 
                     drawList.AddTriangleFilled(ot1, ot2, ot3, outlineColor);
 
-                    float inSize = markerSize + 1.0f;
+                    var inSize = markerSize + 1.0f;
                     var t1 = position + new Vector2(0, -inSize);
                     var t2 = position + new Vector2(inSize * sqrt3_2, inSize * 0.5f);
                     var t3 = position + new Vector2(-inSize * sqrt3_2, inSize * 0.5f);
@@ -96,13 +96,13 @@ namespace WukWaymark.Windows
             const int points = 5;
 
             // Draw outline (larger star)
-            for (int i = 0; i < points * 2; i++)
+            for (var i = 0; i < points * 2; i++)
             {
-                float angle1 = (float)i * MathF.PI / points - MathF.PI / 2;
-                float angle2 = (float)(i + 1) * MathF.PI / points - MathF.PI / 2;
+                var angle1 = ((float)i * MathF.PI / points) - (MathF.PI / 2);
+                var angle2 = ((float)(i + 1) * MathF.PI / points) - (MathF.PI / 2);
 
-                float r1 = (i % 2 == 0 ? radius : radius * 0.38f) + outlineThickness;
-                float r2 = ((i + 1) % 2 == 0 ? radius : radius * 0.38f) + outlineThickness;
+                var r1 = (i % 2 == 0 ? radius : radius * 0.38f) + outlineThickness;
+                var r2 = ((i + 1) % 2 == 0 ? radius : radius * 0.38f) + outlineThickness;
 
                 var p1 = center + new Vector2(MathF.Cos(angle1) * r1, MathF.Sin(angle1) * r1);
                 var p2 = center + new Vector2(MathF.Cos(angle2) * r2, MathF.Sin(angle2) * r2);
@@ -111,13 +111,13 @@ namespace WukWaymark.Windows
             }
 
             // Draw inner star
-            for (int i = 0; i < points * 2; i++)
+            for (var i = 0; i < points * 2; i++)
             {
-                float angle1 = (float)i * MathF.PI / points - MathF.PI / 2;
-                float angle2 = (float)(i + 1) * MathF.PI / points - MathF.PI / 2;
+                var angle1 = ((float)i * MathF.PI / points) - (MathF.PI / 2);
+                var angle2 = ((float)(i + 1) * MathF.PI / points) - (MathF.PI / 2);
 
-                float r1 = i % 2 == 0 ? radius : radius * 0.38f;
-                float r2 = (i + 1) % 2 == 0 ? radius : radius * 0.38f;
+                var r1 = i % 2 == 0 ? radius : radius * 0.38f;
+                var r2 = (i + 1) % 2 == 0 ? radius : radius * 0.38f;
 
                 var p1 = center + new Vector2(MathF.Cos(angle1) * r1, MathF.Sin(angle1) * r1);
                 var p2 = center + new Vector2(MathF.Cos(angle2) * r2, MathF.Sin(angle2) * r2);

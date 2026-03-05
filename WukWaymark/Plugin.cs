@@ -153,7 +153,7 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         // Unknown argument
-        ChatGui.Print($"[WukWaymark] Unknown command. Use '/waymark' to view waymarks or '/waymark here' to save current location.");
+        ChatGui.Print($"[WukWaymark] Unknown command. Use '{WaymarkCommandName}' to view waymarks or '{WaymarkCommandName} here' to save current location.");
     }
 
     /// <summary>Toggles the visibility of the configuration window</summary>

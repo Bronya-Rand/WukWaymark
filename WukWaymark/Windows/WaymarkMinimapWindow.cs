@@ -98,8 +98,8 @@ namespace WukWaymark.Windows
 
             // Minimap center screen position
             var mapCenterScreenPos = new Vector2(
-                naviMap->X + mapSize.X / 2f,
-                naviMap->Y + mapSize.Y / 2f
+                naviMap->X + (mapSize.X / 2f),
+                naviMap->Y + (mapSize.Y / 2f)
             ) + viewportPos;
 
             // Adjust Y to line up with minimap pivot better
@@ -170,8 +170,8 @@ namespace WukWaymark.Windows
 
             var rotatedPoint = new Vector2
             {
-                X = (float)(cosTheta * (pos.X - center.X) - sinTheta * (pos.Y - center.Y) + center.X),
-                Y = (float)(sinTheta * (pos.X - center.X) + cosTheta * (pos.Y - center.Y) + center.Y)
+                X = (float)((cosTheta * (pos.X - center.X)) - (sinTheta * (pos.Y - center.Y)) + center.X),
+                Y = (float)((sinTheta * (pos.X - center.X)) + (cosTheta * (pos.Y - center.Y)) + center.Y)
             };
 
             return rotatedPoint;

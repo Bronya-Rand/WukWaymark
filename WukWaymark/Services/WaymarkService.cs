@@ -9,14 +9,9 @@ namespace WukWaymark.Services;
 /// Service class containing business logic for waymark operations.
 /// Handles waymark creation, validation, and persistence.
 /// </summary>
-public class WaymarkService
+public class WaymarkService(Configuration configuration)
 {
-    private readonly Configuration configuration;
-
-    public WaymarkService(Configuration configuration)
-    {
-        this.configuration = configuration;
-    }
+    private readonly Configuration configuration = configuration;
 
     /// <summary>
     /// Saves the player's current location as a new waymark.

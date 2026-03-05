@@ -13,7 +13,7 @@ public class Configuration : IPluginConfiguration
     /// <summary>
     /// Collection of all saved waymarks persisted across sessions.
     /// </summary>
-    public List<Waymark> Waymarks { get; set; } = new();
+    public List<Waymark> Waymarks { get; set; } = [];
 
     /// <summary>
     /// Enable or disable rendering of waymarks on the in-game map overlay.
