@@ -4,9 +4,9 @@ using Dalamud.Plugin;
 using System.IO;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
-using SamplePlugin.Windows;
+using WukWaymark.Windows;
 
-namespace SamplePlugin;
+namespace WukWaymark;
 
 public sealed class Plugin : IDalamudPlugin
 {
@@ -22,7 +22,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public Configuration Configuration { get; init; }
 
-    public readonly WindowSystem WindowSystem = new("SamplePlugin");
+    public readonly WindowSystem WindowSystem = new("WukWaymark");
     private ConfigWindow ConfigWindow { get; init; }
     private MainWindow MainWindow { get; init; }
 
@@ -56,7 +56,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Add a simple message to the log with level set to information
         // Use /xllog to open the log window in-game
-        // Example Output: 00:57:54.959 | INF | [SamplePlugin] ===A cool log message from Sample Plugin===
+        // Example Output: 00:57:54.959 | INF | [WukWaymark] ===A cool log message from WukWaymark===
         Log.Information($"===A cool log message from {PluginInterface.Manifest.Name}===");
     }
 
