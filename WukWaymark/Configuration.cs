@@ -37,11 +37,6 @@ public class Configuration : IPluginConfiguration
     /// </summary>
     public bool ShowWaymarkTooltips { get; set; } = true;
 
-    /// <summary>
-    /// Show waymarks only for the current territory.
-    /// </summary>
-    public bool ShowOnlyCurrentTerritory { get; set; } = true;
-
     // The below exists just to make saving less cumbersome
     public void Save()
     {

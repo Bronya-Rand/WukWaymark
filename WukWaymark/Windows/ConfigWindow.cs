@@ -1,7 +1,7 @@
-using System;
-using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
+using System;
+using System.Numerics;
 
 namespace WukWaymark.Windows;
 
@@ -15,28 +15,13 @@ public class ConfigWindow : Window, IDisposable
     // and the window ID will always be "###XYZ counter window" for ImGui
     public ConfigWindow(Plugin plugin) : base("WukWaymark Settings###ConfigWindow")
     {
-        Flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar |
-                ImGuiWindowFlags.NoScrollWithMouse;
-
         Size = new Vector2(400, 300);
-        SizeCondition = ImGuiCond.Always;
-
         configuration = plugin.Configuration;
     }
 
-    public void Dispose() { }
-
-    public override void PreDraw()
+    public void Dispose()
     {
-        // Flags must be added or removed before Draw() is being called, or they won't apply
-        if (configuration.IsConfigWindowMovable)
-        {
-            Flags &= ~ImGuiWindowFlags.NoMove;
-        }
-        else
-        {
-            Flags |= ImGuiWindowFlags.NoMove;
-        }
+        GC.SuppressFinalize(this);
     }
 
     public override void Draw()
@@ -77,14 +62,6 @@ public class ConfigWindow : Window, IDisposable
 
         ImGui.Spacing();
 
-        // Show only current territory
-        var showOnlyCurrent = configuration.ShowOnlyCurrentTerritory;
-        if (ImGui.Checkbox("Show Only Current Territory Waymarks", ref showOnlyCurrent))
-        {
-            configuration.ShowOnlyCurrentTerritory = showOnlyCurrent;
-            configuration.Save();
-        }
-
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
@@ -122,21 +99,6 @@ public class ConfigWindow : Window, IDisposable
             }
 
             ImGui.EndPopup();
-        }
-
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
-
-        ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "General Settings");
-        ImGui.Spacing();
-
-        // Movable config window
-        var movable = configuration.IsConfigWindowMovable;
-        if (ImGui.Checkbox("Movable Config Window", ref movable))
-        {
-            configuration.IsConfigWindowMovable = movable;
-            configuration.Save();
         }
     }
 }

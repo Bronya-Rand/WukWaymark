@@ -1,13 +1,13 @@
-using System;
-using System.Numerics;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Textures;
-using Dalamud.Interface.Utility;
+using Dalamud.Interface;
+using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Lumina.Excel.Sheets;
-using WukWaymark.Models;
+using System;
 using System.Linq;
+using System.Numerics;
+using WukWaymark.Models;
 
 namespace WukWaymark.Windows;
 
@@ -18,7 +18,7 @@ public class MainWindow : Window, IDisposable
     private string editingName = string.Empty;
     private Vector4 editingColor = Vector4.One;
 
-    public MainWindow(Plugin plugin, string goatImagePath)
+    public MainWindow(Plugin plugin)
         : base("WukWaymark - Saved Locations##MainWindow", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         SizeConstraints = new WindowSizeConstraints
@@ -30,28 +30,45 @@ public class MainWindow : Window, IDisposable
         this.plugin = plugin;
     }
 
-    public void Dispose() { }
+    public void Dispose()
+    {
+        GC.SuppressFinalize(this);
+    }
 
     public override void Draw()
     {
-        // Header section
+        // Header section with buttons on the right
         ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.0f, 1.0f), "Custom Waymark Locations");
-        ImGui.Separator();
 
-        // Quick save button
-        if (ImGui.Button("Save Current Location"))
+        // Position buttons on the right side of the header
+        float buttonWidth = 30.0f;
+        float buttonSpacing = 5.0f;
+        float totalButtonWidth = (buttonWidth * 2) + buttonSpacing + 8; // +8 for padding
+        ImGui.SameLine(ImGui.GetWindowWidth() - totalButtonWidth);
+
+        // Save Location button (pin icon)
+        if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
         {
-            SaveCurrentLocation();
+            plugin.WaymarkService.SaveCurrentLocation();
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip("Save Current Location");
         }
 
-        ImGui.SameLine();
+        ImGui.SameLine(0, buttonSpacing);
 
-        if (ImGui.Button("Settings"))
+        // Settings button (gear icon)
+        if (ImGuiComponents.IconButton(FontAwesomeIcon.Cog))
         {
             plugin.ToggleConfigUi();
         }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip("Settings");
+        }
 
-        ImGui.Spacing();
+        ImGui.Separator();
 
         // Main content area with scrolling
         using (var child = ImRaii.Child("WaymarkListChild", Vector2.Zero, true))
@@ -71,7 +88,7 @@ public class MainWindow : Window, IDisposable
             ImGui.Spacing();
 
             // Display waymarks as a table
-            if (ImGui.BeginTable("WaymarkTable", 6, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY))
+            if (ImGui.BeginTable("WaymarkTable", 6, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Resizable))
             {
                 ImGui.TableSetupColumn("Color", ImGuiTableColumnFlags.WidthFixed, 50);
                 ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch);
@@ -181,44 +198,6 @@ public class MainWindow : Window, IDisposable
             }
         }
     }
-
-    private void SaveCurrentLocation()
-    {
-        var player = Plugin.ClientState.LocalPlayer;
-        if (player == null)
-        {
-            Plugin.ChatGui.PrintError("[WukWaymark] You must be logged in to save a waymark.");
-            return;
-        }
-
-        var territoryId = Plugin.ClientState.TerritoryType;
-        if (territoryId == 0)
-        {
-            Plugin.ChatGui.PrintError("[WukWaymark] Unable to determine current location.");
-            return;
-        }
-
-        uint mapId = 0;
-        if (Plugin.DataManager.GetExcelSheet<TerritoryType>().TryGetRow(territoryId, out var territoryRow))
-        {
-            mapId = territoryRow.Map.RowId;
-        }
-
-        var waymark = new Waymark
-        {
-            Position = player.Position,
-            TerritoryId = territoryId,
-            MapId = mapId,
-            Name = $"Waymark {plugin.Configuration.Waymarks.Count + 1}",
-            CreatedAt = DateTime.Now
-        };
-
-        plugin.Configuration.Waymarks.Add(waymark);
-        plugin.Configuration.Save();
-
-        Plugin.ChatGui.Print($"[WukWaymark] Saved waymark '{waymark.Name}' at current location.");
-    }
-
     private string GetLocationName(ushort territoryId)
     {
         if (Plugin.DataManager.GetExcelSheet<TerritoryType>().TryGetRow(territoryId, out var territoryRow))
