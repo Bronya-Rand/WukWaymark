@@ -7,6 +7,7 @@ using Lumina.Excel.Sheets;
 using System;
 using System.Linq;
 using System.Numerics;
+using WukWaymark.Helpers;
 using WukWaymark.Models;
 
 namespace WukWaymark.Windows;
@@ -15,8 +16,11 @@ public class MainWindow : Window, IDisposable
 {
     private readonly Plugin plugin;
     private Waymark? selectedWaymark;
+    private Waymark? waymarkToDelete;
     private string editingName = string.Empty;
     private Vector4 editingColor = Vector4.One;
+    private WaymarkShape editingShape = WaymarkShape.Circle;
+    private bool showDeleteWaypointConfirmation;
 
     public MainWindow(Plugin plugin)
         : base("WukWaymark - Saved Locations##MainWindow", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
@@ -37,13 +41,16 @@ public class MainWindow : Window, IDisposable
 
     public override void Draw()
     {
+        // Draw the delete confirmation modal if needed
+        DrawDeleteWaypointModal();
+
         // Header section with buttons on the right
         ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.0f, 1.0f), "Custom Waymark Locations");
 
         // Position buttons on the right side of the header
         float buttonWidth = 30.0f;
         float buttonSpacing = 5.0f;
-        float totalButtonWidth = (buttonWidth * 2) + buttonSpacing + 8; // +8 for padding
+        float totalButtonWidth = (buttonWidth * 2) + buttonSpacing + 8;
         ImGui.SameLine(ImGui.GetWindowWidth() - totalButtonWidth);
 
         // Save Location button (pin icon)
@@ -68,8 +75,6 @@ public class MainWindow : Window, IDisposable
             ImGui.SetTooltip("Settings");
         }
 
-        ImGui.Separator();
-
         // Main content area with scrolling
         using (var child = ImRaii.Child("WaymarkListChild", Vector2.Zero, true))
         {
@@ -79,8 +84,17 @@ public class MainWindow : Window, IDisposable
 
             if (waymarks.Count == 0)
             {
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "No waymarks saved yet.");
-                ImGui.Text("Use '/waymark here' or the button above to save your current location.");
+                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "No waymarks saved yet. Create one!");
+                ImGui.Indent(5);
+                ImGui.Text("Use '/waymark here' or the");
+                ImGui.SameLine();
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
+                {
+                    plugin.WaymarkService.SaveCurrentLocation();
+                }
+                ImGui.SameLine();
+                ImGui.Text("button above to save your current location as a waymark.");
+
                 return;
             }
 
@@ -88,17 +102,14 @@ public class MainWindow : Window, IDisposable
             ImGui.Spacing();
 
             // Display waymarks as a table
-            if (ImGui.BeginTable("WaymarkTable", 6, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Resizable))
+            if (ImGui.BeginTable("WaymarkTable", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Resizable))
             {
-                ImGui.TableSetupColumn("Color", ImGuiTableColumnFlags.WidthFixed, 50);
-                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch);
-                ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.WidthStretch);
-                ImGui.TableSetupColumn("Created", ImGuiTableColumnFlags.WidthFixed, 120);
+                ImGui.TableSetupColumn("Color", ImGuiTableColumnFlags.WidthFixed, 80);
+                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 100);
+                ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.WidthStretch, 140);
+                ImGui.TableSetupColumn("Created", ImGuiTableColumnFlags.WidthFixed, 140);
                 ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthFixed, 150);
-                ImGui.TableSetupColumn("##Delete", ImGuiTableColumnFlags.WidthFixed, 60);
                 ImGui.TableHeadersRow();
-
-                Waymark? waymarkToDelete = null;
 
                 foreach (var waymark in waymarks.ToList())
                 {
@@ -107,8 +118,10 @@ public class MainWindow : Window, IDisposable
                     // Color preview
                     ImGui.TableNextColumn();
                     var colorU32 = ImGui.ColorConvertFloat4ToU32(waymark.Color);
-                    ImGui.GetWindowDrawList().AddCircleFilled(
+                    WaymarkRenderer.RenderWaymarkShape(
+                        ImGui.GetWindowDrawList(),
                         ImGui.GetCursorScreenPos() + new Vector2(20, 10),
+                        waymark.Shape,
                         8f,
                         colorU32
                     );
@@ -137,11 +150,14 @@ public class MainWindow : Window, IDisposable
 
                     // Actions
                     ImGui.TableNextColumn();
-                    if (ImGui.Button($"Edit##{waymark.Id}"))
+
+                    // Edit button
+                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Edit))
                     {
                         selectedWaymark = waymark;
                         editingName = waymark.Name;
                         editingColor = waymark.Color;
+                        editingShape = waymark.Shape;
                         ImGui.OpenPopup($"EditWaymark##{waymark.Id}");
                     }
 
@@ -159,12 +175,21 @@ public class MainWindow : Window, IDisposable
                         ImGui.SetNextItemWidth(250);
                         ImGui.ColorEdit4($"##Color{waymark.Id}", ref editingColor);
 
+                        ImGui.Text("Shape:");
+                        ImGui.SetNextItemWidth(250);
+                        var shapeIndex = (int)editingShape;
+                        if (ImGui.Combo($"##Shape{waymark.Id}", ref shapeIndex, "Circle\0Square\0Triangle\0Diamond\0Star\0", 5))
+                        {
+                            editingShape = (WaymarkShape)shapeIndex;
+                        }
+
                         ImGui.Spacing();
 
                         if (ImGui.Button("Save"))
                         {
                             waymark.Name = editingName;
                             waymark.Color = editingColor;
+                            waymark.Shape = editingShape;
                             plugin.Configuration.Save();
                             ImGui.CloseCurrentPopup();
                         }
@@ -179,23 +204,72 @@ public class MainWindow : Window, IDisposable
                         ImGui.EndPopup();
                     }
 
+                    // Flag button
+                    ImGui.SameLine();
+                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Flag))
+                    {
+                        MapHelper.FlagMapLocation(waymark.Position, waymark.Name);
+                    }
+
                     // Delete button
-                    ImGui.TableNextColumn();
-                    if (ImGui.Button($"Delete##{waymark.Id}"))
+                    ImGui.SameLine();
+                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash))
                     {
                         waymarkToDelete = waymark;
+                        showDeleteWaypointConfirmation = true;
                     }
-                }
-
-                // Process deletion outside the loop to avoid collection modification issues
-                if (waymarkToDelete != null)
-                {
-                    plugin.Configuration.Waymarks.Remove(waymarkToDelete);
-                    plugin.Configuration.Save();
                 }
 
                 ImGui.EndTable();
             }
+        }
+    }
+    private void DrawDeleteWaypointModal()
+    {
+        if (!showDeleteWaypointConfirmation || waymarkToDelete == null) return;
+
+        ImGui.OpenPopup("Delete Waypoint?");
+
+        var center = ImGui.GetMainViewport().GetCenter();
+        ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
+
+        if (ImGui.BeginPopupModal("Delete Waypoint?", ref showDeleteWaypointConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
+        {
+            ImGui.Text($"Are you sure you want to delete the waymark '{waymarkToDelete.Name}'?");
+            ImGui.Text("This action cannot be undone!");
+
+            ImGui.Spacing();
+
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            // Center buttons
+            var buttonWidth = 120f;
+            var spacing = 10f;
+            var totalWidth = (buttonWidth * 2) + spacing;
+            var windowWidth = ImGui.GetContentRegionAvail().X;
+            var padding = (windowWidth - totalWidth) / 2;
+
+            if (padding > 0)
+                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + padding);
+
+            if (ImGui.Button("Yes", new Vector2(buttonWidth, 0)))
+            {
+                plugin.Configuration.Waymarks.Remove(waymarkToDelete);
+                plugin.Configuration.Save();
+                showDeleteWaypointConfirmation = false;
+                ImGui.CloseCurrentPopup();
+            }
+
+            ImGui.SameLine(0, spacing);
+
+            if (ImGui.Button("Cancel", new Vector2(buttonWidth, 0)))
+            {
+                showDeleteWaypointConfirmation = false;
+                ImGui.CloseCurrentPopup();
+            }
+
+            ImGui.EndPopup();
         }
     }
     private string GetLocationName(ushort territoryId)

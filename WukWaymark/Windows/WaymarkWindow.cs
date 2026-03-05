@@ -5,6 +5,7 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using WukWaymark.Models;
 
 namespace WukWaymark.Windows
 {
@@ -42,6 +43,7 @@ namespace WukWaymark.Windows
             result *= uiScale;
             return result;
         }
+
 
         /// <summary>
         /// Main rendering method called every frame by UiBuilder.Draw.
@@ -203,7 +205,7 @@ namespace WukWaymark.Windows
 
                     var multiplier = GetMultiplier(zoomIndex, areaMap->Scale);
 
-                    // Transform world delta to screen delta relative to map center screen position
+                    // Transform world delta to screen delta relative to map center
                     var waymarkScreenX = mapCenterScreenPos.X + (deltaWorldX * zoneScale * multiplier);
                     var waymarkScreenY = mapCenterScreenPos.Y + (deltaWorldY * zoneScale * multiplier);
 
@@ -244,13 +246,11 @@ namespace WukWaymark.Windows
 
                     var waymarkScreenPos = new Vector2(waymarkScreenX, waymarkScreenY);
 
-                    // Render the waymark as a colored circle with a black outline for visibility
+                    // Render the waymark using its configured shape
                     var colorU32 = ImGui.ColorConvertFloat4ToU32(waymark.Color);
                     var markerSize = plugin.Configuration.WaymarkMarkerSize;
 
-                    // Draw with black outline for visibility
-                    drawList.AddCircleFilled(waymarkScreenPos, markerSize + 1.5f, 0xFF000000); // Outline
-                    drawList.AddCircleFilled(waymarkScreenPos, markerSize, colorU32);         // Inner circle
+                    WaymarkRenderer.RenderWaymarkShape(drawList, waymarkScreenPos, waymark.Shape, markerSize, colorU32);
 
                     // Display tooltip if enabled and mouse is hovering within marker bounds
                     if (plugin.Configuration.ShowWaymarkTooltips &&

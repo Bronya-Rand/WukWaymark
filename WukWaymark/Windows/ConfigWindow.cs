@@ -2,6 +2,7 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 using System;
 using System.Numerics;
+using WukWaymark.Models;
 
 namespace WukWaymark.Windows;
 
@@ -51,6 +52,15 @@ public class ConfigWindow : Window, IDisposable
         }
 
         ImGui.Spacing();
+
+        ImGui.Text("Default Shape for New Waymarks:");
+        ImGui.SetNextItemWidth(200);
+        var shapeIndex = (int)configuration.DefaultWaymarkShape;
+        if (ImGui.Combo("##DefaultShape", ref shapeIndex, "Circle\0Square\0Triangle\0Diamond\0Star\0", 5))
+        {
+            configuration.DefaultWaymarkShape = (WaymarkShape)shapeIndex;
+            configuration.Save();
+        }
 
         // Show tooltips
         var showTooltips = configuration.ShowWaymarkTooltips;

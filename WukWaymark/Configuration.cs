@@ -37,6 +37,11 @@ public class Configuration : IPluginConfiguration
     /// </summary>
     public bool ShowWaymarkTooltips { get; set; } = true;
 
+    /// <summary>
+    /// Default shape for newly created waymarks.
+    /// </summary>
+    public WaymarkShape DefaultWaymarkShape { get; set; } = WaymarkShape.Circle;
+
     // The below exists just to make saving less cumbersome
     public void Save()
     {

@@ -45,7 +45,8 @@ public class WaymarkService
             MapId = mapId,
             Name = $"Waymark {configuration.Waymarks.Count + 1}",
             Color = Colors.RandomizeColor(),
-            CreatedAt = DateTime.Now
+            Shape = configuration.DefaultWaymarkShape,
+            CreatedAt = DateTime.Now,
         };
 
         configuration.Waymarks.Add(waymark);

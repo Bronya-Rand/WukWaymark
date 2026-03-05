@@ -48,4 +48,11 @@ public class Waymark
     /// Optional notes or description for this waymark.
     /// </summary>
     public string Notes { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the geometric shape used to represent the waymark.
+    /// </summary>
+    /// <remarks>The selected shape determines how the waymark is visually displayed in the user interface or
+    /// on a map. Ensure that the assigned value is supported by the rendering system in use.</remarks>
+    public WaymarkShape Shape { get; set; } = WaymarkShape.Circle;
 }
