@@ -19,7 +19,12 @@ public class Configuration : IPluginConfiguration
     /// Enable or disable rendering of waymarks on the in-game map overlay.
     /// When disabled, waymarks are still saved but not displayed.
     /// </summary>
-    public bool WaymarksEnabled { get; set; } = true;
+    public bool WaymarksMapEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Enable or disable rendering of waymarks on the in-game minimap.
+    /// </summary>
+    public bool WaymarksMinimapEnabled { get; set; } = true;
 
     /// <summary>
     /// Radius (in pixels) of waymark markers displayed on the map.

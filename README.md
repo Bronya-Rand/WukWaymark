@@ -1,76 +1,76 @@
-> ⚠️ **Don't click Fork!**
-> 
-> This is a GitHub Template repo. If you want to use this for a plugin, [use this template][new-repo] to make a new repo!
->
-> ![image](https://github.com/goatcorp/SamplePlugin/assets/16760685/d9732094-e1ed-4769-a70b-58ed2b92580c)
-
 # WukWaymark
+A Final Fantasy XIV plugin for making custom waymarks around Eorzea.
 
-[![Use This Template badge](https://img.shields.io/badge/Use%20This%20Template-0?logo=github&labelColor=grey)][new-repo]
+![WukWaymark Main Window](./.github/assets/MainWindowWithMarkers.png)
 
+## What is WukWaymark?
 
-Simple example plugin for Dalamud.
+WukWaymark is a plugin for Final Fantasy XIV that allows players to create and manage custom waymarks around Eorzea. Whether its that one spot you use often for GPosing, a venue you frequented once but decided to go again or simply anything that you find interesting, WukWaymark will allow you to create a custom waymark for it and make it appear on both the main map and the minimap itself! Think of it as `<flag>` but permanent.
 
-This is not designed to be the simplest possible example, but it is also not designed to cover everything you might want to do. For more detailed questions, come ask in [the Discord](https://discord.gg/holdshift).
-
-## Main Points
-
-* Simple functional plugin
-  * Slash command
-  * Main UI
-  * Settings UI
-  * Image loading
-  * Plugin json
-* Simple, slightly-improved plugin configuration handling
-* Project organization
-  * Copies all necessary plugin files to the output directory
-    * Does not copy dependencies that are provided by dalamud
-    * Output directory can be zipped directly and have exactly what is required
-  * Hides data files from visual studio to reduce clutter
-    * Also allows having data files in different paths than VS would usually allow if done in the IDE directly
-
-
-The intention is less that any of this is used directly in other projects, and more to show how similar things can be done.
+## Features
+- Create and manage custom waymarks
+- Configure how waymarks are displayed on the map and minimap
+- Set different icons for waymarks (shapes)
+- Add personal notes to waymarks
+- Displays in-game locations and world locations by name
 
 ## How To Use
 
-### Getting Started
+### Creating a Waymark
 
-To begin, [clone this template repository][new-repo] to your own GitHub account. This will automatically bring in everything you need to get a jumpstart on development. You do not need to fork this repository unless you intend to contribute modifications to it.
+To create a waymark, you can use the `/wwaymark here` command in chat or open the WukWaymark window and click the `Create Waymark` button (Map Pin Button).
 
-Be sure to also check out the [Dalamud Developer Docs][dalamud-docs] for helpful information about building your own plugin. The Developer Docs includes helpful information about all sorts of things, including [how to submit][submit] your newly-created plugin to the official repository. Assuming you use this template repository, the provided project build configuration and license are already chosen to make everything a breeze.
+| Command | Window Button |
+| --- | --- |
+| ![Waymark Here](./.github/assets/CommandCreateMarker.png) | ![Waymark Here](./.github/assets/WindowCreateMarker.png) |
 
-[new-repo]: https://github.com/new?template_name=SamplePlugin&template_owner=goatcorp
-[dalamud-docs]: https://dalamud.dev
-[submit]: https://dalamud.dev/plugin-publishing/submission
+### Editing a Waymark
+
+To edit a waymark, open the WukWaymark window and click the `Edit Waymark` button (Pencil Button).
+
+![Edit Waymark](./.github/assets/WindowEditMarker.png)
+
+You can change the name of the waymark, the icon of it, the color of it and add a special note about this waymark in particular.  
+
+### Deleting a Waymark
+
+To delete a waymark, open the WukWaymark window and click the `Delete Waymark` button (Trash Button).
+
+![Delete Waymark](./.github/assets/WindowDeleteMarker.png)
+
+## Configuration
+
+![Configuration](./.github/assets/ConfigWindow.png)
+
+### Enable Waymark Display on Map
+> This option allows you to enable or disable the display of waymarks on the main map.
+
+### Enable Waymark Display on Minimap
+> This option allows you to enable or disable the display of waymarks on the minimap.
+
+### Marker Size
+> This option allows you to change the size of the waymarks on the map and minimap.
+
+### Default Shape for New Waymarks
+> This option allows you to change the default shape for new waymarks.
+
+### Show Tooltips on Hover
+> This option allows you to enable or disable the display of tooltips on hovering over a waymark (mostly for the name of the waymark).
+
+### Clear All Waymarks
+> This option allows you to clear all waymarks from the map and minimap.  
+
+## Building from Source
 
 ### Prerequisites
-
-WukWaymark assumes all the following prerequisites are met:
-
-* XIVLauncher, FINAL FANTASY XIV, and Dalamud have all been installed and the game has been run with Dalamud at least once.
-* XIVLauncher is installed to its default directories and configurations.
-  * If a custom path is required for Dalamud's dev directory, it must be set with the `DALAMUD_HOME` environment variable.
-* A .NET Core 8 SDK has been installed and configured, or is otherwise available. (In most cases, the IDE will take care of this.)
+- .NET 10 SDK
+- Visual Studio 2026
+- Dalamud (via XIVLauncher)
 
 ### Building
+> This assumes that XIVLauncher is already installed.
 
-1. Open up `WukWaymark.sln` in your C# editor of choice (likely [Visual Studio 2022](https://visualstudio.microsoft.com) or [JetBrains Rider](https://www.jetbrains.com/rider/)).
-2. Build the solution. By default, this will build a `Debug` build, but you can switch to `Release` in your IDE.
-3. The resulting plugin can be found at `WukWaymark/bin/x64/Debug/WukWaymark.dll` (or `Release` if appropriate.)
+1. Clone this repository
+2. Open the solution in Visual Studio 2026
+3. Build the solution
 
-### Activating in-game
-
-1. Launch the game and use `/xlsettings` in chat or `xlsettings` in the Dalamud Console to open up the Dalamud settings.
-    * In here, go to `Experimental`, and add the full path to the `WukWaymark.dll` to the list of Dev Plugin Locations.
-2. Next, use `/xlplugins` (chat) or `xlplugins` (console) to open up the Plugin Installer.
-    * In here, go to `Dev Tools > Installed Dev Plugins`, and the `WukWaymark` should be visible. Enable it.
-3. You should now be able to use `/pmycommand` (chat) or `pmycommand` (console)!
-
-Note that you only need to add it to the Dev Plugin Locations once (Step 1); it is preserved afterwards. You can disable, enable, or load your plugin on startup through the Plugin Installer.
-
-### Reconfiguring for your own uses
-
-Replace all references to `WukWaymark` in all the files and filenames with your desired name, then start building the plugin of your dreams. You'll figure it out 😁
-
-Dalamud will load the JSON file (by default, `WukWaymark/WukWaymark.json`) next to your DLL and use it for metadata, including the description for your plugin in the Plugin Installer. Make sure to update this with information relevant to _your_ plugin!

@@ -71,7 +71,7 @@ namespace WukWaymark.Windows
         /// </summary>
         public override void Draw()
         {
-            if (!plugin.Configuration.WaymarksEnabled)
+            if (!plugin.Configuration.WaymarksMinimapEnabled)
                 return;
 
             var naviMapAddonPtr = Plugin.GameGui.GetAddonByName("_NaviMap");

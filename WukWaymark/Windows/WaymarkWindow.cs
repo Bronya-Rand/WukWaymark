@@ -50,7 +50,7 @@ namespace WukWaymark.Windows
         /// </summary>
         private void DrawWaymarkOverlay()
         {
-            if (!plugin.Configuration.WaymarksEnabled)
+            if (!plugin.Configuration.WaymarksMapEnabled)
                 return;
 
             // ═══════════════════════════════════════════════════════════════

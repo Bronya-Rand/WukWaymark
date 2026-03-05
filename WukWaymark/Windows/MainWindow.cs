@@ -192,6 +192,10 @@ public class MainWindow : Window, IDisposable
                         editingNote = waymark.Notes;
                         ImGui.OpenPopup($"EditWaymark##{waymark.Id}");
                     }
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetTooltip("Edit Waymark");
+                    }
 
                     // Edit popup
                     DrawEditPopup(waymark);
@@ -202,6 +206,10 @@ public class MainWindow : Window, IDisposable
                     {
                         MapHelper.FlagMapLocation(waymark.Position, waymark.Name);
                     }
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetTooltip("Flag Location on Map");
+                    }
 
                     // Delete button
                     ImGui.SameLine();
@@ -210,9 +218,13 @@ public class MainWindow : Window, IDisposable
                         waymarkToDelete = waymark;
                         showDeleteWaypointConfirmation = true;
                     }
-                }
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetTooltip("Delete Waymark");
+                    }
 
-                ImGui.EndTable();
+                    ImGui.EndTable();
+                }
             }
         }
     }

@@ -33,11 +33,19 @@ public class ConfigWindow : Window, IDisposable
         ImGui.Separator();
         ImGui.Spacing();
 
-        // Enable/Disable waymark display
-        var waymarksEnabled = configuration.WaymarksEnabled;
-        if (ImGui.Checkbox("Enable Waymark Display on Map", ref waymarksEnabled))
+        // Enable/Disable waymark map display
+        var waymarksMapEnabled = configuration.WaymarksMapEnabled;
+        if (ImGui.Checkbox("Enable Waymark Display on Map", ref waymarksMapEnabled))
         {
-            configuration.WaymarksEnabled = waymarksEnabled;
+            configuration.WaymarksMapEnabled = waymarksMapEnabled;
+            configuration.Save();
+        }
+
+        // Enable/Disable waymark minimap display
+        var waymarksMinimapEnabled = configuration.WaymarksMinimapEnabled;
+        if (ImGui.Checkbox("Enable Waymark Display on Minimap", ref waymarksMinimapEnabled))
+        {
+            configuration.WaymarksMinimapEnabled = waymarksMinimapEnabled;
             configuration.Save();
         }
 
