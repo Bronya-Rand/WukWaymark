@@ -1,15 +1,22 @@
-using Dalamud.Bindings.ImGui;
-using System;
-using System.Numerics;
-using WukWaymark.Models;
-
-namespace WukWaymark.Windows
+using Dalamud.Bindings.ImGui;using System;using System.Numerics;using WukWaymark.Models;namespace WukWaymark.Windows
 {
+    /// <summary>
+    /// Static utility class responsible for rendering waymark shapes on ImGui draw lists.
+    /// </summary>
     public static class WaymarkRenderer
     {
         /// <summary>
-        /// Renders a waymark at the given screen position using the specified shape.
+        /// Renders a single waymark marker using the ImGui draw list.
+        /// 
+        /// Handles all shape rendering logic based on the specified WaymarkShape enum value.
+        /// Each shape is rendered with a black outline for visibility against map backgrounds,
+        /// with the interior filled using the provided color.
         /// </summary>
+        /// <param name="drawList">The ImGui draw list to render to</param>
+        /// <param name="position">Screen-space coordinates where the marker center should be drawn</param>
+        /// <param name="shape">The shape to render (Circle, Square, Triangle, Diamond, or Star)</param>
+        /// <param name="markerSize">The radius/size of the marker in pixels. Typical range: 4-20px</param>
+        /// <param name="colorU32">The fill color in ImGui 32-bit RGBA format (generated via ImGui.ColorConvertFloat4ToU32)</param>
         public static void RenderWaymarkShape(ImDrawListPtr drawList, Vector2 position, WaymarkShape shape, float markerSize, uint colorU32)
         {
             // Draw black outline for visibility

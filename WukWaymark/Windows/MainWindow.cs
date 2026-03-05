@@ -12,15 +12,36 @@ using WukWaymark.Models;
 
 namespace WukWaymark.Windows;
 
+/// <summary>
+/// Main window for viewing and managing all saved waymarks.
+/// </summary>
 public class MainWindow : Window, IDisposable
 {
     private readonly Plugin plugin;
+
+    /// <summary>Currently selected waymark for editing (if any)</summary>
     private Waymark? selectedWaymark;
+
+    /// <summary>Waymark pending deletion (confirmation pending)</summary>
     private Waymark? waymarkToDelete;
+
+    // ═══════════════════════════════════════════════════════════════
+    // WAYMARK EDITING STATE
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>Name being edited in the current edit session</summary>
     private string editingName = string.Empty;
+
+    /// <summary>Color being edited in the current edit session</summary>
     private Vector4 editingColor = Vector4.One;
+
+    /// <summary>Notes being edited in the current edit session</summary>
     private string editingNote = string.Empty;
+
+    /// <summary>Shape being edited in the current edit session</summary>
     private WaymarkShape editingShape = WaymarkShape.Circle;
+
+    /// <summary>Tracks whether the delete confirmation dialog is displayed</summary>
     private bool showDeleteWaypointConfirmation;
 
     public MainWindow(Plugin plugin)

@@ -6,14 +6,16 @@ using WukWaymark.Models;
 
 namespace WukWaymark.Windows;
 
+/// <summary>
+/// Configuration window for customizing waymark display behavior and managing data.
+/// </summary>
 public class ConfigWindow : Window, IDisposable
 {
     private readonly Configuration configuration;
+
+    /// <summary>Tracks whether the "Clear All" confirmation dialog is shown</summary>
     private bool showClearConfirmation = false;
 
-    // We give this window a constant ID using ###.
-    // This allows for labels to be dynamic, like "{FPS Counter}fps###XYZ counter window",
-    // and the window ID will always be "###XYZ counter window" for ImGui
     public ConfigWindow(Plugin plugin) : base("WukWaymark Settings###ConfigWindow")
     {
         Size = new Vector2(400, 300);

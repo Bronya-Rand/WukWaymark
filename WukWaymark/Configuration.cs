@@ -8,41 +8,39 @@ namespace WukWaymark;
 [Serializable]
 public class Configuration : IPluginConfiguration
 {
+    /// <summary>Configuration version for tracking schema changes</summary>
     public int Version { get; set; } = 0;
-
-    public bool IsConfigWindowMovable { get; set; } = true;
-    public bool SomePropertyToBeSavedAndWithADefault { get; set; } = true;
-
-    // ═══════════════════════════════════════════════════════════════
-    // Waymark System Configuration
-    // ═══════════════════════════════════════════════════════════════
-
     /// <summary>
-    /// Collection of all saved waymarks.
+    /// Collection of all saved waymarks persisted across sessions.
     /// </summary>
     public List<Waymark> Waymarks { get; set; } = new();
 
     /// <summary>
-    /// Enable or disable waymark display on the map.
+    /// Enable or disable rendering of waymarks on the in-game map overlay.
+    /// When disabled, waymarks are still saved but not displayed.
     /// </summary>
     public bool WaymarksEnabled { get; set; } = true;
 
     /// <summary>
-    /// Size of waymark markers (radius in pixels).
+    /// Radius (in pixels) of waymark markers displayed on the map.
+    /// Valid range: 4.0 to 20.0 pixels.
+    /// Affects all waymarks uniformly via this global setting.
     /// </summary>
     public float WaymarkMarkerSize { get; set; } = 8.0f;
 
     /// <summary>
-    /// Show tooltips when hovering over waymark markers.
+    /// Show tooltips displaying waymark names when hovering over markers on the map.
+    /// Useful for quickly identifying waymarks without opening the UI.
     /// </summary>
     public bool ShowWaymarkTooltips { get; set; } = true;
 
     /// <summary>
-    /// Default shape for newly created waymarks.
+    /// Default shape applied to newly created waymarks.
+    /// Users can customize individual waymarks after creation.
+    /// Options: Circle, Square, Triangle, Diamond, Star
     /// </summary>
     public WaymarkShape DefaultWaymarkShape { get; set; } = WaymarkShape.Circle;
 
-    // The below exists just to make saving less cumbersome
     public void Save()
     {
         Plugin.PluginInterface.SavePluginConfig(this);

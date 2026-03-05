@@ -8,8 +8,10 @@ using System.Numerics;
 namespace WukWaymark.Windows
 {
     /// <summary>
-    /// Renders custom waymark markers on the UI Minimap (_NaviMap).
-    /// Modeled after MinimapTrackerWindow's window overlay behavior and WaymarkWindow's rendering logic.
+    /// Renders custom waymark markers on the UI Minimap (_NaviMap addon).
+    /// 
+    /// This window overlays waymark markers on the small corner minimap that appears
+    /// during gameplay, allowing players to see waymark locations without opening the full map.
     /// </summary>
     public unsafe class WaymarkMinimapWindow : Window, IDisposable
     {
@@ -19,7 +21,7 @@ namespace WukWaymark.Windows
         {
             this.plugin = plugin;
 
-            // Initial flags - set to invisible overlay
+            // Configure as transparent, non-interactive overlay
             Flags |= ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoBackground
                 | ImGuiWindowFlags.NoBringToFrontOnFocus | ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoNavFocus;
 
@@ -27,6 +29,10 @@ namespace WukWaymark.Windows
             IsOpen = true;
         }
 
+        /// <summary>
+        /// Calculates zoom-based scaling multiplier for minimap marker positioning.
+        /// Uses the same quadratic scaling formula as the full map, though minimap zoom may differ.
+        /// </summary>
         private static float GetMultiplier(float zoomIndex, float uiScale)
         {
             // Retain quadratic scaling logic. (May need tuning specific to NaviMap)
@@ -36,6 +42,10 @@ namespace WukWaymark.Windows
             return result;
         }
 
+        /// <summary>
+        /// Called before rendering to detect and configure the minimap addon.
+        /// Ensures the overlay window is positioned and sized correctly to match the minimap.
+        /// </summary>
         public override void PreDraw()
         {
             var naviMapAddonPtr = Plugin.GameGui.GetAddonByName("_NaviMap");
@@ -46,7 +56,6 @@ namespace WukWaymark.Windows
             if (naviMap == null || !naviMap->IsVisible)
                 return;
 
-            // Optional bounds set, matching MinimapTrackerWindow inspiration
             var rootNode = naviMap->RootNode;
             if (rootNode != null)
             {
@@ -55,6 +64,11 @@ namespace WukWaymark.Windows
             }
         }
 
+        /// <summary>
+        /// Renders the waymark markers onto the minimap.
+        /// Calculates each waymark's screen position based on player and map data,
+        /// and draws the markers using the configured shapes and colors.
+        /// </summary>
         public override void Draw()
         {
             if (!plugin.Configuration.WaymarksEnabled)
@@ -111,7 +125,6 @@ namespace WukWaymark.Windows
                 if (waymark.MapId != agentMap->SelectedMapId)
                     continue;
 
-                // Map offsets based on MinimapTrackerService logic
                 // The Circle position should be the center minus the relative position
                 var relativeOffset = new Vector2(
                     player.Position.X - waymark.Position.X,
@@ -158,6 +171,10 @@ namespace WukWaymark.Windows
             }
         }
 
+        /// <summary>
+        /// Rotates a point around a center by a given angle.
+        /// Used for waymark rotation when the minimap is unlocked.
+        /// </summary>
         private static Vector2 RotatePoint(Vector2 center, Vector2 pos, float angle)
         {
             var cosTheta = Math.Cos(angle);
