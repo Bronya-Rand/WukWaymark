@@ -35,6 +35,12 @@ public class Waymark
     public uint MapId { get; set; }
 
     /// <summary>
+    /// World ID for this waymark location.
+    /// </summary>
+    /// <remarks>Used to differenciate waymarks between different worlds.</remarks>
+    public uint WorldId { get; set; }
+
+    /// <summary>
     /// Custom color for this waymark marker (RGBA).
     /// </summary>
     public Vector4 Color { get; set; } = new Vector4(1.0f, 0.8f, 0.0f, 1.0f); // Gold/yellow default

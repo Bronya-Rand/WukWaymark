@@ -34,12 +34,12 @@ namespace WukWaymark.Windows
                 case WaymarkShape.Diamond:
                     var diamondSize = markerSize * 1.15f;
                     var dOutSize = diamondSize + outlineThickness;
-                    
+
                     var do1 = position + new Vector2(0, -dOutSize);
                     var do2 = position + new Vector2(dOutSize, 0);
                     var do3 = position + new Vector2(0, dOutSize);
                     var do4 = position + new Vector2(-dOutSize, 0);
-                    
+
                     drawList.AddTriangleFilled(do1, do2, do3, outlineColor);
                     drawList.AddTriangleFilled(do1, do3, do4, outlineColor);
 
@@ -47,7 +47,7 @@ namespace WukWaymark.Windows
                     var d2 = position + new Vector2(diamondSize, 0);
                     var d3 = position + new Vector2(0, diamondSize);
                     var d4 = position + new Vector2(-diamondSize, 0);
-                    
+
                     drawList.AddTriangleFilled(d1, d2, d3, colorU32);
                     drawList.AddTriangleFilled(d1, d3, d4, colorU32);
                     break;
@@ -55,18 +55,18 @@ namespace WukWaymark.Windows
                 case WaymarkShape.Triangle:
                     float sqrt3_2 = 0.866025f;
                     float outSize = markerSize + 1.0f + outlineThickness;
-                    
+
                     var ot1 = position + new Vector2(0, -outSize);
                     var ot2 = position + new Vector2(outSize * sqrt3_2, outSize * 0.5f);
                     var ot3 = position + new Vector2(-outSize * sqrt3_2, outSize * 0.5f);
-                    
+
                     drawList.AddTriangleFilled(ot1, ot2, ot3, outlineColor);
 
                     float inSize = markerSize + 1.0f;
                     var t1 = position + new Vector2(0, -inSize);
                     var t2 = position + new Vector2(inSize * sqrt3_2, inSize * 0.5f);
                     var t3 = position + new Vector2(-inSize * sqrt3_2, inSize * 0.5f);
-                    
+
                     drawList.AddTriangleFilled(t1, t2, t3, colorU32);
                     break;
 
@@ -94,7 +94,7 @@ namespace WukWaymark.Windows
 
                 var p1 = center + new Vector2(MathF.Cos(angle1) * r1, MathF.Sin(angle1) * r1);
                 var p2 = center + new Vector2(MathF.Cos(angle2) * r2, MathF.Sin(angle2) * r2);
-                
+
                 drawList.AddTriangleFilled(center, p1, p2, outlineColor);
             }
 
@@ -109,7 +109,7 @@ namespace WukWaymark.Windows
 
                 var p1 = center + new Vector2(MathF.Cos(angle1) * r1, MathF.Sin(angle1) * r1);
                 var p2 = center + new Vector2(MathF.Cos(angle2) * r2, MathF.Sin(angle2) * r2);
-                
+
                 drawList.AddTriangleFilled(center, p1, p2, colorU32);
             }
         }

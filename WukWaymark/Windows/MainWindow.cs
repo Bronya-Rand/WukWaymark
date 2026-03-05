@@ -19,6 +19,7 @@ public class MainWindow : Window, IDisposable
     private Waymark? waymarkToDelete;
     private string editingName = string.Empty;
     private Vector4 editingColor = Vector4.One;
+    private string editingNote = string.Empty;
     private WaymarkShape editingShape = WaymarkShape.Circle;
     private bool showDeleteWaypointConfirmation;
 
@@ -104,7 +105,7 @@ public class MainWindow : Window, IDisposable
             // Display waymarks as a table
             if (ImGui.BeginTable("WaymarkTable", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Resizable))
             {
-                ImGui.TableSetupColumn("Color", ImGuiTableColumnFlags.WidthFixed, 80);
+                ImGui.TableSetupColumn("Marker", ImGuiTableColumnFlags.WidthFixed, 120);
                 ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 100);
                 ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.WidthStretch, 140);
                 ImGui.TableSetupColumn("Created", ImGuiTableColumnFlags.WidthFixed, 140);
@@ -113,6 +114,7 @@ public class MainWindow : Window, IDisposable
 
                 foreach (var waymark in waymarks.ToList())
                 {
+                    using var rowId = ImRaii.PushId(waymark.Id.ToString());
                     ImGui.TableNextRow();
 
                     // Color preview
@@ -130,10 +132,17 @@ public class MainWindow : Window, IDisposable
                     // Name
                     ImGui.TableNextColumn();
                     ImGui.Text(waymark.Name);
+                    if (waymark.Notes.Length > 0)
+                        if (ImGui.IsItemHovered())
+                        {
+                            ImGui.BeginTooltip();
+                            ImGui.Text(waymark.Notes);
+                            ImGui.EndTooltip();
+                        }
 
                     // Location
                     ImGui.TableNextColumn();
-                    var locationText = GetLocationName(waymark.TerritoryId);
+                    var locationText = GetLocationName(waymark.TerritoryId, waymark.WorldId);
                     ImGui.Text(locationText);
                     if (ImGui.IsItemHovered())
                     {
@@ -141,6 +150,7 @@ public class MainWindow : Window, IDisposable
                         ImGui.Text($"Position: X: {waymark.Position.X:F2}, Y: {waymark.Position.Y:F2}, Z: {waymark.Position.Z:F2}");
                         ImGui.Text($"Territory ID: {waymark.TerritoryId}");
                         ImGui.Text($"Map ID: {waymark.MapId}");
+                        ImGui.Text($"World ID: {waymark.WorldId}");
                         ImGui.EndTooltip();
                     }
 
@@ -158,51 +168,12 @@ public class MainWindow : Window, IDisposable
                         editingName = waymark.Name;
                         editingColor = waymark.Color;
                         editingShape = waymark.Shape;
+                        editingNote = waymark.Notes;
                         ImGui.OpenPopup($"EditWaymark##{waymark.Id}");
                     }
 
                     // Edit popup
-                    if (ImGui.BeginPopup($"EditWaymark##{waymark.Id}"))
-                    {
-                        ImGui.Text($"Edit Waymark");
-                        ImGui.Separator();
-
-                        ImGui.Text("Name:");
-                        ImGui.SetNextItemWidth(250);
-                        ImGui.InputText($"##Name{waymark.Id}", ref editingName, 100);
-
-                        ImGui.Text("Color:");
-                        ImGui.SetNextItemWidth(250);
-                        ImGui.ColorEdit4($"##Color{waymark.Id}", ref editingColor);
-
-                        ImGui.Text("Shape:");
-                        ImGui.SetNextItemWidth(250);
-                        var shapeIndex = (int)editingShape;
-                        if (ImGui.Combo($"##Shape{waymark.Id}", ref shapeIndex, "Circle\0Square\0Triangle\0Diamond\0Star\0", 5))
-                        {
-                            editingShape = (WaymarkShape)shapeIndex;
-                        }
-
-                        ImGui.Spacing();
-
-                        if (ImGui.Button("Save"))
-                        {
-                            waymark.Name = editingName;
-                            waymark.Color = editingColor;
-                            waymark.Shape = editingShape;
-                            plugin.Configuration.Save();
-                            ImGui.CloseCurrentPopup();
-                        }
-
-                        ImGui.SameLine();
-
-                        if (ImGui.Button("Cancel"))
-                        {
-                            ImGui.CloseCurrentPopup();
-                        }
-
-                        ImGui.EndPopup();
-                    }
+                    DrawEditPopup(waymark);
 
                     // Flag button
                     ImGui.SameLine();
@@ -222,6 +193,55 @@ public class MainWindow : Window, IDisposable
 
                 ImGui.EndTable();
             }
+        }
+    }
+    private void DrawEditPopup(Waymark waymark)
+    {
+        if (ImGui.BeginPopup($"EditWaymark##{waymark.Id}"))
+        {
+            ImGui.Text($"Edit Waymark");
+            ImGui.Separator();
+
+            ImGui.Text("Name:");
+            ImGui.SetNextItemWidth(250);
+            ImGui.InputText($"##Name{waymark.Id}", ref editingName, 100);
+
+            ImGui.Text("Color:");
+            ImGui.SetNextItemWidth(250);
+            ImGui.ColorEdit4($"##Color{waymark.Id}", ref editingColor);
+
+            ImGui.Text("Shape:");
+            ImGui.SetNextItemWidth(250);
+            var shapeIndex = (int)editingShape;
+            if (ImGui.Combo($"##Shape{waymark.Id}", ref shapeIndex, "Circle\0Square\0Triangle\0Diamond\0Star\0", 5))
+            {
+                editingShape = (WaymarkShape)shapeIndex;
+            }
+
+            ImGui.Text("Note:");
+            ImGui.SetNextItemWidth(250);
+            ImGui.InputText($"##Note{waymark.Id}", ref editingNote, 100);
+
+            ImGui.Spacing();
+
+            if (ImGui.Button("Save"))
+            {
+                waymark.Name = editingName;
+                waymark.Color = editingColor;
+                waymark.Shape = editingShape;
+                waymark.Notes = editingNote;
+                plugin.Configuration.Save();
+                ImGui.CloseCurrentPopup();
+            }
+
+            ImGui.SameLine();
+
+            if (ImGui.Button("Cancel"))
+            {
+                ImGui.CloseCurrentPopup();
+            }
+
+            ImGui.EndPopup();
         }
     }
     private void DrawDeleteWaypointModal()
@@ -272,13 +292,33 @@ public class MainWindow : Window, IDisposable
             ImGui.EndPopup();
         }
     }
-    private string GetLocationName(ushort territoryId)
+
+    private string GetLocationName(ushort territoryId, uint worldId)
+    {
+        var territoryName = GetTerritoryName(territoryId);
+        var worldName = GetWorldName(worldId);
+
+        var player = Plugin.ObjectTable.LocalPlayer;
+        if (player != null && player.CurrentWorld.RowId == worldId)
+            return territoryName;
+        else
+            return $"{territoryName} ({worldName})";
+    }
+    private string GetTerritoryName(ushort territoryId)
     {
         if (Plugin.DataManager.GetExcelSheet<TerritoryType>().TryGetRow(territoryId, out var territoryRow))
         {
             return territoryRow.PlaceName.Value.Name.ToString();
         }
         return $"Unknown (ID: {territoryId})";
+    }
+    private string GetWorldName(uint worldId)
+    {
+        if (Plugin.DataManager.GetExcelSheet<World>().TryGetRow(worldId, out var worldRow))
+        {
+            return worldRow.Name.ToString();
+        }
+        return $"Unknown (ID: {worldId})";
     }
 }
 

@@ -5,7 +5,6 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using WukWaymark.Models;
 
 namespace WukWaymark.Windows
 {

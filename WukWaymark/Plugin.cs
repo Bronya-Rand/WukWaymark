@@ -31,6 +31,7 @@ public sealed class Plugin : IDalamudPlugin
     private ConfigWindow ConfigWindow { get; init; }
     private MainWindow MainWindow { get; init; }
     private WaymarkWindow WaymarkWindow { get; init; }
+    private WaymarkMinimapWindow WaymarkMinimapWindow { get; init; }
 
     public Plugin()
     {
@@ -40,9 +41,11 @@ public sealed class Plugin : IDalamudPlugin
         ConfigWindow = new ConfigWindow(this);
         MainWindow = new MainWindow(this);
         WaymarkWindow = new WaymarkWindow(this);
+        WaymarkMinimapWindow = new WaymarkMinimapWindow(this);
 
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(MainWindow);
+        WindowSystem.AddWindow(WaymarkMinimapWindow);
 
         CommandManager.AddHandler(WaymarkCommandName, new CommandInfo(OnWaymarkCommand)
         {
@@ -80,6 +83,7 @@ public sealed class Plugin : IDalamudPlugin
         ConfigWindow.Dispose();
         MainWindow.Dispose();
         WaymarkWindow.Dispose();
+        WaymarkMinimapWindow.Dispose();
 
         CommandManager.RemoveHandler(WaymarkCommandName);
     }

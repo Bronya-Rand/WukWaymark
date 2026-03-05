@@ -37,12 +37,20 @@ public class WaymarkService
             mapId = territoryRow.Map.RowId;
         }
 
+        var currentWorldId = Plugin.ObjectTable.LocalPlayer?.CurrentWorld.RowId ?? 0;
+        if (currentWorldId == 0)
+        {
+            Plugin.ChatGui.PrintError("[WukWaymark] Unable to determine current world.");
+            return null;
+        }
+
         // Create a new waymark
         var waymark = new Waymark
         {
             Position = player.Position,
             TerritoryId = territoryId,
             MapId = mapId,
+            WorldId = currentWorldId,
             Name = $"Waymark {configuration.Waymarks.Count + 1}",
             Color = Colors.RandomizeColor(),
             Shape = configuration.DefaultWaymarkShape,
