@@ -78,7 +78,7 @@ namespace WukWaymark.Windows
             // ═══════════════════════════════════════════════════════════════
 
             // Node 53: Main map container component
-            var mapComponent = (AtkComponentNode*)areaMap->GetComponentNodeById(53);
+            var mapComponent = areaMap->GetComponentNodeById(53);
             if (mapComponent == null) return;
 
             // Node 7: Player marker image (compass/cone graphic)
@@ -95,8 +95,12 @@ namespace WukWaymark.Windows
             // STEP 4: Extract map state for coordinate calculations
             // ═══════════════════════════════════════════════════════════════
 
-            var slider = (AtkComponentSlider*)areaMap->GetNodeById(16)->GetComponent();
-            var zoomIndex = slider->Value;
+            var sliderNode = (AtkComponentNode*)areaMap->GetNodeById(16);
+            if (sliderNode == null) return;
+            var sliderComponent = (AtkComponentSlider*)sliderNode->GetComponent();
+            if (sliderComponent == null) return;
+
+            var zoomIndex = sliderComponent->Value;
             var zoneScale = agentMap->CurrentMapSizeFactorFloat;
 
             // Map center in world space is treated as origin (0, 0, 0)
