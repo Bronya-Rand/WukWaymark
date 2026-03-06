@@ -44,6 +44,7 @@ public sealed class Plugin : IDalamudPlugin
 
     /// <summary>Primary slash command: /wwmark</summary>
     private const string WaymarkCommandName = "/wwmark";
+    private const string WaymarkCommandAlias = "/wukwaymark";
 
     /// <summary>Persistent configuration storage for waymarks and settings</summary>
     public Configuration Configuration { get; init; }
@@ -81,7 +82,6 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(MainWindow);
         WindowSystem.AddWindow(WaymarkMinimapWindow);
-        // Note: WaymarkWindow is not added to WindowSystem as it renders via a custom draw handler
 
         // Register the /waymark command
         CommandManager.AddHandler(WaymarkCommandName, new CommandInfo(OnWaymarkCommand)
@@ -90,6 +90,14 @@ public sealed class Plugin : IDalamudPlugin
             Manage and view your custom waymarks.
             {WaymarkCommandName} here → Save your current location as a waymark.
             """, ShowInHelp = true
+        });
+        // Also register an alias for the command
+        CommandManager.AddHandler(WaymarkCommandAlias, new CommandInfo(OnWaymarkCommand)
+        {
+            HelpMessage = $"""
+            Alias for {WaymarkCommandName}.
+            {WaymarkCommandAlias} here → Alias for `{WaymarkCommandName} here`.
+            """, ShowInHelp = false
         });
 
         // Register UI drawing handlers
@@ -121,11 +129,11 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     /// <summary>
-    /// Handles the /waymark slash command with optional arguments.
+    /// Handles the /wwmark slash command with optional arguments.
     /// 
     /// Usage:
-    /// /waymark           - Opens the main waymark list window
-    /// /waymark here      - Saves current location as a new waymark
+    /// /wwmark           - Opens the main waymark list window
+    /// /wwmark here      - Saves current location as a new waymark
     /// </summary>
     private void OnWaymarkCommand(string command, string args)
     {
