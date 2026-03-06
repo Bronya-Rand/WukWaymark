@@ -14,11 +14,11 @@ namespace WukWaymark.Utils
         public static Vector4 GetNextColor(int currentIndex)
         {
             // Increment hue per entry
-            float angle = (currentIndex * 60f + 60f) % 360f;
-            
-            float h = angle / 360f;
-            float s = 1.0f;
-            float v = 1.0f;
+            var angle = ((currentIndex * 60f) + 60f) % 360f;
+
+            var h = angle / 360f;
+            var s = 1.0f;
+            var v = 1.0f;
 
             float r = 0f, g = 0f, b = 0f;
             ImGui.ColorConvertHSVtoRGB(h, s, v, ref r, ref g, ref b);

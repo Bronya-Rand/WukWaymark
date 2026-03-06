@@ -41,7 +41,7 @@ public class WaymarkService(Configuration configuration)
         }
 
         // Look up the map ID from the territory data
-        uint mapId = Plugin.ClientState.MapId;
+        var mapId = Plugin.ClientState.MapId;
         if (mapId == 0)
         {
             Plugin.ChatGui.PrintError("[WukWaymark] Unable to determine current map.");
