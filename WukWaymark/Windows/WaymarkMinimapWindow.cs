@@ -117,8 +117,9 @@ namespace WukWaymark.Windows
                 naviMap->Y + (mapSize.Y / 2f)
             ) + viewportPos;
 
+            var globalScale = Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale;
             // Adjust Y to line up with minimap pivot better
-            mapCenterScreenPos.Y -= 5f;
+            mapCenterScreenPos.Y -= 5f * globalScale;
 
             var mousePos = ImGui.GetMousePos();
             string? hoveredWaymarkName = null;
@@ -156,13 +157,13 @@ namespace WukWaymark.Windows
                 }
 
                 var colorU32 = ImGui.ColorConvertFloat4ToU32(waymark.Color);
-                var markerSize = plugin.Configuration.WaymarkMarkerSize;
+                var markerSize = plugin.Configuration.WaymarkMarkerSize * globalScale;
 
                 WaymarkRenderer.RenderWaymarkShape(drawList, waymarkScreenPos, waymark.Shape, markerSize, colorU32);
 
                 if (plugin.Configuration.ShowWaymarkTooltips &&
                     !string.IsNullOrEmpty(waymark.Name) &&
-                    Vector2.Distance(mousePos, waymarkScreenPos) <= markerSize + 2.0f)
+                    Vector2.Distance(mousePos, waymarkScreenPos) <= markerSize + (2.0f * globalScale))
                 {
                     hoveredWaymarkName = waymark.Name;
                 }

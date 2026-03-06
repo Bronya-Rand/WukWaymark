@@ -144,14 +144,15 @@ namespace WukWaymark.Windows
             {
                 // When viewing other territories: Node 7 is centered on map
                 var node = &imageNode->AtkResNode;
-                float nodeX, nodeY;
-                node->GetPositionFloat(&nodeX, &nodeY);
+                var nodeX = node->X;
+                var nodeY = node->Y;
 
                 var markerCenterX = nodeX + (node->Width / 2f * node->ScaleX);
                 var markerCenterY = nodeY + (node->Height / 2f * node->ScaleY);
 
-                var mapOffsetX = 16.0f * areaMap->Scale;
-                var mapOffsetY = 52.0f * areaMap->Scale;
+                var globalScale = Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale;
+                var mapOffsetX = 16.0f * areaMap->Scale * globalScale;
+                var mapOffsetY = 52.0f * areaMap->Scale * globalScale;
 
                 mapCenterScreenPos = new Vector2(
                     areaMap->X - mapOffsetX + (markerCenterX * areaMap->Scale),

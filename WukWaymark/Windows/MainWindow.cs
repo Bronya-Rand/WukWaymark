@@ -138,14 +138,15 @@ public class MainWindow : Window, IDisposable
                     // Color preview
                     ImGui.TableNextColumn();
                     var colorU32 = ImGui.ColorConvertFloat4ToU32(waymark.Color);
+                    var globalScale = Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale;
                     WaymarkRenderer.RenderWaymarkShape(
                         ImGui.GetWindowDrawList(),
-                        ImGui.GetCursorScreenPos() + new Vector2(20, 10),
+                        ImGui.GetCursorScreenPos() + new Vector2(20 * globalScale, 10 * globalScale),
                         waymark.Shape,
-                        8f,
+                        8f * globalScale,
                         colorU32
                     );
-                    ImGui.Dummy(new Vector2(40, 20));
+                    ImGui.Dummy(new Vector2(40 * globalScale, 20 * globalScale));
 
                     // Name
                     ImGui.TableNextColumn();
