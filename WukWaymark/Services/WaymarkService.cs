@@ -67,7 +67,7 @@ public class WaymarkService(Configuration configuration)
             MapId = mapId,
             WorldId = currentWorldId,
             Name = $"Waymark {configuration.Waymarks.Count + 1}",
-            Color = Colors.RandomizeColor(),
+            Color = Colors.GetNextColor(configuration.Waymarks.Count),
             Shape = configuration.DefaultWaymarkShape,
             CreatedAt = DateTime.Now,
         };
