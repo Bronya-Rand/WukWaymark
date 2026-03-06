@@ -29,10 +29,7 @@ namespace WukWaymark.Services
             try
             {
                 var addonBase = (AtkUnitBase*)naviMap.Address;
-                var baseComponent = addonBase->GetComponentByNodeId(18);
-                if (baseComponent == null) return null;
-
-                var rotationNode = baseComponent->GetNodeById(8);
+                var rotationNode = addonBase->GetNodeById(8);
                 if (rotationNode == null) return null;
 
                 return rotationNode->GetRotation();
