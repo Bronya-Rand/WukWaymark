@@ -44,6 +44,8 @@ public class MainWindow : Window, IDisposable
     /// <summary>Tracks whether the delete confirmation dialog is displayed</summary>
     private bool showDeleteWaymarkConfirmation;
 
+    private readonly string[] shapeOptions = Enum.GetNames<WaymarkShape>();
+
     public MainWindow(Plugin plugin)
         : base("WukWaymark - Saved Locations##WWMain", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
@@ -246,7 +248,7 @@ public class MainWindow : Window, IDisposable
             ImGui.Text("Shape:");
             ImGui.SetNextItemWidth(250);
             var shapeIndex = (int)editingShape;
-            if (ImGui.Combo($"##Shape{waymark.Id}", ref shapeIndex, "Circle\0Square\0Triangle\0Diamond\0Star\0", 5))
+            if (ImGui.Combo($"##Shape{waymark.Id}", ref shapeIndex, shapeOptions, 5))
             {
                 editingShape = (WaymarkShape)shapeIndex;
             }
