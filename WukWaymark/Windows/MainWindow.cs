@@ -19,9 +19,6 @@ public class MainWindow : Window, IDisposable
 {
     private readonly Plugin plugin;
 
-    /// <summary>Currently selected waymark for editing (if any)</summary>
-    private Waymark? selectedWaymark;
-
     /// <summary>Waymark pending deletion (confirmation pending)</summary>
     private Waymark? waymarkToDelete;
 
@@ -43,8 +40,6 @@ public class MainWindow : Window, IDisposable
 
     /// <summary>Tracks whether the delete confirmation dialog is displayed</summary>
     private bool showDeleteWaymarkConfirmation;
-
-    private readonly string[] shapeOptions = Enum.GetNames<WaymarkShape>();
 
     public MainWindow(Plugin plugin)
         : base("WukWaymark - Saved Locations##WWMain", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
@@ -187,7 +182,6 @@ public class MainWindow : Window, IDisposable
                     // Edit button
                     if (ImGuiComponents.IconButton(FontAwesomeIcon.Edit))
                     {
-                        selectedWaymark = waymark;
                         editingName = waymark.Name;
                         editingColor = waymark.Color;
                         editingShape = waymark.Shape;
