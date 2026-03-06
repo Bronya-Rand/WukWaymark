@@ -1,4 +1,3 @@
-using Dalamud.Game.NativeWrapper;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using System;
 
@@ -6,12 +5,12 @@ namespace WukWaymark.Services
 {
     internal class MinimapService
     {
-        public static unsafe bool? IsMinimapLocked(AtkUnitBasePtr naviMap)
+        public static unsafe bool? IsMinimapLocked(AtkUnitBase* naviMap)
         {
             try
             {
-                var addonBase = (AtkUnitBase*)naviMap.Address;
-                var baseComponent = addonBase->GetComponentByNodeId(18);
+                var baseComponent = naviMap->GetComponentByNodeId(18);
+                if (baseComponent == null) return null;
 
                 var lockedComponent = (AtkComponentCheckBox*)baseComponent->GetNodeById(4);
                 if (lockedComponent == null) return null;
@@ -24,12 +23,11 @@ namespace WukWaymark.Services
                 return null;
             }
         }
-        public static unsafe float? GetMinimapRotation(AtkUnitBasePtr naviMap)
+        public static unsafe float? GetMinimapRotation(AtkUnitBase* naviMap)
         {
             try
             {
-                var addonBase = (AtkUnitBase*)naviMap.Address;
-                var rotationNode = addonBase->GetNodeById(8);
+                var rotationNode = naviMap->GetNodeById(8);
                 if (rotationNode == null) return null;
 
                 return rotationNode->GetRotation();
@@ -40,12 +38,11 @@ namespace WukWaymark.Services
                 return null;
             }
         }
-        public static unsafe float? GetMinimapZoom(AtkUnitBasePtr naviMap)
+        public static unsafe float? GetMinimapZoom(AtkUnitBase* naviMap)
         {
             try
             {
-                var addonBase = (AtkUnitBase*)naviMap.Address;
-                var baseComponent = addonBase->GetComponentByNodeId(18);
+                var baseComponent = naviMap->GetComponentByNodeId(18);
                 if (baseComponent == null) return null;
 
                 var imageNode = baseComponent->GetImageNodeById(6);
