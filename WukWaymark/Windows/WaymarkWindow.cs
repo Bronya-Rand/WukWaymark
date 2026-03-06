@@ -1,5 +1,5 @@
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Utility;
+using Dalamud.Interface.Windowing;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using System;
@@ -15,11 +15,13 @@ namespace WukWaymark.Windows
     public unsafe class WaymarkWindow : IDisposable
     {
         private readonly Plugin plugin;
+        private readonly WindowSystem windowSystem;
 
-        public WaymarkWindow(Plugin plugin)
+        public WaymarkWindow(Plugin plugin, WindowSystem windowSystem)
         {
             this.plugin = plugin;
-            Plugin.PluginInterface.UiBuilder.Draw += DrawWaymarkOverlay;
+            this.windowSystem = windowSystem;
+            Plugin.PluginInterface.UiBuilder.Draw += Draw;
         }
 
         /// <summary>
@@ -48,8 +50,10 @@ namespace WukWaymark.Windows
         /// Main rendering method called every frame by UiBuilder.Draw.
         /// Renders waymark markers on the map overlay.
         /// </summary>
-        private void DrawWaymarkOverlay()
+        private void Draw()
         {
+            windowSystem.Draw();
+
             if (!plugin.Configuration.WaymarksMapEnabled)
                 return;
 
@@ -82,197 +86,185 @@ namespace WukWaymark.Windows
             if (imageNode == null) return;
 
             // ═══════════════════════════════════════════════════════════════
-            // STEP 3: Create full-screen overlay window
+            // STEP 3: Get foreground draw list for direct rendering
             // ═══════════════════════════════════════════════════════════════
 
-            ImGuiHelpers.ForceNextWindowMainViewport();
-            ImGui.SetNextWindowPos(Vector2.Zero);
-            ImGui.SetNextWindowSize(ImGuiHelpers.MainViewport.Size);
-            ImGui.SetNextWindowBgAlpha(0); // Fully transparent
+            var drawList = ImGui.GetForegroundDrawList();
 
-            if (ImGui.Begin("##WaymarkMapOverlay",
-                ImGuiWindowFlags.NoDecoration |
-                ImGuiWindowFlags.NoInputs |
-                ImGuiWindowFlags.NoBackground |
-                ImGuiWindowFlags.NoFocusOnAppearing |
-                ImGuiWindowFlags.NoNav))
+            // ═══════════════════════════════════════════════════════════════
+            // STEP 4: Extract map state for coordinate calculations
+            // ═══════════════════════════════════════════════════════════════
+
+            var slider = (AtkComponentSlider*)areaMap->GetNodeById(16)->GetComponent();
+            var zoomIndex = slider->Value;
+            var zoneScale = agentMap->CurrentMapSizeFactorFloat;
+
+            // Map center in world space is treated as origin (0, 0, 0)
+            var mapCenterWorldPos = Vector3.Zero;
+
+            // ═══════════════════════════════════════════════════════════════
+            // STEP 5: Calculate static map center screen position
+            // ═══════════════════════════════════════════════════════════════
+
+            Vector2 mapCenterScreenPos;
+            var player = Plugin.ObjectTable.LocalPlayer;
+
+            if (player != null && imageNode->IsVisible())
             {
-                var drawList = ImGui.GetWindowDrawList();
+                // When player is in current zone: back-calculate true map center
+                // Node 7 shows player's actual position, so we can derive where (0,0,0) would be
 
-                // ═══════════════════════════════════════════════════════════════
-                // STEP 4: Extract map state for coordinate calculations
-                // ═══════════════════════════════════════════════════════════════
+                var node = &imageNode->AtkResNode;
+                float nodeX, nodeY;
+                node->GetPositionFloat(&nodeX, &nodeY);
 
-                var slider = (AtkComponentSlider*)areaMap->GetNodeById(16)->GetComponent();
-                var zoomIndex = slider->Value;
-                var zoneScale = agentMap->CurrentMapSizeFactorFloat;
+                // Get player marker center in screen space
+                var playerMarkerCenterX = nodeX + (node->Width / 2f * node->ScaleX);
+                var playerMarkerCenterY = nodeY + (node->Height / 2f * node->ScaleY);
 
-                // Map center in world space is treated as origin (0, 0, 0)
-                var mapCenterWorldPos = Vector3.Zero;
+                // Apply UI chrome offsets
+                var mapOffsetX = 16.0f * areaMap->Scale;
+                var mapOffsetY = 52.0f * areaMap->Scale;
 
-                // ═══════════════════════════════════════════════════════════════
-                // STEP 5: Calculate static map center screen position
-                // ═══════════════════════════════════════════════════════════════
+                var playerScreenX = areaMap->X - mapOffsetX + (playerMarkerCenterX * areaMap->Scale);
+                var playerScreenY = areaMap->Y + mapOffsetY + (playerMarkerCenterY * areaMap->Scale);
 
-                Vector2 mapCenterScreenPos;
-                var player = Plugin.ObjectTable.LocalPlayer;
+                // Calculate player's offset from world origin in screen space
+                var multiplier = GetMultiplier(zoomIndex, areaMap->Scale);
+                var playerOffsetX = player.Position.X * zoneScale * multiplier;
+                var playerOffsetY = player.Position.Z * zoneScale * multiplier;
 
-                if (player != null && imageNode->IsVisible())
+                // Back-calculate map center: player screen pos - player offset from origin
+                mapCenterScreenPos = new Vector2(
+                    playerScreenX - playerOffsetX,
+                    playerScreenY - playerOffsetY
+                );
+            }
+            else
+            {
+                // When viewing other territories: Node 7 is centered on map
+                var node = &imageNode->AtkResNode;
+                float nodeX, nodeY;
+                node->GetPositionFloat(&nodeX, &nodeY);
+
+                var markerCenterX = nodeX + (node->Width / 2f * node->ScaleX);
+                var markerCenterY = nodeY + (node->Height / 2f * node->ScaleY);
+
+                var mapOffsetX = 16.0f * areaMap->Scale;
+                var mapOffsetY = 52.0f * areaMap->Scale;
+
+                mapCenterScreenPos = new Vector2(
+                    areaMap->X - mapOffsetX + (markerCenterX * areaMap->Scale),
+                    areaMap->Y + mapOffsetY + (markerCenterY * areaMap->Scale)
+                );
+            }
+
+            // Debug: Draw purple dot at calculated map center
+            //drawList.AddCircleFilled(mapCenterScreenPos, 5.0f, 0xFFFF00FF);
+
+            // ═══════════════════════════════════════════════════════════════
+            // STEP 6: Get map bounds for edge clamping
+            // ═══════════════════════════════════════════════════════════════
+
+            var clipNode = mapComponent->Component->UldManager.SearchNodeById(0);
+            if (clipNode == null) clipNode = &mapComponent->AtkResNode;
+
+            float mapBoxX, mapBoxY;
+            clipNode->GetPositionFloat(&mapBoxX, &mapBoxY);
+
+            var mapMinX = areaMap->X + (mapBoxX * areaMap->Scale);
+            var mapMinY = areaMap->Y + (mapBoxY * areaMap->Scale);
+            var mapMaxX = mapMinX + (clipNode->Width * clipNode->ScaleX * areaMap->Scale);
+            var mapMaxY = mapMinY + (clipNode->Height * clipNode->ScaleY * areaMap->Scale);
+
+            // ═══════════════════════════════════════════════════════════════
+            // STEP 7: Process and render waymarks
+            // ═══════════════════════════════════════════════════════════════
+
+            var mousePos = ImGui.GetMousePos();
+            string? hoveredWaymarkName = null;
+
+            foreach (var waymark in plugin.Configuration.Waymarks)
+            {
+                // Only show waymarks for the current map (regardless of territory)
+                if (waymark.MapId != agentMap->SelectedMapId)
+                    continue;
+
+                // Convert waymark's world position to screen space coordinates relative to map center
+                // Calculate world-space delta from map center to waymark
+                var deltaWorldX = waymark.Position.X - mapCenterWorldPos.X;
+                var deltaWorldY = waymark.Position.Z - mapCenterWorldPos.Z;
+
+                var multiplier = GetMultiplier(zoomIndex, areaMap->Scale);
+
+                // Transform world delta to screen delta relative to map center
+                var waymarkScreenX = mapCenterScreenPos.X + (deltaWorldX * zoneScale * multiplier);
+                var waymarkScreenY = mapCenterScreenPos.Y + (deltaWorldY * zoneScale * multiplier);
+
+                // Clamp waymark position to map boundaries to prevent markers from being drawn off-screen
+                var outOfBoundsX = waymarkScreenX < mapMinX || waymarkScreenX > mapMaxX;
+                var outOfBoundsY = waymarkScreenY < mapMinY || waymarkScreenY > mapMaxY;
+
+                if (outOfBoundsX || outOfBoundsY)
                 {
-                    // When player is in current zone: back-calculate true map center
-                    // Node 7 shows player's actual position, so we can derive where (0,0,0) would be
+                    // Ray-to-rectangle intersection
+                    var rayDirX = waymarkScreenX - mapCenterScreenPos.X;
+                    var rayDirY = waymarkScreenY - mapCenterScreenPos.Y;
 
-                    var node = &imageNode->AtkResNode;
-                    float nodeX, nodeY;
-                    node->GetPositionFloat(&nodeX, &nodeY);
+                    var tPointX = float.MaxValue;
+                    if (rayDirX > 0)
+                        tPointX = (mapMaxX - mapCenterScreenPos.X) / rayDirX;
+                    else if (rayDirX < 0)
+                        tPointX = (mapMinX - mapCenterScreenPos.X) / rayDirX;
 
-                    // Get player marker center in screen space
-                    var playerMarkerCenterX = nodeX + (node->Width / 2f * node->ScaleX);
-                    var playerMarkerCenterY = nodeY + (node->Height / 2f * node->ScaleY);
+                    var tPointY = float.MaxValue;
+                    if (rayDirY > 0)
+                        tPointY = (mapMaxY - mapCenterScreenPos.Y) / rayDirY;
+                    else if (rayDirY < 0)
+                        tPointY = (mapMinY - mapCenterScreenPos.Y) / rayDirY;
 
-                    // Apply UI chrome offsets
-                    var mapOffsetX = 16.0f * areaMap->Scale;
-                    var mapOffsetY = 52.0f * areaMap->Scale;
+                    var tIntersect = Math.Min(Math.Abs(tPointX), Math.Abs(tPointY));
 
-                    var playerScreenX = areaMap->X - mapOffsetX + (playerMarkerCenterX * areaMap->Scale);
-                    var playerScreenY = areaMap->Y + mapOffsetY + (playerMarkerCenterY * areaMap->Scale);
-
-                    // Calculate player's offset from world origin in screen space
-                    var multiplier = GetMultiplier(zoomIndex, areaMap->Scale);
-                    var playerOffsetX = player.Position.X * zoneScale * multiplier;
-                    var playerOffsetY = player.Position.Z * zoneScale * multiplier;
-
-                    // Back-calculate map center: player screen pos - player offset from origin
-                    mapCenterScreenPos = new Vector2(
-                        playerScreenX - playerOffsetX,
-                        playerScreenY - playerOffsetY
-                    );
-                }
-                else
-                {
-                    // When viewing other territories: Node 7 is centered on map
-                    var node = &imageNode->AtkResNode;
-                    float nodeX, nodeY;
-                    node->GetPositionFloat(&nodeX, &nodeY);
-
-                    var markerCenterX = nodeX + (node->Width / 2f * node->ScaleX);
-                    var markerCenterY = nodeY + (node->Height / 2f * node->ScaleY);
-
-                    var mapOffsetX = 16.0f * areaMap->Scale;
-                    var mapOffsetY = 52.0f * areaMap->Scale;
-
-                    mapCenterScreenPos = new Vector2(
-                        areaMap->X - mapOffsetX + (markerCenterX * areaMap->Scale),
-                        areaMap->Y + mapOffsetY + (markerCenterY * areaMap->Scale)
-                    );
-                }
-
-                // Debug: Draw purple dot at calculated map center
-                //drawList.AddCircleFilled(mapCenterScreenPos, 5.0f, 0xFFFF00FF);
-
-                // ═══════════════════════════════════════════════════════════════
-                // STEP 6: Get map bounds for edge clamping
-                // ═══════════════════════════════════════════════════════════════
-
-                var clipNode = mapComponent->Component->UldManager.SearchNodeById(0);
-                if (clipNode == null) clipNode = &mapComponent->AtkResNode;
-
-                float mapBoxX, mapBoxY;
-                clipNode->GetPositionFloat(&mapBoxX, &mapBoxY);
-
-                var mapMinX = areaMap->X + (mapBoxX * areaMap->Scale);
-                var mapMinY = areaMap->Y + (mapBoxY * areaMap->Scale);
-                var mapMaxX = mapMinX + (clipNode->Width * clipNode->ScaleX * areaMap->Scale);
-                var mapMaxY = mapMinY + (clipNode->Height * clipNode->ScaleY * areaMap->Scale);
-
-                // ═══════════════════════════════════════════════════════════════
-                // STEP 7: Process and render waymarks
-                // ═══════════════════════════════════════════════════════════════
-
-                var mousePos = ImGui.GetMousePos();
-                string? hoveredWaymarkName = null;
-
-                foreach (var waymark in plugin.Configuration.Waymarks)
-                {
-                    // Only show waymarks for the current map (regardless of territory)
-                    if (waymark.MapId != agentMap->SelectedMapId)
-                        continue;
-
-                    // Convert waymark's world position to screen space coordinates relative to map center
-                    // Calculate world-space delta from map center to waymark
-                    var deltaWorldX = waymark.Position.X - mapCenterWorldPos.X;
-                    var deltaWorldY = waymark.Position.Z - mapCenterWorldPos.Z;
-
-                    var multiplier = GetMultiplier(zoomIndex, areaMap->Scale);
-
-                    // Transform world delta to screen delta relative to map center
-                    var waymarkScreenX = mapCenterScreenPos.X + (deltaWorldX * zoneScale * multiplier);
-                    var waymarkScreenY = mapCenterScreenPos.Y + (deltaWorldY * zoneScale * multiplier);
-
-                    // Clamp waymark position to map boundaries to prevent markers from being drawn off-screen
-                    var outOfBoundsX = waymarkScreenX < mapMinX || waymarkScreenX > mapMaxX;
-                    var outOfBoundsY = waymarkScreenY < mapMinY || waymarkScreenY > mapMaxY;
-
-                    if (outOfBoundsX || outOfBoundsY)
+                    if (tIntersect < 1.0f)
                     {
-                        // Ray-to-rectangle intersection
-                        var rayDirX = waymarkScreenX - mapCenterScreenPos.X;
-                        var rayDirY = waymarkScreenY - mapCenterScreenPos.Y;
-
-                        var tPointX = float.MaxValue;
-                        if (rayDirX > 0)
-                            tPointX = (mapMaxX - mapCenterScreenPos.X) / rayDirX;
-                        else if (rayDirX < 0)
-                            tPointX = (mapMinX - mapCenterScreenPos.X) / rayDirX;
-
-                        var tPointY = float.MaxValue;
-                        if (rayDirY > 0)
-                            tPointY = (mapMaxY - mapCenterScreenPos.Y) / rayDirY;
-                        else if (rayDirY < 0)
-                            tPointY = (mapMinY - mapCenterScreenPos.Y) / rayDirY;
-
-                        var tIntersect = Math.Min(Math.Abs(tPointX), Math.Abs(tPointY));
-
-                        if (tIntersect < 1.0f)
-                        {
-                            waymarkScreenX = mapCenterScreenPos.X + (rayDirX * tIntersect);
-                            waymarkScreenY = mapCenterScreenPos.Y + (rayDirY * tIntersect);
-                        }
-                    }
-
-                    // Final safety clamp
-                    waymarkScreenX = Math.Clamp(waymarkScreenX, mapMinX, mapMaxX);
-                    waymarkScreenY = Math.Clamp(waymarkScreenY, mapMinY, mapMaxY);
-
-                    var waymarkScreenPos = new Vector2(waymarkScreenX, waymarkScreenY);
-
-                    // Render the waymark using its configured shape
-                    var colorU32 = ImGui.ColorConvertFloat4ToU32(waymark.Color);
-                    var markerSize = plugin.Configuration.WaymarkMarkerSize;
-
-                    WaymarkRenderer.RenderWaymarkShape(drawList, waymarkScreenPos, waymark.Shape, markerSize, colorU32);
-
-                    // Display tooltip if enabled and mouse is hovering within marker bounds
-                    if (plugin.Configuration.ShowWaymarkTooltips &&
-                        !string.IsNullOrEmpty(waymark.Name) &&
-                        Vector2.Distance(mousePos, waymarkScreenPos) <= markerSize + 2.0f)
-                    {
-                        hoveredWaymarkName = waymark.Name;
+                        waymarkScreenX = mapCenterScreenPos.X + (rayDirX * tIntersect);
+                        waymarkScreenY = mapCenterScreenPos.Y + (rayDirY * tIntersect);
                     }
                 }
 
-                // Display tooltip for hovered waymark
-                if (hoveredWaymarkName != null)
+                // Final safety clamp
+                waymarkScreenX = Math.Clamp(waymarkScreenX, mapMinX, mapMaxX);
+                waymarkScreenY = Math.Clamp(waymarkScreenY, mapMinY, mapMaxY);
+
+                var waymarkScreenPos = new Vector2(waymarkScreenX, waymarkScreenY);
+
+                // Render the waymark using its configured shape
+                var colorU32 = ImGui.ColorConvertFloat4ToU32(waymark.Color);
+                var markerSize = plugin.Configuration.WaymarkMarkerSize;
+
+                WaymarkRenderer.RenderWaymarkShape(drawList, waymarkScreenPos, waymark.Shape, markerSize, colorU32);
+
+                // Display tooltip if enabled and mouse is hovering within marker bounds
+                if (plugin.Configuration.ShowWaymarkTooltips &&
+                    !string.IsNullOrEmpty(waymark.Name) &&
+                    Vector2.Distance(mousePos, waymarkScreenPos) <= markerSize + 2.0f)
                 {
-                    ImGui.SetTooltip(hoveredWaymarkName);
+                    hoveredWaymarkName = waymark.Name;
                 }
             }
-            ImGui.End();
+
+            // Display tooltip for hovered waymark
+            if (hoveredWaymarkName != null)
+            {
+                ImGui.BeginTooltip();
+                ImGui.TextUnformatted(hoveredWaymarkName);
+                ImGui.EndTooltip();
+            }
         }
 
         public void Dispose()
         {
-            Plugin.PluginInterface.UiBuilder.Draw -= DrawWaymarkOverlay;
+            Plugin.PluginInterface.UiBuilder.Draw -= Draw;
             GC.SuppressFinalize(this);
         }
     }
