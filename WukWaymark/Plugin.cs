@@ -17,17 +17,11 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Main plugin interface for accessing Dalamud services</summary>
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
 
-    /// <summary>Provides access to game textures and icons</summary>
-    [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
-
     /// <summary>Manages in-game slash commands</summary>
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
 
     /// <summary>Provides current game world and client state information</summary>
     [PluginService] internal static IClientState ClientState { get; private set; } = null!;
-
-    /// <summary>Provides information about the current player character</summary>
-    [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
 
     /// <summary>Provides access to game data via Lumina Excel sheets</summary>
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
