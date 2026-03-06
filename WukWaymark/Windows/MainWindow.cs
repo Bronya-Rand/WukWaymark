@@ -242,7 +242,7 @@ public class MainWindow : Window, IDisposable
 
             ImGui.Text("Shape:");
             ImGui.SetNextItemWidth(250);
-            var shapeDropPreview = Enum.GetName(waymark.Shape) ?? "Unknown";
+            var shapeDropPreview = Enum.GetName(editingShape) ?? "Unknown";
             using (var shapeDrop = ImRaii.Combo($"##Shape{waymark.Id}", shapeDropPreview))
             {
                 if (shapeDrop.Success)
