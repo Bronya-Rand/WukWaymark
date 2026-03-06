@@ -16,7 +16,7 @@ public class ConfigWindow : Window, IDisposable
     /// <summary>Tracks whether the "Clear All" confirmation dialog is shown</summary>
     private bool showClearConfirmation = false;
 
-    public ConfigWindow(Plugin plugin) : base("WukWaymark Settings###ConfigWindow")
+    public ConfigWindow(Plugin plugin) : base("WukWaymark Settings##WWSettings")
     {
         Size = new Vector2(400, 300);
         configuration = plugin.Configuration;

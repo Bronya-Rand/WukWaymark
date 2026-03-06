@@ -45,7 +45,7 @@ public class MainWindow : Window, IDisposable
     private bool showDeleteWaymarkConfirmation;
 
     public MainWindow(Plugin plugin)
-        : base("WukWaymark - Saved Locations##MainWindow", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+        : base("WukWaymark - Saved Locations##WWMain", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         SizeConstraints = new WindowSizeConstraints
         {
@@ -108,7 +108,7 @@ public class MainWindow : Window, IDisposable
             {
                 ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "No waymarks saved yet. Create one!");
                 ImGui.Indent(5);
-                ImGui.Text("Use '/wwaymark here' or the");
+                ImGui.Text("Use '/wwmark here' or the");
                 ImGui.SameLine();
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
                 {
