@@ -3,7 +3,7 @@ using System;
 
 namespace WukWaymark.Services
 {
-    internal class MinimapService
+    internal class NaviMapStateReader
     {
         public static unsafe bool? IsMinimapLocked(AtkUnitBase* naviMap)
         {

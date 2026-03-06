@@ -87,17 +87,17 @@ namespace WukWaymark.Windows
             // Calculate screen and bounds for _NaviMap
             // ═══════════════════════════════════════════════════════════════
 
-            var isLocked = MinimapService.IsMinimapLocked(naviMap);
+            var isLocked = NaviMapStateReader.IsMinimapLocked(naviMap);
             if (isLocked == null)
                 return;
             MinimapLocked = isLocked.Value;
 
-            var rotation = MinimapService.GetMinimapRotation(naviMap);
+            var rotation = NaviMapStateReader.GetMinimapRotation(naviMap);
             if (rotation == null)
                 return;
             MinimapRotation = rotation.Value;
 
-            var zoom = MinimapService.GetMinimapZoom(naviMap);
+            var zoom = NaviMapStateReader.GetMinimapZoom(naviMap);
             if (zoom == null)
                 return;
             MinimapZoom = zoom.Value;
