@@ -58,7 +58,7 @@ namespace WukWaymark.Windows
             // ═══════════════════════════════════════════════════════════════
 
             var areaMapAddonPtr = Plugin.GameGui.GetAddonByName("AreaMap");
-            if (areaMapAddonPtr == IntPtr.Zero)
+            if (areaMapAddonPtr.IsNull)
                 return; // AreaMap UI not open
 
             var areaMap = (AtkUnitBase*)areaMapAddonPtr.Address;
@@ -79,6 +79,7 @@ namespace WukWaymark.Windows
 
             // Node 7: Player marker image (compass/cone graphic)
             var imageNode = (AtkImageNode*)Marshal.ReadIntPtr(areaMapAddonPtr, 0x3B8);
+            if (imageNode == null) return;
 
             // ═══════════════════════════════════════════════════════════════
             // STEP 3: Create full-screen overlay window
@@ -265,8 +266,8 @@ namespace WukWaymark.Windows
                 {
                     ImGui.SetTooltip(hoveredWaymarkName);
                 }
-                ImGui.End();
             }
+            ImGui.End();
         }
 
         public void Dispose()
