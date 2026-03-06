@@ -1,5 +1,4 @@
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Windowing;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using System;
@@ -15,12 +14,10 @@ namespace WukWaymark.Windows
     public unsafe class WaymarkWindow : IDisposable
     {
         private readonly Plugin plugin;
-        private readonly WindowSystem windowSystem;
 
-        public WaymarkWindow(Plugin plugin, WindowSystem windowSystem)
+        public WaymarkWindow(Plugin plugin)
         {
             this.plugin = plugin;
-            this.windowSystem = windowSystem;
             Plugin.PluginInterface.UiBuilder.Draw += Draw;
         }
 
@@ -52,8 +49,6 @@ namespace WukWaymark.Windows
         /// </summary>
         private void Draw()
         {
-            windowSystem.Draw();
-
             if (!plugin.Configuration.WaymarksMapEnabled)
                 return;
 

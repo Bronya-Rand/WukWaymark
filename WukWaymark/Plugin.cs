@@ -81,7 +81,7 @@ public sealed class Plugin : IDalamudPlugin
         // Initialize UI windows
         ConfigWindow = new ConfigWindow(this);
         MainWindow = new MainWindow(this);
-        WaymarkWindow = new WaymarkWindow(this, WindowSystem);
+        WaymarkWindow = new WaymarkWindow(this);
         WaymarkMinimapWindow = new WaymarkMinimapWindow(this);
 
         WindowSystem.AddWindow(ConfigWindow);
