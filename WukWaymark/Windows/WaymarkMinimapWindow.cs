@@ -4,6 +4,7 @@ using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using System;
 using System.Numerics;
+using WukWaymark.Services;
 
 namespace WukWaymark.Windows
 {
@@ -17,6 +18,9 @@ namespace WukWaymark.Windows
     {
         private readonly Plugin plugin;
 
+        private bool MinimapLocked { get; set; }
+        private float MinimapRotation { get; set; }
+        private float MinimapZoom { get; set; }
         public WaymarkMinimapWindow(Plugin plugin) : base("WaymarkMinimapWindow###WaymarkMinimap")
         {
             this.plugin = plugin;
@@ -63,7 +67,7 @@ namespace WukWaymark.Windows
                 return;
 
             var naviMapAddonPtr = Plugin.GameGui.GetAddonByName("_NaviMap");
-            if (naviMapAddonPtr == IntPtr.Zero)
+            if (naviMapAddonPtr.IsNull)
                 return;
 
             var naviMap = (AtkUnitBase*)naviMapAddonPtr.Address;
@@ -83,10 +87,16 @@ namespace WukWaymark.Windows
             // ═══════════════════════════════════════════════════════════════
             // Calculate screen and bounds for _NaviMap
             // ═══════════════════════════════════════════════════════════════
+            var isLocked = MinimapService.IsMinimapLocked(naviMapAddonPtr);
+            var rotation = MinimapService.GetMinimapRotation(naviMapAddonPtr);
+            var zoom = MinimapService.GetMinimapZoom(naviMapAddonPtr);
+            if (isLocked == null || rotation == null || zoom == null)
+                return;
 
-            var isLocked = ((AtkComponentCheckBox*)naviMap->GetNodeById(4)->GetComponent())->IsChecked;
-            var rotation = naviMap->GetNodeById(8)->Rotation;
-            var zoom = naviMap->GetNodeById(18)->GetComponent()->GetImageNodeById(6)->ScaleX;
+            MinimapLocked = isLocked.Value;
+            MinimapRotation = rotation.Value;
+            MinimapZoom = zoom.Value;
+
             var naviScale = naviMap->Scale;
             var zoneScale = agentMap->CurrentMapSizeFactorFloat * 1.0f;
 
@@ -121,14 +131,14 @@ namespace WukWaymark.Windows
 
                 relativeOffset *= zoneScale;
                 relativeOffset *= naviScale;
-                relativeOffset *= zoom;
+                relativeOffset *= MinimapZoom;
 
                 var waymarkScreenPos = mapCenterScreenPos - relativeOffset;
 
                 // Apply rotation if unlocked
-                if (!isLocked)
+                if (!MinimapLocked)
                 {
-                    waymarkScreenPos = RotatePoint(mapCenterScreenPos, waymarkScreenPos, rotation);
+                    waymarkScreenPos = RotatePoint(mapCenterScreenPos, waymarkScreenPos, MinimapRotation);
                 }
 
                 // Clamp to minimap radius
