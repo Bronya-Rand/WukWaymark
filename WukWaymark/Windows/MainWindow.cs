@@ -247,10 +247,21 @@ public class MainWindow : Window, IDisposable
 
             ImGui.Text("Shape:");
             ImGui.SetNextItemWidth(250);
-            var shapeIndex = (int)editingShape;
-            if (ImGui.Combo($"##Shape{waymark.Id}", ref shapeIndex, shapeOptions, 5))
+            var shapeDropPreview = Enum.GetName(waymark.Shape) ?? "Unknown";
+            using (var shapeDrop = ImRaii.Combo($"##Shape{waymark.Id}", shapeDropPreview))
             {
-                editingShape = (WaymarkShape)shapeIndex;
+                if (shapeDrop.Success)
+                {
+                    var shapeNames = Enum.GetNames<WaymarkShape>();
+                    foreach (var shapeName in shapeNames)
+                    {
+                        if (ImGui.Selectable(shapeName, shapeName == shapeDropPreview))
+                        {
+                            var newShape = Enum.Parse<WaymarkShape>(shapeName);
+                            editingShape = newShape;
+                        }
+                    }
+                }
             }
 
             ImGui.Text("Note:");
