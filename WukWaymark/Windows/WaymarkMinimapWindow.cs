@@ -17,7 +17,6 @@ namespace WukWaymark.Windows
     public unsafe class WaymarkMinimapWindow : Window, IDisposable
     {
         private readonly Plugin plugin;
-
         private bool MinimapLocked { get; set; }
         private float MinimapRotation { get; set; }
         private float MinimapZoom { get; set; }
@@ -87,14 +86,20 @@ namespace WukWaymark.Windows
             // ═══════════════════════════════════════════════════════════════
             // Calculate screen and bounds for _NaviMap
             // ═══════════════════════════════════════════════════════════════
-            var isLocked = MinimapService.IsMinimapLocked(naviMapAddonPtr);
-            var rotation = MinimapService.GetMinimapRotation(naviMapAddonPtr);
-            var zoom = MinimapService.GetMinimapZoom(naviMapAddonPtr);
-            if (isLocked == null || rotation == null || zoom == null)
-                return;
 
+            var isLocked = MinimapService.IsMinimapLocked(naviMap);
+            if (isLocked == null)
+                return;
             MinimapLocked = isLocked.Value;
+
+            var rotation = MinimapService.GetMinimapRotation(naviMap);
+            if (rotation == null)
+                return;
             MinimapRotation = rotation.Value;
+
+            var zoom = MinimapService.GetMinimapZoom(naviMap);
+            if (zoom == null)
+                return;
             MinimapZoom = zoom.Value;
 
             var naviScale = naviMap->Scale;
