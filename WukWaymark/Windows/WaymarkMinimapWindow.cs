@@ -4,6 +4,7 @@ using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using System;
 using System.Numerics;
+using WukWaymark.Services;
 
 namespace WukWaymark.Windows
 {
@@ -16,7 +17,9 @@ namespace WukWaymark.Windows
     public unsafe class WaymarkMinimapWindow : Window, IDisposable
     {
         private readonly Plugin plugin;
-
+        private bool MinimapLocked { get; set; }
+        private float MinimapRotation { get; set; }
+        private float MinimapZoom { get; set; }
         public WaymarkMinimapWindow(Plugin plugin) : base("WaymarkMinimapWindow###WaymarkMinimap")
         {
             this.plugin = plugin;
@@ -63,7 +66,7 @@ namespace WukWaymark.Windows
                 return;
 
             var naviMapAddonPtr = Plugin.GameGui.GetAddonByName("_NaviMap");
-            if (naviMapAddonPtr == IntPtr.Zero)
+            if (naviMapAddonPtr.IsNull)
                 return;
 
             var naviMap = (AtkUnitBase*)naviMapAddonPtr.Address;
@@ -84,9 +87,21 @@ namespace WukWaymark.Windows
             // Calculate screen and bounds for _NaviMap
             // ═══════════════════════════════════════════════════════════════
 
-            var isLocked = ((AtkComponentCheckBox*)naviMap->GetNodeById(4)->GetComponent())->IsChecked;
-            var rotation = naviMap->GetNodeById(8)->Rotation;
-            var zoom = naviMap->GetNodeById(18)->GetComponent()->GetImageNodeById(6)->ScaleX;
+            var isLocked = MinimapService.IsMinimapLocked(naviMap);
+            if (isLocked == null)
+                return;
+            MinimapLocked = isLocked.Value;
+
+            var rotation = MinimapService.GetMinimapRotation(naviMap);
+            if (rotation == null)
+                return;
+            MinimapRotation = rotation.Value;
+
+            var zoom = MinimapService.GetMinimapZoom(naviMap);
+            if (zoom == null)
+                return;
+            MinimapZoom = zoom.Value;
+
             var naviScale = naviMap->Scale;
             var zoneScale = agentMap->CurrentMapSizeFactorFloat * 1.0f;
 
@@ -102,8 +117,9 @@ namespace WukWaymark.Windows
                 naviMap->Y + (mapSize.Y / 2f)
             ) + viewportPos;
 
+            var globalScale = Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale;
             // Adjust Y to line up with minimap pivot better
-            mapCenterScreenPos.Y -= 5f;
+            mapCenterScreenPos.Y -= 5f * globalScale;
 
             var mousePos = ImGui.GetMousePos();
             string? hoveredWaymarkName = null;
@@ -121,14 +137,14 @@ namespace WukWaymark.Windows
 
                 relativeOffset *= zoneScale;
                 relativeOffset *= naviScale;
-                relativeOffset *= zoom;
+                relativeOffset *= MinimapZoom;
 
                 var waymarkScreenPos = mapCenterScreenPos - relativeOffset;
 
                 // Apply rotation if unlocked
-                if (!isLocked)
+                if (!MinimapLocked)
                 {
-                    waymarkScreenPos = RotatePoint(mapCenterScreenPos, waymarkScreenPos, rotation);
+                    waymarkScreenPos = RotatePoint(mapCenterScreenPos, waymarkScreenPos, MinimapRotation);
                 }
 
                 // Clamp to minimap radius
@@ -141,13 +157,13 @@ namespace WukWaymark.Windows
                 }
 
                 var colorU32 = ImGui.ColorConvertFloat4ToU32(waymark.Color);
-                var markerSize = plugin.Configuration.WaymarkMarkerSize;
+                var markerSize = plugin.Configuration.WaymarkMarkerSize * globalScale;
 
                 WaymarkRenderer.RenderWaymarkShape(drawList, waymarkScreenPos, waymark.Shape, markerSize, colorU32);
 
                 if (plugin.Configuration.ShowWaymarkTooltips &&
                     !string.IsNullOrEmpty(waymark.Name) &&
-                    Vector2.Distance(mousePos, waymarkScreenPos) <= markerSize + 2.0f)
+                    Vector2.Distance(mousePos, waymarkScreenPos) <= markerSize + (2.0f * globalScale))
                 {
                     hoveredWaymarkName = waymark.Name;
                 }

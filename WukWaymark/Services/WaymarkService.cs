@@ -1,4 +1,3 @@
-using Lumina.Excel.Sheets;
 using System;
 using WukWaymark.Models;
 using WukWaymark.Utils;
@@ -31,10 +30,7 @@ public class WaymarkService(Configuration configuration)
         // Verify player is logged in
         var player = Plugin.ObjectTable.LocalPlayer;
         if (player == null)
-        {
-            Plugin.ChatGui.PrintError("[WukWaymark] You must be logged in to save a waymark.");
             return null;
-        }
 
         // Get current territory ID
         var territoryId = Plugin.ClientState.TerritoryType;
@@ -45,10 +41,11 @@ public class WaymarkService(Configuration configuration)
         }
 
         // Look up the map ID from the territory data
-        uint mapId = 0;
-        if (Plugin.DataManager.GetExcelSheet<TerritoryType>().TryGetRow(territoryId, out var territoryRow))
+        var mapId = Plugin.ClientState.MapId;
+        if (mapId == 0)
         {
-            mapId = territoryRow.Map.RowId;
+            Plugin.ChatGui.PrintError("[WukWaymark] Unable to determine current map.");
+            return null;
         }
 
         // Get current world ID (used to differentiate waymarks across data centers)
@@ -67,7 +64,7 @@ public class WaymarkService(Configuration configuration)
             MapId = mapId,
             WorldId = currentWorldId,
             Name = $"Waymark {configuration.Waymarks.Count + 1}",
-            Color = Colors.RandomizeColor(),
+            Color = Colors.GetNextColor(configuration.Waymarks.Count),
             Shape = configuration.DefaultWaymarkShape,
             CreatedAt = DateTime.Now,
         };

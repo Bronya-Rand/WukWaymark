@@ -19,9 +19,6 @@ public class MainWindow : Window, IDisposable
 {
     private readonly Plugin plugin;
 
-    /// <summary>Currently selected waymark for editing (if any)</summary>
-    private Waymark? selectedWaymark;
-
     /// <summary>Waymark pending deletion (confirmation pending)</summary>
     private Waymark? waymarkToDelete;
 
@@ -45,7 +42,7 @@ public class MainWindow : Window, IDisposable
     private bool showDeleteWaymarkConfirmation;
 
     public MainWindow(Plugin plugin)
-        : base("WukWaymark - Saved Locations##MainWindow", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+        : base("WukWaymark - Saved Locations##WWMain", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         SizeConstraints = new WindowSizeConstraints
         {
@@ -108,7 +105,7 @@ public class MainWindow : Window, IDisposable
             {
                 ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "No waymarks saved yet. Create one!");
                 ImGui.Indent(5);
-                ImGui.Text("Use '/wwaymark here' or the");
+                ImGui.Text("Use '/wwmark here' or the");
                 ImGui.SameLine();
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
                 {
@@ -141,14 +138,15 @@ public class MainWindow : Window, IDisposable
                     // Color preview
                     ImGui.TableNextColumn();
                     var colorU32 = ImGui.ColorConvertFloat4ToU32(waymark.Color);
+                    var globalScale = Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale;
                     WaymarkRenderer.RenderWaymarkShape(
                         ImGui.GetWindowDrawList(),
-                        ImGui.GetCursorScreenPos() + new Vector2(20, 10),
+                        ImGui.GetCursorScreenPos() + new Vector2(20 * globalScale, 10 * globalScale),
                         waymark.Shape,
-                        8f,
+                        8f * globalScale,
                         colorU32
                     );
-                    ImGui.Dummy(new Vector2(40, 20));
+                    ImGui.Dummy(new Vector2(40 * globalScale, 20 * globalScale));
 
                     // Name
                     ImGui.TableNextColumn();
@@ -185,7 +183,6 @@ public class MainWindow : Window, IDisposable
                     // Edit button
                     if (ImGuiComponents.IconButton(FontAwesomeIcon.Edit))
                     {
-                        selectedWaymark = waymark;
                         editingName = waymark.Name;
                         editingColor = waymark.Color;
                         editingShape = waymark.Shape;
@@ -245,10 +242,21 @@ public class MainWindow : Window, IDisposable
 
             ImGui.Text("Shape:");
             ImGui.SetNextItemWidth(250);
-            var shapeIndex = (int)editingShape;
-            if (ImGui.Combo($"##Shape{waymark.Id}", ref shapeIndex, "Circle\0Square\0Triangle\0Diamond\0Star\0", 5))
+            var shapeDropPreview = Enum.GetName(editingShape) ?? "Unknown";
+            using (var shapeDrop = ImRaii.Combo($"##Shape{waymark.Id}", shapeDropPreview))
             {
-                editingShape = (WaymarkShape)shapeIndex;
+                if (shapeDrop.Success)
+                {
+                    var shapeNames = Enum.GetNames<WaymarkShape>();
+                    foreach (var shapeName in shapeNames)
+                    {
+                        if (ImGui.Selectable(shapeName, shapeName == shapeDropPreview))
+                        {
+                            var newShape = Enum.Parse<WaymarkShape>(shapeName);
+                            editingShape = newShape;
+                        }
+                    }
+                }
             }
 
             ImGui.Text("Note:");

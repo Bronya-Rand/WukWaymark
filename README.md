@@ -18,7 +18,7 @@ WukWaymark is a plugin for Final Fantasy XIV that allows players to create and m
 
 ### Creating a Waymark
 
-To create a waymark, you can use the `/wwaymark here` command in chat or open the WukWaymark window and click the `Create Waymark` button (Map Pin Button).
+To create a waymark, you can use the `/wwmark here` command in chat or open the WukWaymark window and click the `Create Waymark` button (Map Pin Button).
 
 | Command | Window Button |
 | --- | --- |
