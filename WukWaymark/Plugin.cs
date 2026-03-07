@@ -38,6 +38,9 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Provides access to game objects and entities in the world</summary>
     [PluginService] internal static IObjectTable ObjectTable { get; private set; } = null!;
 
+    /// <summary>Provides access to Dalamud framework functionality</summary>
+    [PluginService] internal static IFramework Framework { get; private set; } = null!;
+
     // ═══════════════════════════════════════════════════════════════
     // PLUGIN CONFIGURATION & SERVICES
     // ═══════════════════════════════════════════════════════════════
@@ -64,8 +67,8 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Overlay for rendering waymarks on the full-screen area map</summary>
     private WaymarkWindow WaymarkWindow { get; init; }
 
-    /// <summary>Overlay for rendering waymarks on the minimap</summary>
-    private WaymarkMinimapWindow WaymarkMinimapWindow { get; init; }
+    /// <summary>Service for rendering waymarks on the minimap</summary>
+    private WaymarkMinimapService WaymarkMinimapService { get; init; }
 
     public Plugin()
     {
@@ -77,11 +80,10 @@ public sealed class Plugin : IDalamudPlugin
         ConfigWindow = new ConfigWindow(this);
         MainWindow = new MainWindow(this);
         WaymarkWindow = new WaymarkWindow(this);
-        WaymarkMinimapWindow = new WaymarkMinimapWindow(this);
+        WaymarkMinimapService = new WaymarkMinimapService(this);
 
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(MainWindow);
-        WindowSystem.AddWindow(WaymarkMinimapWindow);
 
         // Register the /waymark command
         CommandManager.AddHandler(WaymarkCommandName, new CommandInfo(OnWaymarkCommand)
@@ -122,7 +124,7 @@ public sealed class Plugin : IDalamudPlugin
         ConfigWindow.Dispose();
         MainWindow.Dispose();
         WaymarkWindow.Dispose();
-        WaymarkMinimapWindow.Dispose();
+        WaymarkMinimapService.Dispose();
 
         // Unregister the slash command
         CommandManager.RemoveHandler(WaymarkCommandName);
