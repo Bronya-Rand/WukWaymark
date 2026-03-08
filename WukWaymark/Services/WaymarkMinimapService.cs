@@ -132,7 +132,8 @@ namespace WukWaymark.Services
             // Cache waymarks to render
             foreach (var waymark in configuration.Waymarks)
             {
-                if (waymark.MapId != agentMap->SelectedMapId)
+                // Minimap only shows waymarks in the current zone
+                if (waymark.MapId != agentMap->CurrentMapId)
                     continue;
 
                 // Store world position - will convert to screen coords in PreDraw
