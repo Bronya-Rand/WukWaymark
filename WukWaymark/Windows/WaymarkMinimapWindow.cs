@@ -1,6 +1,6 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
-using System;
 using System.Numerics;
 using WukWaymark.Services;
 
@@ -63,7 +63,7 @@ namespace WukWaymark.Windows
 
                 if (_plugin.Configuration.ShowWaymarkTooltips &&
                     !string.IsNullOrEmpty(name) &&
-                    Vector2.Distance(mousePos, position) <= size + (2.0f * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale))
+                    Vector2.Distance(mousePos, position) <= size + (2.0f * ImGuiHelpers.GlobalScale))
                 {
                     hoveredWaymarkName = name;
                 }

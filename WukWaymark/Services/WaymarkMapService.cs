@@ -235,7 +235,7 @@ namespace WukWaymark.Services
                 waymarkScreenY = Math.Clamp(waymarkScreenY, MapMinY, MapMaxY);
 
                 var colorU32 = ImGui.ColorConvertFloat4ToU32(waymark.Color);
-                var markerSize = _configuration.WaymarkMarkerSize;
+                var markerSize = _configuration.WaymarkMarkerSize * ImGuiHelpers.GlobalScale;
 
                 WaymarksToRender.Add((new Vector2(waymarkScreenX, waymarkScreenY), waymark.Shape, markerSize, colorU32, waymark.Name));
             }

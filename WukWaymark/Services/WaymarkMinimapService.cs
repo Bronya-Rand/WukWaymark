@@ -1,3 +1,4 @@
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
@@ -101,7 +102,7 @@ namespace WukWaymark.Services
             _rotation = rotation;
             _zoom = zoom;
             _naviScale = naviMapAddon->Scale;
-            _globalScale = Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale;
+            _globalScale = ImGuiHelpers.GlobalScale;
 
             // Cache naviMap screen position so PrepareRender/GetMinimapBounds don't need GetAddonByName
             _naviMapX = naviMapAddon->X;
