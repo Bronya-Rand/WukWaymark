@@ -64,8 +64,8 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Main window displaying list of saved waymarks and management UI</summary>
     private MainWindow MainWindow { get; init; }
 
-    /// <summary>Overlay for rendering waymarks on the full-screen area map</summary>
-    private WaymarkWindow WaymarkWindow { get; init; }
+    /// <summary>Service for rendering waymarks on the full-screen area map</summary>
+    private WaymarkMapService WaymarkMapService { get; init; }
 
     /// <summary>Service for rendering waymarks on the minimap</summary>
     private WaymarkMinimapService WaymarkMinimapService { get; init; }
@@ -79,7 +79,7 @@ public sealed class Plugin : IDalamudPlugin
         // Initialize UI windows
         ConfigWindow = new ConfigWindow(this);
         MainWindow = new MainWindow(this);
-        WaymarkWindow = new WaymarkWindow(this);
+        WaymarkMapService = new WaymarkMapService(this);
         WaymarkMinimapService = new WaymarkMinimapService(this);
 
         WindowSystem.AddWindow(ConfigWindow);
@@ -123,7 +123,7 @@ public sealed class Plugin : IDalamudPlugin
 
         ConfigWindow.Dispose();
         MainWindow.Dispose();
-        WaymarkWindow.Dispose();
+        WaymarkMapService.Dispose();
         WaymarkMinimapService.Dispose();
 
         // Unregister the slash command
