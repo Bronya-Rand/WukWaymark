@@ -117,8 +117,8 @@ namespace WukWaymark.Services
             if (agentMap == null || agentMap->CurrentMapId == 0)
                 return;
 
-            // CurrentMapSizeFactorFloat returns values like 0.02
-            // but we need 2.0 for the coordinate math to work correctly
+            // CurrentMapSizeFactorFloat returns values like 0.02 for a zone scale of 2
+            // Multiply by 1.0f to convert it to a proper scale factor (e.g. 2.0 for a zone scale of 2)
             _zoneScale = agentMap->CurrentMapSizeFactorFloat * 1.0f;
 
             // Cache player world position
@@ -166,11 +166,8 @@ namespace WukWaymark.Services
             foreach (var (worldPos, shape, color, name) in _waymarksToRender)
             {
                 var circlePos = CalculateCirclePosition(worldPos, _cosRotation, _sinRotation);
-                if (!circlePos.HasValue)
-                    continue;
-
                 var markerSize = _configuration.WaymarkMarkerSize * _globalScale;
-                WaymarksToRender.Add((circlePos.Value, shape, markerSize, color, name));
+                WaymarksToRender.Add((circlePos, shape, markerSize, color, name));
             }
         }
 
@@ -183,7 +180,7 @@ namespace WukWaymark.Services
         /// <param name="cosTheta">The cosine of the rotation angle.</param>
         /// <param name="sinTheta">The sine of the rotation angle.</param>
         /// <returns>The screen position of the waymark, or null if it is outside the minimap bounds.</returns>
-        private Vector2? CalculateCirclePosition(Vector3 waymarkPosition, float cosTheta, float sinTheta)
+        private Vector2 CalculateCirclePosition(Vector3 waymarkPosition, float cosTheta, float sinTheta)
         {
             var relativeOffset = new Vector2(
                 _playerWorldPos.X - waymarkPosition.X,
@@ -220,8 +217,8 @@ namespace WukWaymark.Services
         /// <summary>
         /// Gets the screen position and size of the minimap.
         /// </summary>
-        /// <returns>The screen position and size of the minimap, or null if it is not visible.</returns>
-        internal (Vector2 Position, Vector2 Size)? GetMinimapBounds()
+        /// <returns>The screen position and size of the minimap.</returns>
+        internal (Vector2 Position, Vector2 Size) GetMinimapBounds()
         {
             const int naviMapSize = 218;
             var mapSize = new Vector2(naviMapSize * _naviScale, naviMapSize * _naviScale);
@@ -230,6 +227,7 @@ namespace WukWaymark.Services
             return (mapPos, mapSize);
         }
 
+        #endregion
         public void Dispose()
         {
             if (_disposed)
@@ -241,6 +239,4 @@ namespace WukWaymark.Services
             _disposed = true;
         }
     }
-
-        #endregion
 }

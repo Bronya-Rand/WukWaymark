@@ -2,7 +2,7 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 
 namespace WukWaymark.Services
 {
-    internal class NaviMapStateReader
+    internal static class NaviMapStateReader
     {
         /// <summary>
         /// Reads all minimap state values in a single pass, performing each node lookup only once.

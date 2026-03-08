@@ -41,11 +41,8 @@ namespace WukWaymark.Windows
 
             var minimapInfo = _service.GetMinimapBounds();
 
-            if (minimapInfo.HasValue)
-            {
-                Position = minimapInfo.Value.Position;
-                Size = minimapInfo.Value.Size;
-            }
+            Position = minimapInfo.Position;
+            Size = minimapInfo.Size;
         }
 
         public override void Draw()

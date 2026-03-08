@@ -128,6 +128,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Unregister the slash command
         CommandManager.RemoveHandler(WaymarkCommandName);
+        CommandManager.RemoveHandler(WaymarkCommandAlias);
     }
 
     /// <summary>
