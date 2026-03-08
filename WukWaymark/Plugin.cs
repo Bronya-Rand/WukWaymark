@@ -38,12 +38,16 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Provides access to game objects and entities in the world</summary>
     [PluginService] internal static IObjectTable ObjectTable { get; private set; } = null!;
 
+    /// <summary>Provides access to Dalamud framework functionality</summary>
+    [PluginService] internal static IFramework Framework { get; private set; } = null!;
+
     // ═══════════════════════════════════════════════════════════════
     // PLUGIN CONFIGURATION & SERVICES
     // ═══════════════════════════════════════════════════════════════
 
     /// <summary>Primary slash command: /wwmark</summary>
     private const string WaymarkCommandName = "/wwmark";
+    private const string WaymarkCommandAlias = "/wukwaymark";
 
     /// <summary>Persistent configuration storage for waymarks and settings</summary>
     public Configuration Configuration { get; init; }
@@ -60,11 +64,11 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Main window displaying list of saved waymarks and management UI</summary>
     private MainWindow MainWindow { get; init; }
 
-    /// <summary>Overlay for rendering waymarks on the full-screen area map</summary>
-    private WaymarkWindow WaymarkWindow { get; init; }
+    /// <summary>Service for rendering waymarks on the full-screen area map</summary>
+    private WaymarkMapService WaymarkMapService { get; init; }
 
-    /// <summary>Overlay for rendering waymarks on the minimap</summary>
-    private WaymarkMinimapWindow WaymarkMinimapWindow { get; init; }
+    /// <summary>Service for rendering waymarks on the minimap</summary>
+    private WaymarkMinimapService WaymarkMinimapService { get; init; }
 
     public Plugin()
     {
@@ -75,13 +79,11 @@ public sealed class Plugin : IDalamudPlugin
         // Initialize UI windows
         ConfigWindow = new ConfigWindow(this);
         MainWindow = new MainWindow(this);
-        WaymarkWindow = new WaymarkWindow(this);
-        WaymarkMinimapWindow = new WaymarkMinimapWindow(this);
+        WaymarkMapService = new WaymarkMapService(this);
+        WaymarkMinimapService = new WaymarkMinimapService(this);
 
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(MainWindow);
-        WindowSystem.AddWindow(WaymarkMinimapWindow);
-        // Note: WaymarkWindow is not added to WindowSystem as it renders via a custom draw handler
 
         // Register the /waymark command
         CommandManager.AddHandler(WaymarkCommandName, new CommandInfo(OnWaymarkCommand)
@@ -90,6 +92,14 @@ public sealed class Plugin : IDalamudPlugin
             Manage and view your custom waymarks.
             {WaymarkCommandName} here → Save your current location as a waymark.
             """, ShowInHelp = true
+        });
+        // Also register an alias for the command
+        CommandManager.AddHandler(WaymarkCommandAlias, new CommandInfo(OnWaymarkCommand)
+        {
+            HelpMessage = $"""
+            Alias for {WaymarkCommandName}.
+            {WaymarkCommandAlias} here → Alias for `{WaymarkCommandName} here`.
+            """, ShowInHelp = false
         });
 
         // Register UI drawing handlers
@@ -113,19 +123,20 @@ public sealed class Plugin : IDalamudPlugin
 
         ConfigWindow.Dispose();
         MainWindow.Dispose();
-        WaymarkWindow.Dispose();
-        WaymarkMinimapWindow.Dispose();
+        WaymarkMapService.Dispose();
+        WaymarkMinimapService.Dispose();
 
         // Unregister the slash command
         CommandManager.RemoveHandler(WaymarkCommandName);
+        CommandManager.RemoveHandler(WaymarkCommandAlias);
     }
 
     /// <summary>
-    /// Handles the /waymark slash command with optional arguments.
+    /// Handles the /wwmark slash command with optional arguments.
     /// 
     /// Usage:
-    /// /waymark           - Opens the main waymark list window
-    /// /waymark here      - Saves current location as a new waymark
+    /// /wwmark           - Opens the main waymark list window
+    /// /wwmark here      - Saves current location as a new waymark
     /// </summary>
     private void OnWaymarkCommand(string command, string args)
     {

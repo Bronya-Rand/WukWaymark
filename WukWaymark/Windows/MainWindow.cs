@@ -1,6 +1,7 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Lumina.Excel.Sheets;
@@ -138,7 +139,7 @@ public class MainWindow : Window, IDisposable
                     // Color preview
                     ImGui.TableNextColumn();
                     var colorU32 = ImGui.ColorConvertFloat4ToU32(waymark.Color);
-                    var globalScale = Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale;
+                    var globalScale = ImGuiHelpers.GlobalScale;
                     WaymarkRenderer.RenderWaymarkShape(
                         ImGui.GetWindowDrawList(),
                         ImGui.GetCursorScreenPos() + new Vector2(20 * globalScale, 10 * globalScale),
@@ -334,7 +335,7 @@ public class MainWindow : Window, IDisposable
         }
     }
 
-    private string GetLocationName(ushort territoryId, uint worldId)
+    private static string GetLocationName(ushort territoryId, uint worldId)
     {
         var territoryName = GetTerritoryName(territoryId);
         var worldName = GetWorldName(worldId);
@@ -345,7 +346,7 @@ public class MainWindow : Window, IDisposable
         else
             return $"{territoryName} ({worldName})";
     }
-    private string GetTerritoryName(ushort territoryId)
+    private static string GetTerritoryName(ushort territoryId)
     {
         if (Plugin.DataManager.GetExcelSheet<TerritoryType>().TryGetRow(territoryId, out var territoryRow))
         {
@@ -353,7 +354,7 @@ public class MainWindow : Window, IDisposable
         }
         return $"Unknown (ID: {territoryId})";
     }
-    private string GetWorldName(uint worldId)
+    private static string GetWorldName(uint worldId)
     {
         if (Plugin.DataManager.GetExcelSheet<World>().TryGetRow(worldId, out var worldRow))
         {
