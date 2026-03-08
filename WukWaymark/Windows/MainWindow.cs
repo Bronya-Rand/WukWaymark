@@ -335,7 +335,7 @@ public class MainWindow : Window, IDisposable
         }
     }
 
-    private string GetLocationName(ushort territoryId, uint worldId)
+    private static string GetLocationName(ushort territoryId, uint worldId)
     {
         var territoryName = GetTerritoryName(territoryId);
         var worldName = GetWorldName(worldId);
@@ -346,7 +346,7 @@ public class MainWindow : Window, IDisposable
         else
             return $"{territoryName} ({worldName})";
     }
-    private string GetTerritoryName(ushort territoryId)
+    private static string GetTerritoryName(ushort territoryId)
     {
         if (Plugin.DataManager.GetExcelSheet<TerritoryType>().TryGetRow(territoryId, out var territoryRow))
         {
@@ -354,7 +354,7 @@ public class MainWindow : Window, IDisposable
         }
         return $"Unknown (ID: {territoryId})";
     }
-    private string GetWorldName(uint worldId)
+    private static string GetWorldName(uint worldId)
     {
         if (Plugin.DataManager.GetExcelSheet<World>().TryGetRow(worldId, out var worldRow))
         {

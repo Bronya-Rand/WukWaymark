@@ -14,15 +14,15 @@ namespace WukWaymark.Windows
     /// </summary>
     internal class WaymarkMinimapWindow : Window
     {
-        private readonly WaymarkMinimapService _service;
-        private readonly Plugin _plugin;
+        private readonly WaymarkMinimapService service;
+        private readonly Plugin plugin;
 
         internal bool IsEnabled { get; set; }
 
-        public WaymarkMinimapWindow(WaymarkMinimapService service, Plugin plugin) : base("WaymarkMinimapWindow###WaymarkMinimap")
+        public WaymarkMinimapWindow(WaymarkMinimapService minimapService, Plugin waymark) : base("WaymarkMinimapWindow###WaymarkMinimap")
         {
-            _service = service;
-            _plugin = plugin;
+            service = minimapService;
+            plugin = waymark;
 
             // Configure as transparent, non-interactive overlay
             Flags |= ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoBackground
@@ -37,9 +37,9 @@ namespace WukWaymark.Windows
             var viewport = ImGui.GetWindowViewport();
             var windowPos = viewport.Pos;
 
-            _service.PrepareRender(windowPos);
+            service.PrepareRender(windowPos);
 
-            var minimapInfo = _service.GetMinimapBounds();
+            var minimapInfo = service.GetMinimapBounds();
 
             Position = minimapInfo.Position;
             Size = minimapInfo.Size;
@@ -52,13 +52,13 @@ namespace WukWaymark.Windows
             var mousePos = ImGui.GetMousePos();
             string? hoveredWaymarkName = null;
 
-            foreach (var (position, shape, size, color, name) in _service.WaymarksToRender)
+            foreach (var (position, shape, size, color, name) in service.WaymarksToRender)
             {
                 var colorU32 = ImGui.ColorConvertFloat4ToU32(color);
 
                 WaymarkRenderer.RenderWaymarkShape(drawList, position, shape, size, colorU32);
 
-                if (_plugin.Configuration.ShowWaymarkTooltips &&
+                if (plugin.Configuration.ShowWaymarkTooltips &&
                     !string.IsNullOrEmpty(name) &&
                     Vector2.Distance(mousePos, position) <= size + (2.0f * ImGuiHelpers.GlobalScale))
                 {

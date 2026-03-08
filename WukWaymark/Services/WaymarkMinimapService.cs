@@ -18,44 +18,44 @@ namespace WukWaymark.Services
     /// </summary>
     internal class WaymarkMinimapService : IDisposable
     {
-        private readonly Configuration _configuration;
-        private readonly WaymarkMinimapWindow _window;
-        private readonly WindowSystem _windowSystem;
-        private bool _disposed;
+        private readonly Configuration configuration;
+        private readonly WaymarkMinimapWindow window;
+        private readonly WindowSystem windowSystem;
+        private bool disposed;
 
         // Publicly accessible list mapping Waymarks to their PreDraw evaluated locations
         public List<(Vector2 Position, WaymarkShape Shape, float Size, Vector4 Color, string? Name)> WaymarksToRender { get; } = [];
 
         // Player data gathered during Framework.Update
-        private readonly List<(Vector3 WorldPos, WaymarkShape Shape, Vector4 Color, string? Name)> _waymarksToRender = [];
+        private readonly List<(Vector3 WorldPos, WaymarkShape Shape, Vector4 Color, string? Name)> waymarksToRender = [];
 
         // Minimap state cached per frame
-        private float _minimapRadius;
-        private Vector2 _mapCenterScreenPos;
-        private Vector2 _playerWorldPos;
-        private float _zoneScale;
-        private float _naviScale;
-        private float _zoom;
-        private float _rotation;
-        private bool _isLocked;
-        private float _globalScale;
+        private float minimapRadius;
+        private Vector2 mapCenterScreenPos;
+        private Vector2 playerWorldPos;
+        private float zoneScale;
+        private float naviScale;
+        private float zoom;
+        private float rotation;
+        private bool isLocked;
+        private float globalScale;
 
         // naviMap screen position cache — avoids GetAddonByName in PrepareRender/GetMinimapBounds
-        private float _naviMapX;
-        private float _naviMapY;
+        private float naviMapX;
+        private float naviMapY;
 
         // cos/sin computed from _rotation cache — computed once per frame
-        private float _sinRotation;
-        private float _cosRotation;
+        private float sinRotation;
+        private float cosRotation;
 
         public WaymarkMinimapService(Plugin plugin)
         {
-            _configuration = plugin.Configuration;
-            _windowSystem = plugin.WindowSystem;
-            _window = new WaymarkMinimapWindow(this, plugin);
+            configuration = plugin.Configuration;
+            windowSystem = plugin.WindowSystem;
+            window = new WaymarkMinimapWindow(this, plugin);
 
             // Register the window directly with the passed in system to centralize tracking
-            _windowSystem.AddWindow(_window);
+            windowSystem.AddWindow(window);
 
             // Hook into framework update
             Plugin.Framework.Update += OnFrameworkUpdate;
@@ -67,10 +67,10 @@ namespace WukWaymark.Services
         /// <param name="framework">The framework instance.</param>
         private unsafe void OnFrameworkUpdate(IFramework framework)
         {
-            _waymarksToRender.Clear();
-            _window.IsEnabled = _configuration.WaymarksMinimapEnabled;
+            waymarksToRender.Clear();
+            window.IsEnabled = configuration.WaymarksMinimapEnabled;
 
-            if (!_configuration.WaymarksMinimapEnabled)
+            if (!configuration.WaymarksMinimapEnabled)
                 return;
 
             // Get local player
@@ -95,22 +95,22 @@ namespace WukWaymark.Services
                 return;
 
             // Read all minimap state in a single pass
-            if (!NaviMapStateReader.TryReadMinimapState(naviMapAddon, out var isLocked, out var rotation, out var zoom))
+            if (!NaviMapStateReader.TryReadMinimapState(naviMapAddon, out var minimapLocked, out var minimapRotation, out var minimapZoom))
                 return;
 
-            _isLocked = isLocked;
-            _rotation = rotation;
-            _zoom = zoom;
-            _naviScale = naviMapAddon->Scale;
-            _globalScale = ImGuiHelpers.GlobalScale;
+            isLocked = minimapLocked;
+            rotation = minimapRotation;
+            zoom = minimapZoom;
+            naviScale = naviMapAddon->Scale;
+            globalScale = ImGuiHelpers.GlobalScale;
 
             // Cache naviMap screen position so PrepareRender/GetMinimapBounds don't need GetAddonByName
-            _naviMapX = naviMapAddon->X;
-            _naviMapY = naviMapAddon->Y;
+            naviMapX = naviMapAddon->X;
+            naviMapY = naviMapAddon->Y;
 
             // Pre-compute cos/sin once per frame
-            _cosRotation = MathF.Cos(_rotation);
-            _sinRotation = MathF.Sin(_rotation);
+            cosRotation = MathF.Cos(rotation);
+            sinRotation = MathF.Sin(rotation);
 
             // Get AgentMap for zone scale
             var agentMap = AgentMap.Instance();
@@ -119,24 +119,24 @@ namespace WukWaymark.Services
 
             // CurrentMapSizeFactorFloat returns values like 0.02 for a zone scale of 2
             // Multiply by 1.0f to convert it to a proper scale factor (e.g. 2.0 for a zone scale of 2)
-            _zoneScale = agentMap->CurrentMapSizeFactorFloat * 1.0f;
+            zoneScale = agentMap->CurrentMapSizeFactorFloat * 1.0f;
 
             // Cache player world position
-            _playerWorldPos = new Vector2(localPlayer.Position.X, localPlayer.Position.Z);
+            playerWorldPos = new Vector2(localPlayer.Position.X, localPlayer.Position.Z);
 
             // Calculate minimap radius
             const int naviMapSize = 218;
-            var mapSize = new Vector2(naviMapSize * _naviScale, naviMapSize * _naviScale);
-            _minimapRadius = mapSize.X * 0.315f;
+            var mapSize = new Vector2(naviMapSize * naviScale, naviMapSize * naviScale);
+            minimapRadius = mapSize.X * 0.315f;
 
             // Cache waymarks to render
-            foreach (var waymark in _configuration.Waymarks)
+            foreach (var waymark in configuration.Waymarks)
             {
                 if (waymark.MapId != agentMap->SelectedMapId)
                     continue;
 
                 // Store world position - will convert to screen coords in PreDraw
-                _waymarksToRender.Add((waymark.Position, waymark.Shape, waymark.Color, waymark.Name));
+                waymarksToRender.Add((waymark.Position, waymark.Shape, waymark.Color, waymark.Name));
             }
         }
 
@@ -148,25 +148,25 @@ namespace WukWaymark.Services
         {
             WaymarksToRender.Clear();
 
-            if (_waymarksToRender.Count == 0)
+            if (waymarksToRender.Count == 0)
                 return;
 
             // Use cached naviMap position instead of re-querying GetAddonByName
             const int naviMapSize = 218;
-            var mapSize = new Vector2(naviMapSize * _naviScale, naviMapSize * _naviScale);
+            var mapSize = new Vector2(naviMapSize * naviScale, naviMapSize * naviScale);
 
-            _mapCenterScreenPos = new Vector2(
-                _naviMapX + (mapSize.X / 2f),
-                _naviMapY + (mapSize.Y / 2f)
+            mapCenterScreenPos = new Vector2(
+                naviMapX + (mapSize.X / 2f),
+                naviMapY + (mapSize.Y / 2f)
             ) + windowPos;
 
-            _mapCenterScreenPos.Y -= 5f * _globalScale;
+            mapCenterScreenPos.Y -= 5f * globalScale;
 
             // Pass pre-computed cos/sin to avoid recomputing per waymark
-            foreach (var (worldPos, shape, color, name) in _waymarksToRender)
+            foreach (var (worldPos, shape, color, name) in waymarksToRender)
             {
-                var circlePos = CalculateCirclePosition(worldPos, _cosRotation, _sinRotation);
-                var markerSize = _configuration.WaymarkMarkerSize * _globalScale;
+                var circlePos = CalculateCirclePosition(worldPos, cosRotation, sinRotation);
+                var markerSize = configuration.WaymarkMarkerSize * globalScale;
                 WaymarksToRender.Add((circlePos, shape, markerSize, color, name));
             }
         }
@@ -183,32 +183,32 @@ namespace WukWaymark.Services
         private Vector2 CalculateCirclePosition(Vector3 waymarkPosition, float cosTheta, float sinTheta)
         {
             var relativeOffset = new Vector2(
-                _playerWorldPos.X - waymarkPosition.X,
-                _playerWorldPos.Y - waymarkPosition.Z
+                playerWorldPos.X - waymarkPosition.X,
+                playerWorldPos.Y - waymarkPosition.Z
             );
 
-            relativeOffset *= _zoneScale;
-            relativeOffset *= _naviScale;
-            relativeOffset *= _zoom;
+            relativeOffset *= zoneScale;
+            relativeOffset *= naviScale;
+            relativeOffset *= zoom;
 
-            var waymarkScreenPos = _mapCenterScreenPos - relativeOffset;
+            var waymarkScreenPos = mapCenterScreenPos - relativeOffset;
 
-            if (!_isLocked)
+            if (!isLocked)
             {
-                var dx = waymarkScreenPos.X - _mapCenterScreenPos.X;
-                var dy = waymarkScreenPos.Y - _mapCenterScreenPos.Y;
+                var dx = waymarkScreenPos.X - mapCenterScreenPos.X;
+                var dy = waymarkScreenPos.Y - mapCenterScreenPos.Y;
                 waymarkScreenPos = new Vector2(
-                    (cosTheta * dx) - (sinTheta * dy) + _mapCenterScreenPos.X,
-                    (sinTheta * dx) + (cosTheta * dy) + _mapCenterScreenPos.Y
+                    (cosTheta * dx) - (sinTheta * dy) + mapCenterScreenPos.X,
+                    (sinTheta * dx) + (cosTheta * dy) + mapCenterScreenPos.Y
                 );
             }
 
-            var distance = Vector2.Distance(_mapCenterScreenPos, waymarkScreenPos);
-            if (distance > _minimapRadius)
+            var distance = Vector2.Distance(mapCenterScreenPos, waymarkScreenPos);
+            if (distance > minimapRadius)
             {
-                var originToObject = waymarkScreenPos - _mapCenterScreenPos;
-                originToObject *= _minimapRadius / distance;
-                waymarkScreenPos = _mapCenterScreenPos + originToObject;
+                var originToObject = waymarkScreenPos - mapCenterScreenPos;
+                originToObject *= minimapRadius / distance;
+                waymarkScreenPos = mapCenterScreenPos + originToObject;
             }
 
             return waymarkScreenPos;
@@ -221,22 +221,22 @@ namespace WukWaymark.Services
         internal (Vector2 Position, Vector2 Size) GetMinimapBounds()
         {
             const int naviMapSize = 218;
-            var mapSize = new Vector2(naviMapSize * _naviScale, naviMapSize * _naviScale);
+            var mapSize = new Vector2(naviMapSize * naviScale, naviMapSize * naviScale);
             // Use cached _naviMapX/_naviMapY
-            var mapPos = new Vector2(_naviMapX, _naviMapY);
+            var mapPos = new Vector2(naviMapX, naviMapY);
             return (mapPos, mapSize);
         }
 
         #endregion
         public void Dispose()
         {
-            if (_disposed)
+            if (disposed)
                 return;
 
             Plugin.Framework.Update -= OnFrameworkUpdate;
             Plugin.Log.Information("WaymarkMinimapService disposed.");
             // Window removal happens from Plugin.Dispose
-            _disposed = true;
+            disposed = true;
         }
     }
 }

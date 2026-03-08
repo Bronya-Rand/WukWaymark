@@ -20,9 +20,9 @@ namespace WukWaymark.Services
     /// </summary>
     internal class WaymarkMapService : IDisposable
     {
-        private readonly Configuration _configuration;
-        private readonly WaymarkWindow _window;
-        private bool _disposed;
+        private readonly Configuration configuration;
+        private readonly WaymarkWindow window;
+        private bool disposed;
 
         // Pre-calculated waymarks ready for the window to render
         public readonly List<(Vector2 ScreenPos, WaymarkShape Shape, float MarkerSize, uint Color, string? Name)> WaymarksToRender = [];
@@ -38,8 +38,8 @@ namespace WukWaymark.Services
 
         public WaymarkMapService(Plugin plugin)
         {
-            _configuration = plugin.Configuration;
-            _window = new WaymarkWindow(this, plugin);
+            configuration = plugin.Configuration;
+            window = new WaymarkWindow(this, plugin);
             Plugin.Framework.Update += OnFrameworkUpdate;
         }
 
@@ -64,7 +64,7 @@ namespace WukWaymark.Services
             WaymarksToRender.Clear();
             MapCenterScreenPos = null;
 
-            if (!_configuration.WaymarksMapEnabled)
+            if (!configuration.WaymarksMapEnabled)
                 return;
 
             // Get local player
@@ -189,7 +189,7 @@ namespace WukWaymark.Services
             var multiplierForWaymarks = GetMultiplier(zoomIndex, areaMap->Scale);
             var mapCenterWorldPos = Vector3.Zero;
 
-            foreach (var waymark in _configuration.Waymarks)
+            foreach (var waymark in configuration.Waymarks)
             {
                 if (waymark.MapId != agentMap->SelectedMapId)
                     continue;
@@ -235,7 +235,7 @@ namespace WukWaymark.Services
                 waymarkScreenY = Math.Clamp(waymarkScreenY, MapMinY, MapMaxY);
 
                 var colorU32 = ImGui.ColorConvertFloat4ToU32(waymark.Color);
-                var markerSize = _configuration.WaymarkMarkerSize * ImGuiHelpers.GlobalScale;
+                var markerSize = configuration.WaymarkMarkerSize * ImGuiHelpers.GlobalScale;
 
                 WaymarksToRender.Add((new Vector2(waymarkScreenX, waymarkScreenY), waymark.Shape, markerSize, colorU32, waymark.Name));
             }
@@ -243,12 +243,12 @@ namespace WukWaymark.Services
 
         public void Dispose()
         {
-            if (_disposed)
+            if (disposed)
                 return;
 
             Plugin.Framework.Update -= OnFrameworkUpdate;
-            _window.Dispose();
-            _disposed = true;
+            window.Dispose();
+            disposed = true;
         }
     }
 }
