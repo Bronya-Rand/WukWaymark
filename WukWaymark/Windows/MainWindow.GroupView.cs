@@ -139,10 +139,14 @@ public partial class MainWindow
 
         // Check if this group can be edited by the current user
         var currentHash = plugin.WaymarkStorageService.CurrentCharacterHash;
-        // Owner check for Edit Group and Delete Group
-        var canDelete = group.CreatorHash != null && currentHash != null && group.CreatorHash == currentHash;
+        var isCreator = group.CreatorHash != null && currentHash != null && group.CreatorHash == currentHash;
+
+        // Owner check for Edit Group
+        var canEdit = isCreator;
+        // Delete check: Owner AND not read-only
+        var canDelete = isCreator && !group.IsReadOnly;
         // Read-Only check for Save Current Location
-        var canAdd = !group.IsReadOnly || canDelete;
+        var canAdd = !group.IsReadOnly || isCreator;
 
         // Quick-save to this group
         using (ImRaii.PushId("groupsave"))
@@ -165,7 +169,7 @@ public partial class MainWindow
         // Edit group
         using (ImRaii.PushId("groupedit"))
         {
-            using (ImRaii.Disabled(!canDelete))
+            using (ImRaii.Disabled(!canEdit))
             {
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.Edit))
                 {

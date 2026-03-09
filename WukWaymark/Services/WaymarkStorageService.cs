@@ -116,8 +116,8 @@ public class WaymarkStorageService
     public int GetSharedCreatedWaymarksCount()
     {
         CheckWaymarkCache();
-        var sharedWaymarks = cachedVisibleWaymarks!.Where(w => w.CharacterHash == CurrentCharacterHash && w.Scope == WaymarkScope.Shared).ToList();
-        return sharedWaymarks.Count;
+        var sharedWaymarks = cachedVisibleWaymarks!.Count(w => w.CharacterHash == CurrentCharacterHash && w.Scope == WaymarkScope.Shared);
+        return sharedWaymarks;
     }
 
     /// <summary>

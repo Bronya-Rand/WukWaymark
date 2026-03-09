@@ -40,7 +40,7 @@ public partial class MainWindow
 
             foreach (var waymark in waymarks)
             {
-                using var rowId = ImRaii.PushId(waymark.Id.GetHashCode());
+                using var rowId = ImRaii.PushId(waymark.Id.ToString());
                 ImGui.TableNextRow();
 
                 // Marker preview (icon or shape)
@@ -91,14 +91,15 @@ public partial class MainWindow
 
                 // Check if this waymark can be edited by the current user
                 var currentCharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                var isCreator = waymark.CharacterHash != null &&
+                                currentCharacterHash != null &&
+                                waymark.CharacterHash == currentCharacterHash;
 
-                // Can only edit if waymark is not read only (Shared) or if it's personal and belongs to the current character
-                var canEdit = (waymark.Scope == WaymarkScope.Shared &&
-                    !waymark.IsReadOnly) ||
-                    (waymark.Scope == WaymarkScope.Personal &&
-                    waymark.CharacterHash != null &&
-                    currentCharacterHash != null &&
-                    waymark.CharacterHash == currentCharacterHash);
+                var canEdit = (waymark.Scope == WaymarkScope.Shared && (!waymark.IsReadOnly || isCreator)) ||
+                              (waymark.Scope == WaymarkScope.Personal && isCreator);
+
+                var canDelete = (waymark.Scope == WaymarkScope.Shared && !waymark.IsReadOnly) ||
+                                (waymark.Scope == WaymarkScope.Personal && isCreator);
 
                 // Edit button
                 using (ImRaii.Disabled(!canEdit))
@@ -114,7 +115,7 @@ public partial class MainWindow
                         editingIconId = waymark.IconId;
                         editingScope = waymark.Scope;
                         editingReadOnly = waymark.IsReadOnly;
-                        ImGui.OpenPopup($"EditWaymark##{waymark.Id.GetHashCode()}");
+                        ImGui.OpenPopup($"EditWaymark##{waymark.Id.ToString()}");
                     }
                 }
                 if (ImGui.IsItemHovered())
@@ -151,7 +152,7 @@ public partial class MainWindow
 
                 // Delete button
                 ImGui.SameLine();
-                using (ImRaii.Disabled(!canEdit))
+                using (ImRaii.Disabled(!canDelete))
                 {
                     if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash))
                     {

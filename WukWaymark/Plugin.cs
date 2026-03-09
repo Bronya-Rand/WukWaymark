@@ -160,6 +160,7 @@ public sealed class Plugin : IDalamudPlugin
         MainWindow.Dispose();
         WaymarkMapService.Dispose();
         WaymarkMinimapService.Dispose();
+        IconBrowserService.Dispose();
 
         // Unregister the slash command
         CommandManager.RemoveHandler(WaymarkCommandName);

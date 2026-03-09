@@ -41,7 +41,7 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
     /// 
     /// Validation errors are reported to the player via error messages.
     /// </summary>
-    /// <param name="groupId">Optional group to assign the waymark to.</param>
+    /// <param name="group">Optional group to assign the waymark to.</param>
     /// <param name="scope">The scope of the waymark (Personal or Shared).</param>
     /// <returns>The created waymark if successful, null if validation failed</returns>
     public Waymark? SaveCurrentLocation(WaymarkGroup? group = null, WaymarkScope scope = WaymarkScope.Personal)

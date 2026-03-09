@@ -12,12 +12,16 @@ namespace WukWaymark.Windows;
 
 public partial class MainWindow
 {
+    private readonly string[] categories = ["Map", "Item", "Action", "Status", "Macro", "Emote"];
+    private readonly string[] categoryNames = ["Map Symbols", "Items", "Actions", "Status Effects", "Macros", "Emotes"];
     private void DrawEditPopup(Waymark waymark)
     {
-        if (waymark.IsReadOnly)
+        var identifier = waymark.Id.ToString();
+
+        if (waymark.IsReadOnly && waymark.CharacterHash != plugin.WaymarkStorageService.CurrentCharacterHash)
         {
             // Show read-only notice if this waymark is shared and read-only
-            if (ImGui.BeginPopup($"EditWaymark##{waymark.Id.GetHashCode()}"))
+            if (ImGui.BeginPopup($"EditWaymark##{identifier}"))
             {
                 ImGui.Text($"'{waymark.Name}' is read-only and cannot be edited.");
                 ImGui.Spacing();
@@ -30,23 +34,23 @@ public partial class MainWindow
             return;
         }
 
-        if (ImGui.BeginPopup($"EditWaymark##{waymark.Id.GetHashCode()}"))
+        if (ImGui.BeginPopup($"EditWaymark##{identifier}"))
         {
             ImGui.Text($"Edit Waymark");
             ImGui.Separator();
 
             ImGui.Text("Name:");
             ImGui.SetNextItemWidth(250);
-            ImGui.InputText($"##Name{waymark.Id.GetHashCode()}", ref editingName, 100);
+            ImGui.InputText($"##Name{identifier}", ref editingName, 100);
 
             ImGui.Text("Color:");
             ImGui.SetNextItemWidth(250);
-            ImGui.ColorEdit4($"##Color{waymark.Id.GetHashCode()}", ref editingColor);
+            ImGui.ColorEdit4($"##Color{identifier}", ref editingColor);
 
             ImGui.Text("Shape:");
             ImGui.SetNextItemWidth(250);
             var shapeDropPreview = Enum.GetName(editingShape) ?? "Unknown";
-            using (var shapeDrop = ImRaii.Combo($"##Shape{waymark.Id.GetHashCode()}", shapeDropPreview))
+            using (var shapeDrop = ImRaii.Combo($"##Shape{identifier}", shapeDropPreview))
             {
                 if (shapeDrop.Success)
                 {
@@ -68,7 +72,7 @@ public partial class MainWindow
             var currentGroupName = editingGroupId == null
                 ? "Ungrouped"
                 : groups.FirstOrDefault(g => g.Id == editingGroupId)?.Name ?? "Unknown";
-            using (var groupDrop = ImRaii.Combo($"##Group{waymark.Id.GetHashCode()}", currentGroupName))
+            using (var groupDrop = ImRaii.Combo($"##Group{identifier}", currentGroupName))
             {
                 if (groupDrop.Success)
                 {
@@ -91,13 +95,13 @@ public partial class MainWindow
 
             ImGui.Text("Note:");
             ImGui.SetNextItemWidth(250);
-            ImGui.InputText($"##Note{waymark.Id.GetHashCode()}", ref editingNote, 100);
+            ImGui.InputText($"##Note{identifier}", ref editingNote, 100);
 
             // Scope dropdown
             ImGui.Text("Scope:");
             ImGui.SetNextItemWidth(250);
             var scopeDropPreview = Enum.GetName(editingScope) ?? "Unknown";
-            using (var scopeDrop = ImRaii.Combo($"##Scope{waymark.Id.GetHashCode()}", scopeDropPreview))
+            using (var scopeDrop = ImRaii.Combo($"##Scope{identifier}", scopeDropPreview))
             {
                 if (scopeDrop.Success)
                 {
@@ -112,20 +116,21 @@ public partial class MainWindow
             if (editingScope == WaymarkScope.Shared)
             {
                 ImGui.Spacing();
-                if (ImGui.Checkbox("Read-Only (Only creator can edit)##WaymarkReadOnly", ref editingReadOnly))
+                using (ImRaii.Disabled(waymark.CharacterHash != plugin.WaymarkStorageService.CurrentCharacterHash))
                 {
-                    waymark.IsReadOnly = editingReadOnly;
+                    if (ImGui.Checkbox("Read-Only##WaymarkReadOnly", ref editingReadOnly))
+                        waymark.IsReadOnly = editingReadOnly;
                 }
                 if (ImGui.IsItemHovered())
                 {
-                    ImGui.SetTooltip("When enabled, only you can edit or delete this shared waymark");
+                    ImGui.SetTooltip("When enabled, only you can edit this shared waymark. Prevents deletion until disabled.");
                 }
             }
 
             // Visibility radius slider
             ImGui.Text("Visibility Radius:");
             ImGui.SetNextItemWidth(250);
-            ImGui.SliderFloat($"##VisRadius{waymark.Id.GetHashCode()}", ref editingVisibilityRadius, 0f, 500f, editingVisibilityRadius == 0 ? "Always Visible" : "%.0f yalms");
+            ImGui.SliderFloat($"##VisRadius{identifier}", ref editingVisibilityRadius, 0f, 500f, editingVisibilityRadius == 0 ? "Always Visible" : "%.0f yalms");
 
             // Icon picker
             ImGui.Text("Icon:");
@@ -146,17 +151,17 @@ public partial class MainWindow
             }
 
             ImGui.SetNextItemWidth(previewTex != null ? 218 : 250);
-            if (ImGui.Button($"{currentIconName}##IconBtn{waymark.Id.GetHashCode()}", new Vector2(previewTex != null ? 218 : 250, 0)))
+            if (ImGui.Button($"{currentIconName}##IconBtn{identifier}", new Vector2(previewTex != null ? 218 : 250, 0)))
             {
                 showIconPickerModal = true;
-                ImGui.OpenPopup($"Icon Picker ({waymark.Name})###{waymark.Id.GetHashCode()}");
+                ImGui.OpenPopup($"Icon Picker ({waymark.Name})###{identifier}");
             }
 
             var center = ImGui.GetMainViewport().GetCenter();
             ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
             ImGui.SetNextWindowSize(new Vector2(600, 500), ImGuiCond.FirstUseEver);
 
-            if (ImGui.BeginPopupModal($"Icon Picker ({waymark.Name})###{waymark.Id.GetHashCode()}", ref showIconPickerModal, ImGuiWindowFlags.NoSavedSettings))
+            if (ImGui.BeginPopupModal($"Icon Picker ({waymark.Name})###{identifier}", ref showIconPickerModal, ImGuiWindowFlags.NoSavedSettings))
             {
                 if (!plugin.IconBrowserService.IsLoaded)
                 {
@@ -181,9 +186,6 @@ public partial class MainWindow
 
                     if (ImGui.BeginTabBar("IconCategoryTabs"))
                     {
-                        string[] categories = ["Map", "Item", "Action", "Status", "Macro"];
-                        string[] categoryNames = ["Map Symbols", "Items", "Actions", "Status Effects", "Macros"];
-
                         for (var c = 0; c < categories.Length; c++)
                         {
                             if (ImGui.BeginTabItem(categoryNames[c]))
@@ -313,7 +315,7 @@ public partial class MainWindow
         }
 
         if (!groupEditorOpen) return;
-        if (editingGroup != null && editingGroup.IsReadOnly)
+        if (editingGroup != null && editingGroup.IsReadOnly && editingGroup.CreatorHash != plugin.WaymarkStorageService.CurrentCharacterHash)
         {
             Plugin.Log.Warning("Attempted to edit a read-only group. Action blocked.");
             editingGroup = null;
@@ -355,10 +357,10 @@ public partial class MainWindow
             if (groupEditScope == WaymarkScope.Shared)
             {
                 ImGui.Spacing();
-                ImGui.Checkbox("Read-Only (Only creator can edit)", ref groupEditIsReadOnly);
+                ImGui.Checkbox("Read-Only (Prevents deletion)", ref groupEditIsReadOnly);
                 if (ImGui.IsItemHovered())
                 {
-                    ImGui.SetTooltip("When enabled, only you can edit or delete this shared group");
+                    ImGui.SetTooltip("When enabled, only you can edit this shared group. Prevents deletion until disabled.");
                 }
             }
 

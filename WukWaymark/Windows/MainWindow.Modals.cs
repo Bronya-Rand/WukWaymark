@@ -262,7 +262,11 @@ public partial class MainWindow
     private void DrawDeleteGroupConfirmation()
     {
         if (!showDeleteGroupConfirmation || groupToDelete == null) return;
-        if (groupToDelete.CreatorHash != plugin.WaymarkStorageService.CurrentCharacterHash)
+        var isCreator = groupToDelete.CreatorHash != null &&
+                        plugin.WaymarkStorageService.CurrentCharacterHash != null &&
+                        groupToDelete.CreatorHash == plugin.WaymarkStorageService.CurrentCharacterHash;
+
+        if (groupToDelete.IsReadOnly || !isCreator)
         {
             // This should never happen since the delete button is disabled, but just in case:
             Plugin.Log.Warning("Attempted to delete a group that doesn't belong to the current character. Action blocked.");
