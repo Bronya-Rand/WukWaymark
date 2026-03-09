@@ -1,4 +1,6 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Textures.Internal;
+using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using System;
@@ -12,8 +14,11 @@ namespace WukWaymark.Windows;
 
 public partial class MainWindow
 {
-    private readonly string[] categories = ["Map", "Item", "Action", "Status", "Macro", "Emote"];
-    private readonly string[] categoryNames = ["Map Symbols", "Items", "Actions", "Status Effects", "Macros", "Emotes"];
+    private readonly (string Id, string Name)[] iconCategories = [
+        ("Map", "Map Symbols"), ("Quest", "Quest Markers"), ("Item", "Items"), ("Action", "Actions"), ("Status", "Status Effects"),
+        ("Macro", "Macros"), ("Emote", "Emotes"), ("Perform", "Performance"), ("General", "General"),
+        ("Main", "Main Commands"), ("Extra", "Extra")
+    ];
     private void DrawEditPopup(Waymark waymark)
     {
         var identifier = waymark.Id.ToString();
@@ -186,11 +191,11 @@ public partial class MainWindow
 
                     if (ImGui.BeginTabBar("IconCategoryTabs"))
                     {
-                        for (var c = 0; c < categories.Length; c++)
+                        foreach (var category in iconCategories)
                         {
-                            if (ImGui.BeginTabItem(categoryNames[c]))
+                            if (ImGui.BeginTabItem(category.Name))
                             {
-                                DrawIconGrid(plugin.IconBrowserService.AvailableIcons, categories[c], editingIconSearch);
+                                DrawIconGrid(plugin.IconBrowserService.AvailableIcons, category.Id, editingIconSearch);
                                 ImGui.EndTabItem();
                             }
                         }
@@ -252,18 +257,25 @@ public partial class MainWindow
     private void DrawIconGrid(IEnumerable<IconInfo> allIcons, string category, string searchStr)
     {
         var searchLower = searchStr.ToLowerInvariant();
-        var filteredIcons = allIcons
+        var query = allIcons
             .Where(i => i.Source == category)
             .Where(i => string.IsNullOrEmpty(searchLower) ||
                         i.Name.ToLowerInvariant().Contains(searchLower) ||
-                        i.IconId.ToString().Contains(searchLower))
-            .Take(200) // Cap results to prevent UI freezing
-            .ToList();
+                        i.IconId.ToString().Contains(searchLower));
+
+        var totalCount = query.Count();
+        var filteredIcons = query.Take(200).ToList();
 
         if (filteredIcons.Count == 0)
         {
             ImGui.TextDisabled("No matching icons found.");
             return;
+        }
+
+        if (totalCount > 200)
+        {
+            ImGui.TextColored(new Vector4(1f, 0.8f, 0.2f, 1f), $"Showing 200 of {totalCount} icons. Please refine your search.");
+            ImGui.Spacing();
         }
 
         var childVisible = ImGui.BeginChild($"IconGrid_{category}", new Vector2(0, -1), true); // -1 stretch to bottom
@@ -279,7 +291,19 @@ public partial class MainWindow
                 foreach (var icon in filteredIcons)
                 {
                     ImGui.TableNextColumn();
-                    var tex = Plugin.TextureProvider.GetFromGameIcon(icon.IconId).GetWrapOrEmpty();
+
+                    // Some icons seem to be missing. Handle gracefully if such happens.
+                    IDalamudTextureWrap? tex;
+                    try
+                    {
+                        tex = Plugin.TextureProvider.GetFromGameIcon(icon.IconId).GetWrapOrEmpty();
+                    }
+                    catch (IconNotFoundException)
+                    {
+                        Plugin.Log.Warning($"Icon ID {icon.IconId} not found in game resources.");
+                        continue;
+                    }
+
                     if (tex != null && tex.Handle != nint.Zero)
                     {
                         ImGui.PushID($"IconBtn_{icon.IconId}");

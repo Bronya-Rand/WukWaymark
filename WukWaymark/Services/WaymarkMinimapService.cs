@@ -179,10 +179,19 @@ namespace WukWaymark.Services
             {
                 var circlePos = CalculateCirclePosition(worldPos, cosRotation, sinRotation);
                 var markerSize = configuration.WaymarkMarkerSize * globalScale;
-                if (iconId != null && plugin.IconBrowserService.IsMapSymbol(iconId.Value))
+                if (iconId != null)
                 {
-                    // Set marker size to how the game does it
-                    markerSize = 10.6f * naviScale * globalScale;
+                    var iconSize = plugin.IconBrowserService.GetIconSize(iconId.Value);
+                    var deSize = 6.0f / naviScale * globalScale;
+                    if (iconSize.HasValue)
+                    {
+                        markerSize = iconSize.Value.X / deSize;
+                    }
+                    else
+                    {
+                        // Fallback to 64x64 (seems most icons are this size?)
+                        markerSize = 64f / deSize;
+                    }
                 }
 
                 // Apply visibility radius alpha fade (last 20% of radius)

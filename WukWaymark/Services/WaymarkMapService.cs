@@ -254,10 +254,19 @@ namespace WukWaymark.Services
 
                 var colorU32 = ImGui.ColorConvertFloat4ToU32(waymark.Color);
                 var markerSize = configuration.WaymarkMarkerSize * ImGuiHelpers.GlobalScale;
-                if (waymark.IconId != null && plugin.IconBrowserService.IsMapSymbol(waymark.IconId.Value))
+                if (waymark.IconId != null)
                 {
-                    // Set marker size to how the game does it
-                    markerSize = 10.6f * areaMap->Scale * ImGuiHelpers.GlobalScale;
+                    var iconSize = plugin.IconBrowserService.GetIconSize(waymark.IconId.Value);
+                    var deSize = 6.0f / areaMap->Scale * ImGuiHelpers.GlobalScale;
+                    if (iconSize.HasValue)
+                    {
+                        markerSize = iconSize.Value.X / deSize;
+                    }
+                    else
+                    {
+                        // Fallback to 64x64 (seems most icons are this size?)
+                        markerSize = 64.0f / deSize;
+                    }
                 }
 
                 // Apply visibility radius fade (last 20% of radius)

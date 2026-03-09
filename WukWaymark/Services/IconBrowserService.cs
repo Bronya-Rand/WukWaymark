@@ -1,8 +1,11 @@
+using Dalamud.Interface.Textures.Internal;
+using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Plugin.Services;
 using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -22,9 +25,6 @@ namespace WukWaymark.Services
 
         public bool IsLoaded { get; private set; }
         public IReadOnlyList<IconInfo> AvailableIcons { get; private set; } = [];
-        private HashSet<uint> mapSymbolIds = [];
-
-        public bool IsMapSymbol(uint iconId) => mapSymbolIds.Contains(iconId);
 
         public IconBrowserService(IDataManager dataManager)
         {
@@ -37,7 +37,6 @@ namespace WukWaymark.Services
             try
             {
                 var uniqueIcons = new Dictionary<uint, IconInfo>();
-                var localMapSymbolIds = new HashSet<uint>();
 
                 void AddIcons<T>(IEnumerable<T> sheet, Func<T, uint> getIcon, Func<T, string> getName, string source)
                 {
@@ -78,8 +77,24 @@ namespace WukWaymark.Services
                 var emotes = dataManager.GetExcelSheet<Emote>()!;
                 AddIcons(emotes, e => e.Icon, e => e.Name.ToString(), "Emote");
 
+                // Sheets with int icon IDs - filter out negatives before casting to uint to prevent crashes
+                var perform = dataManager.GetExcelSheet<Perform>()!;
+                AddIcons(perform, p => p.Icon >= 0 ? (uint)p.Icon : 0, p => p.Name.ToString(), "Perform");
+
+                var generalActions = dataManager.GetExcelSheet<GeneralAction>()!;
+                AddIcons(generalActions, a => a.Icon >= 0 ? (uint)a.Icon : 0, a => a.Name.ToString(), "General");
+
+                var mainCommands = dataManager.GetExcelSheet<MainCommand>()!;
+                AddIcons(mainCommands, m => m.Icon >= 0 ? (uint)m.Icon : 0, m => m.Name.ToString(), "Main");
+
+                var extras = dataManager.GetExcelSheet<ExtraCommand>()!;
+                AddIcons(extras, e => e.Icon >= 0 ? (uint)e.Icon : 0, e => e.Name.ToString(), "Extra");
+
                 var statuses = dataManager.GetExcelSheet<Status>()!;
                 AddIcons(statuses, s => s.Icon, s => s.Name.ToString(), "Status");
+
+                var questMarkers = dataManager.GetExcelSheet<QuestLinkMarkerIcon>()!;
+                AddIcons(questMarkers, q => q.Icon, q => $"Quest Icon {q.RowId}", "Quest");
 
                 var mapSymbols = dataManager.GetExcelSheet<MapSymbol>()!;
                 foreach (var row in mapSymbols)
@@ -88,15 +103,13 @@ namespace WukWaymark.Services
 
                     var iconId = (uint)row.Icon;
                     if (iconId == 0 || uniqueIcons.ContainsKey(iconId)) continue;
-                    uniqueIcons[iconId] = new IconInfo { IconId = iconId, Name = $"Map Symbol {iconId}", Source = "Map" };
-                    localMapSymbolIds.Add(iconId);
+                    uniqueIcons[iconId] = new IconInfo { IconId = iconId, Name = row.PlaceName.Value.Name.ToString() ?? $"Map Symbol {iconId}", Source = "Map" };
                 }
 
                 if (token.IsCancellationRequested) return;
 
                 // Atomically assign collections here to prevent race conditions with main thread readers
                 AvailableIcons = uniqueIcons.Values.OrderBy(i => i.IconId).ToList();
-                mapSymbolIds = localMapSymbolIds;
 
                 IsLoaded = true;
                 Plugin.Log.Information($"Loaded {AvailableIcons.Count} unique icons for the UI picker.");
@@ -106,6 +119,22 @@ namespace WukWaymark.Services
                 if (ex is OperationCanceledException) return;
                 Plugin.Log.Error(ex, "Failed to load icon database.");
             }
+        }
+
+        public Vector2? GetIconSize(uint iconId)
+        {
+            IDalamudTextureWrap? tex;
+            try
+            {
+                tex = Plugin.TextureProvider.GetFromGameIcon(iconId).GetWrapOrEmpty();
+            }
+            catch (IconNotFoundException)
+            {
+                return null;
+            }
+            var texSize = new Vector2(tex.Width, tex.Height);
+            tex.Dispose();
+            return texSize;
         }
 
         public void Dispose()
