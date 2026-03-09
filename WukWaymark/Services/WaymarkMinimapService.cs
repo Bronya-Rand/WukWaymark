@@ -138,11 +138,12 @@ namespace WukWaymark.Services
                 if (waymark.MapId != agentMap->CurrentMapId)
                     continue;
 
-                // Visibility radius check — skip waymarks beyond their radius
-                if (waymark.VisibilityRadius > 0)
+                // Visibility radius check using squared distance (avoids sqrt)
+                if (configuration.FadeWaymarkOnMinimapEdge && waymark.VisibilityRadius > 0)
                 {
-                    var dist = Vector3.Distance(localPlayer.Position, waymark.Position);
-                    if (dist > waymark.VisibilityRadius)
+                    var distSquared = Vector3.DistanceSquared(localPlayer.Position, waymark.Position);
+                    var radiusSquared = waymark.VisibilityRadius * waymark.VisibilityRadius;
+                    if (distSquared > radiusSquared)
                         continue;
                 }
 
@@ -188,13 +189,17 @@ namespace WukWaymark.Services
                 var fadedColor = color;
                 if (configuration.FadeWaymarkOnMinimapEdge && visibilityRadius > 0)
                 {
-                    var dist = MathF.Sqrt(
-                        MathF.Pow(playerWorldPos.X - worldPos.X, 2) +
-                        MathF.Pow(playerWorldPos.Y - worldPos.Z, 2)
-                    );
+                    // Use squared distance to avoid sqrt, only compute sqrt when fading
+                    var dx = playerWorldPos.X - worldPos.X;
+                    var dy = playerWorldPos.Y - worldPos.Z;
+                    var distSquared = (dx * dx) + (dy * dy);
+
                     var fadeStart = visibilityRadius * 0.8f;
-                    if (dist > fadeStart)
+                    var fadeStartSquared = fadeStart * fadeStart;
+
+                    if (distSquared > fadeStartSquared)
                     {
+                        var dist = MathF.Sqrt(distSquared); // Only sqrt when actually fading
                         var alpha = 1.0f - ((dist - fadeStart) / (visibilityRadius - fadeStart));
                         fadedColor.W = Math.Clamp(alpha, 0f, 1f) * color.W;
                     }
