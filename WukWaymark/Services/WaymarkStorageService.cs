@@ -19,7 +19,6 @@ namespace WukWaymark.Services;
 /// </summary>
 public class WaymarkStorageService
 {
-    private readonly Configuration configuration;
     private readonly string pluginConfigDir;
     private readonly string sharedWaymarksPath;
     private string? personalWaymarksPath;
@@ -51,21 +50,19 @@ public class WaymarkStorageService
     /// </summary>
     public List<WaymarkGroup> PersonalGroups { get; private set; } = [];
 
-    public WaymarkStorageService(Configuration configuration, string pluginConfigDir)
+    public WaymarkStorageService(string pluginConfigDir)
     {
-        this.configuration = configuration;
         this.pluginConfigDir = pluginConfigDir;
         sharedWaymarksPath = Path.Combine(pluginConfigDir, "shared_waymarks.json");
         LoadSharedWaymarks();
     }
 
     /// <summary>
-    /// Computes and caches the character hash from the player's content ID and player name.
+    /// Computes and caches the character hash from the player's content ID.
     /// Should be called on character login / territory change when player is available.
     /// </summary>
     /// <param name="contentId">The character's content ID.</param>
-    /// <param name="playerName">The player's character name (unused but kept for future extensibility).</param>
-    public void SetCharacterHash(ulong contentId, string playerName)
+    public void SetCharacterHash(ulong contentId)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(contentId.ToString()));
         CurrentCharacterHash = Convert.ToHexString(bytes)[..16];

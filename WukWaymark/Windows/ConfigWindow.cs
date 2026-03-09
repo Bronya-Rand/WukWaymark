@@ -132,7 +132,7 @@ public class ConfigWindow : Window, IDisposable
         // Confirmation popup
         if (ImGui.BeginPopupModal("ClearConfirmation", ref showClearConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
         {
-            var totalWaymarks = plugin.WaymarkStorageService.PersonalWaymarks.Count + 
+            var totalWaymarks = plugin.WaymarkStorageService.PersonalWaymarks.Count +
                                plugin.WaymarkStorageService.SharedWaymarks.Count;
             ImGui.Text($"Are you sure you want to delete all {totalWaymarks} waymarks?");
             ImGui.Text("This action cannot be undone!");

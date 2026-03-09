@@ -90,7 +90,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Initialize services
         var pluginConfigDir = PluginInterface.GetPluginConfigDirectory();
-        WaymarkStorageService = new WaymarkStorageService(Configuration, pluginConfigDir);
+        WaymarkStorageService = new WaymarkStorageService(pluginConfigDir);
         WaymarkService = new WaymarkService(Configuration, WaymarkStorageService);
         IconBrowserService = new IconBrowserService(DataManager);
 
@@ -99,7 +99,7 @@ public sealed class Plugin : IDalamudPlugin
         // so we pass empty string
         if (PlayerState.ContentId != 0)
         {
-            WaymarkStorageService.SetCharacterHash(PlayerState.ContentId, string.Empty);
+            WaymarkStorageService.SetCharacterHash(PlayerState.ContentId);
         }
 
         // Subscribe to login/logout events for character hash management
@@ -172,7 +172,7 @@ public sealed class Plugin : IDalamudPlugin
         if (PlayerState.ContentId != 0)
         {
             var playerName = ObjectTable.LocalPlayer?.Name.ToString() ?? string.Empty;
-            WaymarkStorageService.SetCharacterHash(PlayerState.ContentId, playerName);
+            WaymarkStorageService.SetCharacterHash(PlayerState.ContentId);
         }
     }
 
