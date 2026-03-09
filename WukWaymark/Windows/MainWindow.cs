@@ -225,7 +225,7 @@ public class MainWindow : Window, IDisposable
 
         // Main content area with scrolling
         using var child = ImRaii.Child("WaymarkListChild", Vector2.Zero, true);
-        ImGui.Separator();
+        //ImGui.Separator();
 
         var visibleWaymarks = plugin.WaymarkStorageService.GetVisibleWaymarks();
 
@@ -253,10 +253,10 @@ public class MainWindow : Window, IDisposable
         ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.0f, 1.0f), "Custom Waymark Locations");
 
         // Position buttons on the right side of the header
-        var buttonWidth = 30.0f;
-        var buttonSpacing = 5.0f;
-        var totalButtonWidth = (buttonWidth * 4) + (buttonSpacing * 3) + 8;
-        ImGui.SameLine(ImGui.GetWindowWidth() - totalButtonWidth);
+        var buttonWidth = ImGui.GetFrameHeight();
+        var buttonSpacing = 5.0f * ImGuiHelpers.GlobalScale;
+        var totalButtonWidth = (buttonWidth * 4) + (buttonSpacing * 4);
+        ImGui.SameLine(ImGui.GetWindowContentRegionMax().X - totalButtonWidth);
 
         // Import from clipboard
         if (ImGuiComponents.IconButton(FontAwesomeIcon.FileImport))
@@ -478,9 +478,31 @@ public class MainWindow : Window, IDisposable
         // Calculate right-aligned position for buttons
         var buttonSize = 20.0f * ImGuiHelpers.GlobalScale;
         var spacing = 5.0f;
-        var totalWidth = (buttonSize * 3) + (spacing * 2) + 8;
+        var scopeIconSize = 18.0f * ImGuiHelpers.GlobalScale;
+        var totalWidth = (buttonSize * 3) + (spacing * 2) + scopeIconSize + spacing + 8;
 
         ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalWidth + ImGui.GetCursorPosX());
+
+        var groupScopeIcon = FontAwesomeIcon.EyeSlash;
+        if (group.Scope == WaymarkScope.Shared)
+            groupScopeIcon = group.IsReadOnly ? FontAwesomeIcon.Lock : FontAwesomeIcon.Users;
+
+        using (ImRaii.PushFont(Plugin.PluginInterface.UiBuilder.FontIcon))
+        {
+            // Move it slightly down to align with icon buttons vertically
+            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 2 * ImGuiHelpers.GlobalScale);
+            ImGui.TextDisabled(groupScopeIcon.ToIconString());
+        }
+        if (ImGui.IsItemHovered())
+        {
+            if (group.Scope == WaymarkScope.Personal) ImGui.SetTooltip("Scope: Personal");
+            else if (group.IsReadOnly) ImGui.SetTooltip("Scope: Shared (Read-Only)");
+            else ImGui.SetTooltip("Scope: Shared");
+        }
+
+        // Move cursor back up if we shifted it down
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 2 * ImGuiHelpers.GlobalScale);
+        ImGui.SameLine(0, spacing);
 
         // Check if this group can be edited by the current user
         var currentHash = plugin.WaymarkStorageService.CurrentCharacterHash;
@@ -494,7 +516,7 @@ public class MainWindow : Window, IDisposable
         {
             if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
             {
-                plugin.WaymarkService.SaveCurrentLocation(group);
+                plugin.WaymarkService.SaveCurrentLocation(group, group.Scope);
             }
             if (ImGui.IsItemHovered())
             {
@@ -520,10 +542,7 @@ public class MainWindow : Window, IDisposable
             }
             if (ImGui.IsItemHovered())
             {
-                if (canEdit)
-                    ImGui.SetTooltip("Edit Group");
-                else
-                    ImGui.SetTooltip("Read-Only: Created by another user");
+                ImGui.SetTooltip("Edit Group");
             }
         }
 
@@ -542,10 +561,7 @@ public class MainWindow : Window, IDisposable
             }
             if (ImGui.IsItemHovered())
             {
-                if (canEdit)
-                    ImGui.SetTooltip("Delete Group");
-                else
-                    ImGui.SetTooltip("Read-Only: Created by another user");
+                ImGui.SetTooltip("Delete Group");
             }
         }
     }
@@ -636,15 +652,13 @@ public class MainWindow : Window, IDisposable
                         editingVisibilityRadius = waymark.VisibilityRadius;
                         editingIconId = waymark.IconId;
                         editingScope = waymark.Scope;
+                        editingReadOnly = waymark.IsReadOnly;
                         ImGui.OpenPopup($"EditWaymark##{waymark.Id}");
                     }
                 }
                 if (ImGui.IsItemHovered())
                 {
-                    if (canEdit)
-                        ImGui.SetTooltip("Edit Waymark");
-                    else
-                        ImGui.SetTooltip("Read-Only: Created by another user");
+                    ImGui.SetTooltip("Edit Waymark");
                 }
 
                 // Edit popup
@@ -661,6 +675,19 @@ public class MainWindow : Window, IDisposable
                     ImGui.SetTooltip("Flag Location on Map");
                 }
 
+                // Export to clipboard button (single waymark)
+                ImGui.SameLine();
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.Clipboard))
+                {
+                    WaymarkExportService.ExportToClipboard(waymark);
+                    importFeedback = $"Copied '{waymark.Name}' to clipboard!";
+                    importFeedbackTicks = 180;
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip("Copy to Clipboard");
+                }
+
                 // Delete button
                 ImGui.SameLine();
                 using (ImRaii.Disabled(!canEdit))
@@ -673,23 +700,7 @@ public class MainWindow : Window, IDisposable
                 }
                 if (ImGui.IsItemHovered())
                 {
-                    if (canEdit)
-                        ImGui.SetTooltip("Delete Waymark");
-                    else
-                        ImGui.SetTooltip("Read-Only: Created by another user");
-                }
-
-                // Export to clipboard button (single waymark)
-                ImGui.SameLine();
-                if (ImGuiComponents.IconButton(FontAwesomeIcon.Clipboard))
-                {
-                    WaymarkExportService.ExportToClipboard(waymark);
-                    importFeedback = $"Copied '{waymark.Name}' to clipboard!";
-                    importFeedbackTicks = 180;
-                }
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip("Copy to Clipboard");
+                    ImGui.SetTooltip("Delete Waymark");
                 }
             }
 
@@ -928,7 +939,6 @@ public class MainWindow : Window, IDisposable
                     {
                         plugin.WaymarkStorageService.PersonalWaymarks.Remove(waymark);
                         waymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
-                        waymark.IsReadOnly = true;
                         plugin.WaymarkStorageService.SharedWaymarks.Add(waymark);
                     }
                 }
@@ -1158,12 +1168,12 @@ public class MainWindow : Window, IDisposable
     {
         if (!showDeleteWaymarkConfirmation || waymarkToDelete == null) return;
 
-        ImGui.OpenPopup("Delete Waypoint?");
+        ImGui.OpenPopup("Delete Waypoint?##WWDeleteWaypointModal");
 
         var center = ImGui.GetMainViewport().GetCenter();
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
 
-        if (ImGui.BeginPopupModal("Delete Waypoint?", ref showDeleteWaymarkConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
+        if (ImGui.BeginPopupModal("Delete Waypoint?##WWDeleteWaypointModal", ref showDeleteWaymarkConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
         {
             ImGui.Text($"Are you sure you want to delete the waymark '{waymarkToDelete.Name}'?");
             ImGui.Text("This action can be undone with the Undo button.");
@@ -1209,7 +1219,7 @@ public class MainWindow : Window, IDisposable
     {
         if (showCreateGroupPopup)
         {
-            ImGui.OpenPopup("GroupEditor");
+            ImGui.OpenPopup("Group Editor##WWGroupEditorModal");
             showCreateGroupPopup = false;
             groupEditorOpen = true;
         }
@@ -1219,7 +1229,7 @@ public class MainWindow : Window, IDisposable
         var center = ImGui.GetMainViewport().GetCenter();
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
 
-        if (ImGui.BeginPopupModal("GroupEditor", ref groupEditorOpen, ImGuiWindowFlags.AlwaysAutoResize))
+        if (ImGui.BeginPopupModal("Group Editor##WWGroupEditorModal", ref groupEditorOpen, ImGuiWindowFlags.AlwaysAutoResize))
         {
             var isEditing = editingGroup != null;
             ImGui.Text(isEditing ? "Edit Group" : "Create New Group");
@@ -1278,12 +1288,34 @@ public class MainWindow : Window, IDisposable
                                 plugin.WaymarkStorageService.PersonalGroups.Remove(editingGroup);
                                 editingGroup.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
                                 plugin.WaymarkStorageService.SharedGroups.Add(editingGroup);
+
+                                // Move all child waymarks from Personal to Shared
+                                var childWaymarks = plugin.WaymarkStorageService.PersonalWaymarks.Where(w => w.GroupId == editingGroup.Id).ToList();
+                                foreach (var w in childWaymarks)
+                                {
+                                    plugin.WaymarkStorageService.PersonalWaymarks.Remove(w);
+                                    w.Scope = WaymarkScope.Shared;
+                                    w.IsReadOnly = editingGroup.IsReadOnly; // Inherit read-only status from group
+                                    w.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                                    plugin.WaymarkStorageService.SharedWaymarks.Add(w);
+                                }
                             }
                             else
                             {
                                 plugin.WaymarkStorageService.SharedGroups.Remove(editingGroup);
                                 editingGroup.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
                                 plugin.WaymarkStorageService.PersonalGroups.Add(editingGroup);
+
+                                // Move all child waymarks from Shared to Personal
+                                var childWaymarks = plugin.WaymarkStorageService.SharedWaymarks.Where(w => w.GroupId == editingGroup.Id).ToList();
+                                foreach (var w in childWaymarks)
+                                {
+                                    plugin.WaymarkStorageService.SharedWaymarks.Remove(w);
+                                    w.Scope = WaymarkScope.Personal;
+                                    w.IsReadOnly = false;
+                                    w.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                                    plugin.WaymarkStorageService.PersonalWaymarks.Add(w);
+                                }
                             }
                         }
                     }
@@ -1327,12 +1359,12 @@ public class MainWindow : Window, IDisposable
     {
         if (!showDeleteGroupConfirmation || groupToDelete == null) return;
 
-        ImGui.OpenPopup("Delete Group?");
+        ImGui.OpenPopup("Delete Group?##WWDeleteGroupModal");
 
         var center = ImGui.GetMainViewport().GetCenter();
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
 
-        if (ImGui.BeginPopupModal("Delete Group?", ref showDeleteGroupConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
+        if (ImGui.BeginPopupModal("Delete Group?##WWDeleteGroupModal", ref showDeleteGroupConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
         {
             var waymarksInGroup = plugin.WaymarkStorageService.GetVisibleWaymarks().Count(w => w.GroupId == groupToDelete.Id);
             ImGui.Text($"Are you sure you want to delete the group '{groupToDelete.Name}'?");
