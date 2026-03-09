@@ -445,13 +445,15 @@ public class MainWindow : Window, IDisposable
 
         // Check if this group can be edited by the current user
         var currentHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+        // Owner check for Edit Group and Delete Group
         var canDelete = group.CreatorHash != null && currentHash != null && group.CreatorHash == currentHash;
-        var canEdit = !group.IsReadOnly || canDelete;
+        // Read-Only check for Save Current Location
+        var canAdd = !group.IsReadOnly || canDelete;
 
         // Quick-save to this group
         using (ImRaii.PushId("groupsave"))
         {
-            using (ImRaii.Disabled(!canEdit))
+            using (ImRaii.Disabled(!canAdd))
             {
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
                 {
@@ -469,7 +471,7 @@ public class MainWindow : Window, IDisposable
         // Edit group
         using (ImRaii.PushId("groupedit"))
         {
-            using (ImRaii.Disabled(!canEdit))
+            using (ImRaii.Disabled(!canDelete))
             {
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.Edit))
                 {
@@ -482,7 +484,7 @@ public class MainWindow : Window, IDisposable
             }
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("Edit Group");
+                ImGui.SetTooltip("Edit Group Properties");
             }
         }
 
@@ -574,9 +576,13 @@ public class MainWindow : Window, IDisposable
 
                 // Check if this waymark can be edited by the current user
                 var currentCharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
-                var canEdit = !waymark.IsReadOnly ||
-                    (currentCharacterHash != null &&
+
+                // Can only edit if waymark is not read only (Shared) or if it's personal and belongs to the current character
+                var canEdit = (waymark.Scope == WaymarkScope.Shared &&
+                    !waymark.IsReadOnly) ||
+                    (waymark.Scope == WaymarkScope.Personal &&
                     waymark.CharacterHash != null &&
+                    currentCharacterHash != null &&
                     waymark.CharacterHash == currentCharacterHash);
 
                 // Edit button
@@ -1067,7 +1073,7 @@ public class MainWindow : Window, IDisposable
                 else
                 {
                     // User chose NOT to overwrite. Apply specific resolution rules.
-                    var localGroup = plugin.WaymarkStorageService.PersonalGroups.FirstOrDefault(g => g.Id == importedGroup.Id) 
+                    var localGroup = plugin.WaymarkStorageService.PersonalGroups.FirstOrDefault(g => g.Id == importedGroup.Id)
                                   ?? plugin.WaymarkStorageService.SharedGroups.FirstOrDefault(g => g.Id == importedGroup.Id);
 
                     // Rules 1 & 3: If local group is Shared and Read-Only, generate a new Guid so we don't merge into a locked group.
@@ -1076,7 +1082,7 @@ public class MainWindow : Window, IDisposable
                         var oldId = importedGroup.Id;
                         importedGroup.Id = Guid.NewGuid();
                         groupIdSwaps[oldId] = importedGroup.Id;
-                        
+
                         importedGroup.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
                         if (isSharedGroup)
                         {
@@ -1169,7 +1175,12 @@ public class MainWindow : Window, IDisposable
     private void DrawDeleteWaypointModal()
     {
         if (!showDeleteWaymarkConfirmation || waymarkToDelete == null) return;
-        if (waymarkToDelete.CharacterHash != plugin.WaymarkStorageService.CurrentCharacterHash)
+        if ((waymarkToDelete.Scope == WaymarkScope.Shared &&
+            waymarkToDelete.IsReadOnly) ||
+            (waymarkToDelete.Scope == WaymarkScope.Personal &&
+            (waymarkToDelete.CharacterHash == null ||
+            plugin.WaymarkStorageService.CurrentCharacterHash == null ||
+            waymarkToDelete.CharacterHash != plugin.WaymarkStorageService.CurrentCharacterHash)))
         {
             // This should never happen since the delete button is disabled in this case, but just in case:
             Plugin.Log.Warning("Attempted to delete a waymark that doesn't belong to the current character. Action blocked.");

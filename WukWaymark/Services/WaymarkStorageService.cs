@@ -73,9 +73,10 @@ public class WaymarkStorageService
 
     private void CheckWaymarkCache()
     {
-        if (cacheInvalidated || cachedVisibleWaymarks == null)
+        if (cacheInvalidated || cachedVisibleWaymarks == null || cachedVisibleGroups == null)
         {
             cachedVisibleWaymarks = [.. PersonalWaymarks, .. SharedWaymarks];
+            cachedVisibleGroups = [.. PersonalGroups, .. SharedGroups];
             cacheInvalidated = false;
         }
     }
@@ -103,6 +104,7 @@ public class WaymarkStorageService
         personalWaymarksPath = null;
         PersonalWaymarks.Clear();
         PersonalGroups.Clear();
+        InvalidateCache();
     }
 
     /// <summary>
@@ -114,8 +116,7 @@ public class WaymarkStorageService
     public int GetSharedCreatedWaymarksCount()
     {
         CheckWaymarkCache();
-        cachedVisibleWaymarks ??= [.. PersonalWaymarks, .. SharedWaymarks];
-        var sharedWaymarks = cachedVisibleWaymarks.Where(w => w.CharacterHash == CurrentCharacterHash && w.Scope == WaymarkScope.Shared).ToList();
+        var sharedWaymarks = cachedVisibleWaymarks!.Where(w => w.CharacterHash == CurrentCharacterHash && w.Scope == WaymarkScope.Shared).ToList();
         return sharedWaymarks.Count;
     }
 
@@ -123,16 +124,12 @@ public class WaymarkStorageService
     /// Returns all waymarks that should be visible to the current session.
     /// </summary>
     /// <remarks>
-    /// This merges:
-    /// - Personal groups for the current character
-    /// - Shared groups
-    /// Results are cached to avoid per-frame allocations.
+    /// Returns a merged list of personal waymarks for the current character and shared waymarks.
     /// </remarks>
     public List<Waymark> GetVisibleWaymarks()
     {
         CheckWaymarkCache();
-        cachedVisibleWaymarks ??= [.. PersonalWaymarks, .. SharedWaymarks];
-        return cachedVisibleWaymarks;
+        return cachedVisibleWaymarks!;
     }
 
     /// <summary>
@@ -146,12 +143,8 @@ public class WaymarkStorageService
     /// </remarks>
     public List<WaymarkGroup> GetVisibleGroups()
     {
-        if (cacheInvalidated || cachedVisibleGroups == null)
-        {
-            cachedVisibleGroups = [.. PersonalGroups, .. SharedGroups];
-            cacheInvalidated = false;
-        }
-        return cachedVisibleGroups;
+        CheckWaymarkCache();
+        return cachedVisibleGroups!;
     }
 
     /// <summary>
