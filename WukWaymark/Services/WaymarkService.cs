@@ -206,18 +206,34 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
     }
 
     /// <summary>
-    /// Returns a list of all group names, for error messages.
+    /// Checks if the current user has permission to add a waymark to the specified group.
+    /// </summary>
+    public bool CanAddWaymarkToGroup(WaymarkGroup group)
+    {
+        if (group.Scope == WaymarkScope.Personal) return true;
+        if (!group.IsReadOnly) return true;
+
+        var currentHash = storageService.CurrentCharacterHash;
+        return group.CreatorHash != null && currentHash != null && group.CreatorHash == currentHash;
+    }
+
+    /// <summary>
+    /// Returns a list of all group names that the user can append to, for error messages.
     /// </summary>
     public string GetGroupNamesList()
     {
         var allGroups = storageService.GetVisibleGroups();
+
         if (allGroups.Count == 0)
-            return "(no groups exist)";
+            return "(no available groups exist)";
 
         var output = new StringBuilder();
         // Format as a bullet list with each name on a new line
         foreach (var group in allGroups)
+        {
+            if (group.IsReadOnly) continue;
             output.AppendLine($"- {group.Name}");
+        }
 
         return output.ToString().TrimEnd();
     }

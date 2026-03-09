@@ -74,6 +74,14 @@ public partial class MainWindow
             ImGui.Text("Group:");
             ImGui.SetNextItemWidth(250);
             var groups = plugin.WaymarkStorageService.GetVisibleGroups();
+            var currentHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+            var availableGroups = groups.Where(g =>
+                g.Id == editingGroupId ||
+                g.Scope == WaymarkScope.Personal ||
+                !g.IsReadOnly ||
+                (g.CreatorHash != null && currentHash != null && g.CreatorHash == currentHash)
+            ).ToList();
+
             var currentGroupName = editingGroupId == null
                 ? "Ungrouped"
                 : groups.FirstOrDefault(g => g.Id == editingGroupId)?.Name ?? "Unknown";
@@ -88,7 +96,7 @@ public partial class MainWindow
                     }
 
                     // Group options
-                    foreach (var group in groups)
+                    foreach (var group in availableGroups)
                     {
                         if (ImGui.Selectable(group.Name, editingGroupId == group.Id))
                         {
@@ -138,7 +146,7 @@ public partial class MainWindow
             ImGui.SliderFloat($"##VisRadius{identifier}", ref editingVisibilityRadius, 0f, 500f, editingVisibilityRadius == 0 ? "Always Visible" : "%.0f yalms");
 
             // Icon picker
-            ImGui.Text("Icon:");
+            ImGui.Text("Icon (Overrides Shape):");
             ImGui.SetNextItemWidth(250);
 
             var currentIconName = "Select Icon...";

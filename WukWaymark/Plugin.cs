@@ -219,9 +219,9 @@ public sealed class Plugin : IDalamudPlugin
 
             // /wwmark here <group> — save to the specified group
             var group = WaymarkService.FindGroupByName(remainder);
-            if (group == null)
+            if (group == null || !WaymarkService.CanAddWaymarkToGroup(group))
             {
-                ChatGui.PrintError($"[WukWaymark] Group '{remainder}' not found. Available groups:\n{WaymarkService.GetGroupNamesList()}");
+                ChatGui.PrintError($"[WukWaymark] Group '{remainder}' not found or you lack permission to modify it. Available groups:\n{WaymarkService.GetGroupNamesList()}");
                 return;
             }
 

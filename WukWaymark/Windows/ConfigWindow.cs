@@ -20,7 +20,11 @@ public class ConfigWindow : Window, IDisposable
 
     public ConfigWindow(Plugin plugin) : base("WukWaymark Settings##WWSettings")
     {
-        Size = new Vector2(400, 300);
+        SizeConstraints = new WindowSizeConstraints
+        {
+            MinimumSize = new Vector2(400, 450),
+            MaximumSize = new Vector2(450, 550)
+        };
         this.plugin = plugin;
         configuration = plugin.Configuration;
     }
