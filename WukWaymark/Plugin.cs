@@ -226,7 +226,7 @@ public sealed class Plugin : IDalamudPlugin
             }
 
             Log.Information($"Saving current location to group '{group.Name}'...");
-            WaymarkService.SaveCurrentLocation(group);
+            WaymarkService.SaveCurrentLocation(group, group.Scope);
             return;
         }
 

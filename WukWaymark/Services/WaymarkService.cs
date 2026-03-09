@@ -91,7 +91,7 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
             GroupId = group?.Id,
             Scope = scope,
             CharacterHash = storageService.CurrentCharacterHash, // Set creator for both personal and shared
-            IsReadOnly = false,
+            IsReadOnly = group?.IsReadOnly ?? false // Use group's read-only status if available
         };
 
         // Persist to correct storage based on scope
