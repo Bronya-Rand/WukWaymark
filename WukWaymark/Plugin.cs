@@ -96,7 +96,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Set character hash if player is already logged in
         // Note: We can't access ObjectTable.LocalPlayer in the constructor
-        // so we pass empty string
+        // so we pass content ID directly from PlayerState
         if (PlayerState.ContentId != 0)
         {
             WaymarkStorageService.SetCharacterHash(PlayerState.ContentId);
@@ -171,7 +171,6 @@ public sealed class Plugin : IDalamudPlugin
     {
         if (PlayerState.ContentId != 0)
         {
-            var playerName = ObjectTable.LocalPlayer?.Name.ToString() ?? string.Empty;
             WaymarkStorageService.SetCharacterHash(PlayerState.ContentId);
         }
     }

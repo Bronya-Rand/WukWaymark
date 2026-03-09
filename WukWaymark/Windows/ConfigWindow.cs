@@ -123,17 +123,17 @@ public class ConfigWindow : Window, IDisposable
         ImGui.Spacing();
 
         // Clear all waymarks button with confirmation
-        if (ImGui.Button("Clear All Waymarks"))
+        if (ImGui.Button("Erase All Created Waymarks"))
         {
             showClearConfirmation = true;
             ImGui.OpenPopup("ClearConfirmation");
         }
 
         // Confirmation popup
-        if (ImGui.BeginPopupModal("ClearConfirmation", ref showClearConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
+        if (ImGui.BeginPopupModal("Erase All Created Waymarks", ref showClearConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
         {
             var totalWaymarks = plugin.WaymarkStorageService.PersonalWaymarks.Count +
-                               plugin.WaymarkStorageService.SharedWaymarks.Count;
+                               plugin.WaymarkStorageService.GetSharedCreatedWaymarksCount();
             ImGui.Text($"Are you sure you want to delete all {totalWaymarks} waymarks?");
             ImGui.Text("This action cannot be undone!");
             ImGui.Spacing();
@@ -141,7 +141,7 @@ public class ConfigWindow : Window, IDisposable
             if (ImGui.Button("Yes, Delete All", new Vector2(150, 0)))
             {
                 plugin.WaymarkStorageService.PersonalWaymarks.Clear();
-                plugin.WaymarkStorageService.SharedWaymarks.Clear();
+                plugin.WaymarkStorageService.EraseCreatedSharedWaymarks();
                 plugin.WaymarkStorageService.SavePersonalWaymarks();
                 plugin.WaymarkStorageService.SaveSharedWaymarks();
                 Plugin.ChatGui.Print("[WukWaymark] All waymarks have been deleted.");

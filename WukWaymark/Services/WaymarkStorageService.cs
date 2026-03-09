@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using WukWaymark.Helpers;
@@ -80,6 +81,18 @@ public class WaymarkStorageService
         personalWaymarksPath = null;
         PersonalWaymarks.Clear();
         PersonalGroups.Clear();
+    }
+
+    /// <summary>
+    /// Gets the number of waymarks that have been shared and created by the current character.
+    /// </summary>
+    /// <remarks>Ensure that the current character hash is set appropriately before calling this method. Only
+    /// waymarks associated with the current character are included in the count.</remarks>
+    /// <returns>The number of shared waymarks created by the character identified by the current character hash.</returns>
+    public int GetSharedCreatedWaymarksCount()
+    {
+        var sharedWaymarks = SharedWaymarks.Where(w => w.CharacterHash == CurrentCharacterHash).ToList();
+        return sharedWaymarks.Count;
     }
 
     /// <summary>
@@ -168,6 +181,17 @@ public class WaymarkStorageService
         {
             Plugin.Log.Error($"Failed to save shared waymarks: {ex.Message}");
         }
+    }
+
+    public void EraseCreatedSharedWaymarks()
+    {
+        if (CurrentCharacterHash == null)
+        {
+            Plugin.Log.Warning("Cannot erase created shared waymarks: no character hash set.");
+            return;
+        }
+        SharedWaymarks.RemoveAll(w => w.CharacterHash == CurrentCharacterHash);
+        SaveSharedWaymarks();
     }
 
     /// <summary>

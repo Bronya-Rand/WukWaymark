@@ -126,6 +126,18 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
     /// <param name="waymark">The waymark to delete.</param>
     public void DeleteWaymark(Waymark waymark)
     {
+        // Validate permissions before allowing deletion
+        if (waymark.IsReadOnly)
+        {
+            Plugin.ChatGui.PrintError($"[WukWaymark] Waymark '{waymark.Name}' is read-only and cannot be deleted.");
+            return;
+        }
+        if (waymark.Scope == WaymarkScope.Personal && waymark.CharacterHash != storageService.CurrentCharacterHash)
+        {
+            Plugin.ChatGui.PrintError($"[WukWaymark] You do not have permission to delete waymark '{waymark.Name}'.");
+            return;
+        }
+
         // Push to undo stack before removing
         if (deletedWaymarks.Count >= MaxUndoHistory)
         {
