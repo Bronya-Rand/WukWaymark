@@ -126,11 +126,11 @@ public class ConfigWindow : Window, IDisposable
         if (ImGui.Button("Erase All Created Waymarks"))
         {
             showClearConfirmation = true;
-            ImGui.OpenPopup("ClearConfirmation");
+            ImGui.OpenPopup("Erase All Created Waymarks##WWClearConfirmation");
         }
 
         // Confirmation popup
-        if (ImGui.BeginPopupModal("Erase All Created Waymarks", ref showClearConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
+        if (ImGui.BeginPopupModal("Erase All Created Waymarks##WWClearConfirmation", ref showClearConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
         {
             var totalWaymarks = plugin.WaymarkStorageService.PersonalWaymarks.Count +
                                plugin.WaymarkStorageService.GetSharedCreatedWaymarksCount();
