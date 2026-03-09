@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using WukWaymark.Models;
 using WukWaymark.Utils;
 
@@ -6,11 +7,27 @@ namespace WukWaymark.Services;
 
 /// <summary>
 /// Service class containing business logic for waymark operations.
-/// Handles waymark creation, validation, and persistence.
+/// Handles waymark creation, deletion, undo, and persistence.
 /// </summary>
-public class WaymarkService(Configuration configuration)
+public class WaymarkService(Configuration configuration, WaymarkStorageService storageService)
 {
     private readonly Configuration configuration = configuration;
+    private readonly WaymarkStorageService storageService = storageService;
+
+    /// <summary>
+    /// Stack-based undo buffer for recently deleted waymarks.
+    /// Kept in memory only — not persisted across sessions.
+    /// </summary>
+    private readonly Stack<Waymark> deletedWaymarks = new();
+
+    /// <summary>Maximum number of deletions to remember for undo.</summary>
+    private const int MaxUndoHistory = 10;
+
+    /// <summary>Whether there are any deletions that can be undone.</summary>
+    public bool CanUndo => deletedWaymarks.Count > 0;
+
+    /// <summary>Number of deletions available for undo.</summary>
+    public int UndoCount => deletedWaymarks.Count;
 
     /// <summary>
     /// Saves the player's current location as a new waymark.
@@ -24,8 +41,10 @@ public class WaymarkService(Configuration configuration)
     /// 
     /// Validation errors are reported to the player via error messages.
     /// </summary>
+    /// <param name="groupId">Optional group to assign the waymark to.</param>
+    /// <param name="scope">The scope of the waymark (Personal or Shared).</param>
     /// <returns>The created waymark if successful, null if validation failed</returns>
-    public Waymark? SaveCurrentLocation()
+    public Waymark? SaveCurrentLocation(Guid? groupId = null, WaymarkScope scope = WaymarkScope.Personal)
     {
         // Verify player is logged in
         var player = Plugin.ObjectTable.LocalPlayer;
@@ -67,16 +86,117 @@ public class WaymarkService(Configuration configuration)
             Color = Colors.GetNextColor(configuration.Waymarks.Count),
             Shape = configuration.DefaultWaymarkShape,
             CreatedAt = DateTime.Now,
+            GroupId = groupId,
+            Scope = scope,
+            CharacterHash = scope == WaymarkScope.Personal ? storageService.CurrentCharacterHash : null,
         };
 
-        // Persist to configuration and save to disk
-        configuration.Waymarks.Add(waymark);
-        configuration.Save();
+        // Persist to correct storage based on scope
+        if (scope == WaymarkScope.Shared)
+        {
+            storageService.SharedWaymarks.Add(waymark);
+            storageService.SaveSharedWaymarks();
+        }
+        else
+        {
+            configuration.Waymarks.Add(waymark);
+            configuration.Save();
+        }
 
         // Provide user feedback
         Plugin.ChatGui.Print($"[WukWaymark] Saved waymark '{waymark.Name}' at current location.");
-        Plugin.Log.Information($"Saved waymark: {waymark.Name} at {waymark.Position} (Territory: {territoryId}, Map: {mapId})");
+        Plugin.Log.Information($"Saved waymark: {waymark.Name} at {waymark.Position} (Territory: {territoryId}, Map: {mapId}, Scope: {scope})");
 
         return waymark;
+    }
+
+    /// <summary>
+    /// Deletes a waymark, pushing it onto the undo stack first.
+    /// </summary>
+    /// <param name="waymark">The waymark to delete.</param>
+    public void DeleteWaymark(Waymark waymark)
+    {
+        // Push to undo stack before removing
+        if (deletedWaymarks.Count >= MaxUndoHistory)
+        {
+            // Remove the oldest entry by rebuilding the stack
+            var temp = new Stack<Waymark>();
+            var items = deletedWaymarks.ToArray();
+            for (var i = Math.Min(items.Length, MaxUndoHistory - 1) - 1; i >= 0; i--)
+                temp.Push(items[i]);
+            deletedWaymarks.Clear();
+            foreach (var item in temp)
+                deletedWaymarks.Push(item);
+        }
+
+        deletedWaymarks.Push(waymark);
+
+        // Remove from whichever storage contains it
+        var removedFromConfig = configuration.Waymarks.Remove(waymark);
+        var removedFromShared = storageService.SharedWaymarks.Remove(waymark);
+
+        if (removedFromConfig)
+            configuration.Save();
+        if (removedFromShared)
+            storageService.SaveSharedWaymarks();
+
+        Plugin.Log.Information($"Deleted waymark: {waymark.Name} (undo available)");
+    }
+
+    /// <summary>
+    /// Undoes the most recent waymark deletion, restoring the waymark.
+    /// </summary>
+    /// <returns>The restored waymark, or null if nothing to undo.</returns>
+    public Waymark? UndoDelete()
+    {
+        if (!CanUndo)
+            return null;
+
+        var waymark = deletedWaymarks.Pop();
+        
+        if (waymark.Scope == WaymarkScope.Shared)
+        {
+            storageService.SharedWaymarks.Add(waymark);
+            storageService.SaveSharedWaymarks();
+        }
+        else
+        {
+            configuration.Waymarks.Add(waymark);
+            configuration.Save();
+        }
+
+        Plugin.ChatGui.Print($"[WukWaymark] Restored waymark '{waymark.Name}'.");
+        Plugin.Log.Information($"Undo delete: restored waymark '{waymark.Name}' (Scope: {waymark.Scope})");
+
+        return waymark;
+    }
+
+    /// <summary>
+    /// Finds a group by name (case-insensitive).
+    /// </summary>
+    /// <param name="name">The group name to search for.</param>
+    /// <returns>The matching group, or null if not found.</returns>
+    public WaymarkGroup? FindGroupByName(string name)
+    {
+        foreach (var group in configuration.WaymarkGroups)
+        {
+            if (group.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                return group;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Returns a comma-separated list of all group names, for error messages.
+    /// </summary>
+    public string GetGroupNamesList()
+    {
+        if (configuration.WaymarkGroups.Count == 0)
+            return "(no groups exist)";
+
+        var names = new List<string>();
+        foreach (var group in configuration.WaymarkGroups)
+            names.Add(group.Name);
+        return string.Join(", ", names);
     }
 }

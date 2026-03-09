@@ -20,12 +20,13 @@ namespace WukWaymark.Services
     /// </summary>
     internal class WaymarkMapService : IDisposable
     {
+        private readonly Plugin plugin;
         private readonly Configuration configuration;
         private readonly WaymarkWindow window;
         private bool disposed;
 
         // Pre-calculated waymarks ready for the window to render
-        public readonly List<(Vector2 ScreenPos, WaymarkShape Shape, float MarkerSize, uint Color, string? Name)> WaymarksToRender = [];
+        public readonly List<(Vector2 ScreenPos, WaymarkShape Shape, float MarkerSize, uint Color, string? Name, uint? IconId)> WaymarksToRender = [];
 
         // Cached state from Framework.Update for debug / window access
         public Vector2? MapCenterScreenPos { get; private set; }
@@ -38,6 +39,7 @@ namespace WukWaymark.Services
 
         public WaymarkMapService(Plugin plugin)
         {
+            this.plugin = plugin;
             configuration = plugin.Configuration;
             window = new WaymarkWindow(this, plugin);
             Plugin.Framework.Update += OnFrameworkUpdate;
@@ -236,8 +238,32 @@ namespace WukWaymark.Services
 
                 var colorU32 = ImGui.ColorConvertFloat4ToU32(waymark.Color);
                 var markerSize = configuration.WaymarkMarkerSize * ImGuiHelpers.GlobalScale;
+                if (waymark.IconId != null && plugin.IconBrowserService.IsMapSymbol(waymark.IconId.Value))
+                {
+                    // Set marker size to how the game does it
+                    markerSize = 10.6f * areaMap->Scale * ImGuiHelpers.GlobalScale;
+                }
 
-                WaymarksToRender.Add((new Vector2(waymarkScreenX, waymarkScreenY), waymark.Shape, markerSize, colorU32, waymark.Name));
+                // Visibility radius — skip or fade based on distance from player
+                if (waymark.VisibilityRadius > 0)
+                {
+                    var dist = Vector3.Distance(player.Position, waymark.Position);
+                    if (dist > waymark.VisibilityRadius)
+                        continue; // Beyond visibility radius — don't render
+
+                    // Fade out in the last 20% of the radius
+                    var fadeStart = waymark.VisibilityRadius * 0.8f;
+                    if (dist > fadeStart)
+                    {
+                        var alpha = 1.0f - ((dist - fadeStart) / (waymark.VisibilityRadius - fadeStart));
+                        alpha = Math.Clamp(alpha, 0f, 1f);
+                        // Modify the U32 color's alpha channel
+                        var a = (uint)(alpha * 255f);
+                        colorU32 = (colorU32 & 0x00FFFFFF) | (a << 24);
+                    }
+                }
+
+                WaymarksToRender.Add((new Vector2(waymarkScreenX, waymarkScreenY), waymark.Shape, markerSize, colorU32, waymark.Name, waymark.IconId));
             }
         }
 

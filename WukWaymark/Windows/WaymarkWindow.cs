@@ -39,9 +39,9 @@ namespace WukWaymark.Windows
             string? hoveredWaymarkName = null;
 
             // Iterate through pre-calculated waymarks from the Service
-            foreach (var (position, shape, size, colorU32, name) in _service.WaymarksToRender)
+            foreach (var (position, shape, size, colorU32, name, iconId) in _service.WaymarksToRender)
             {
-                WaymarkRenderer.RenderWaymarkShape(drawList, position, shape, size, colorU32);
+                WaymarkRenderer.RenderWaymark(drawList, position, shape, size, colorU32, iconId);
 
                 // Display tooltip if enabled and mouse is hovering within marker bounds
                 if (_plugin.Configuration.ShowWaymarkTooltips &&

@@ -3,6 +3,8 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using System;
+using System.Numerics;
 using WukWaymark.Services;
 using WukWaymark.Windows;
 
@@ -41,6 +43,12 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Provides access to Dalamud framework functionality</summary>
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
 
+    /// <summary>Provides access to game textures and icons</summary>
+    [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
+
+    /// <summary>Provides access to the player's state (content ID, etc.)</summary>
+    [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
+
     // ═══════════════════════════════════════════════════════════════
     // PLUGIN CONFIGURATION & SERVICES
     // ═══════════════════════════════════════════════════════════════
@@ -54,6 +62,12 @@ public sealed class Plugin : IDalamudPlugin
 
     /// <summary>Business logic service for waymark operations (save, load, delete)</summary>
     public WaymarkService WaymarkService { get; init; }
+
+    /// <summary>Background service for loading and caching game icons</summary>
+    public IconBrowserService IconBrowserService { get; init; }
+
+    /// <summary>Handles cross-character waymark persistence and scoping</summary>
+    public WaymarkStorageService WaymarkStorageService { get; init; }
 
     /// <summary>Manages rendering of all plugin windows</summary>
     public readonly WindowSystem WindowSystem = new("WukWaymark");
@@ -74,7 +88,20 @@ public sealed class Plugin : IDalamudPlugin
     {
         // Load or create configuration
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-        WaymarkService = new WaymarkService(Configuration);
+
+        // Initialize services
+        var pluginConfigDir = PluginInterface.GetPluginConfigDirectory();
+        WaymarkStorageService = new WaymarkStorageService(Configuration, pluginConfigDir);
+        WaymarkService = new WaymarkService(Configuration, WaymarkStorageService);
+        IconBrowserService = new IconBrowserService(DataManager);
+
+        // Set character hash if player is already logged in
+        if (PlayerState.ContentId != 0)
+            WaymarkStorageService.SetCharacterHash(PlayerState.ContentId);
+
+        // Subscribe to login/logout events for character hash management
+        ClientState.Login += OnLogin;
+        ClientState.Logout += OnLogout;
 
         // Initialize UI windows
         ConfigWindow = new ConfigWindow(this);
@@ -91,6 +118,7 @@ public sealed class Plugin : IDalamudPlugin
             HelpMessage = $"""
             Manage and view your custom waymarks.
             {WaymarkCommandName} here → Save your current location as a waymark.
+            {WaymarkCommandName} here <group> → Save to a specific group.
             """, ShowInHelp = true
         });
         // Also register an alias for the command
@@ -113,6 +141,10 @@ public sealed class Plugin : IDalamudPlugin
     }
     public void Dispose()
     {
+        // Unregister login/logout events
+        ClientState.Login -= OnLogin;
+        ClientState.Logout -= OnLogout;
+
         // Unregister all event handlers to prevent memory leaks
         PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUi;
@@ -131,16 +163,30 @@ public sealed class Plugin : IDalamudPlugin
         CommandManager.RemoveHandler(WaymarkCommandAlias);
     }
 
+    /// <summary>Called when the player logs in — set character hash for personal waymark scoping.</summary>
+    private void OnLogin()
+    {
+        if (PlayerState.ContentId != 0)
+            WaymarkStorageService.SetCharacterHash(PlayerState.ContentId);
+    }
+
+    /// <summary>Called when the player logs out — clear character hash.</summary>
+    private void OnLogout(int kind, int flags)
+    {
+        WaymarkStorageService.ClearCharacterHash();
+    }
+
     /// <summary>
     /// Handles the /wwmark slash command with optional arguments.
     /// 
     /// Usage:
-    /// /wwmark           - Opens the main waymark list window
-    /// /wwmark here      - Saves current location as a new waymark
+    /// /wwmark                  - Opens the main waymark list window
+    /// /wwmark here             - Saves current location as a new waymark (ungrouped)
+    /// /wwmark here [group]     - Saves current location to the specified group
     /// </summary>
     private void OnWaymarkCommand(string command, string args)
     {
-        var argsTrimmed = args.Trim().ToLowerInvariant();
+        var argsTrimmed = args.Trim();
 
         if (string.IsNullOrEmpty(argsTrimmed))
         {
@@ -149,16 +195,34 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
-        if (argsTrimmed == "here")
+        // Check for "here" command (with optional group name)
+        if (argsTrimmed.StartsWith("here", StringComparison.OrdinalIgnoreCase))
         {
-            Plugin.Log.Information("Saving current location as a waymark...");
-            // Save current location as a waymark
-            WaymarkService.SaveCurrentLocation();
+            var remainder = argsTrimmed[4..].Trim();
+
+            if (string.IsNullOrEmpty(remainder))
+            {
+                // /wwmark here — save ungrouped
+                Log.Information("Saving current location as a waymark...");
+                WaymarkService.SaveCurrentLocation();
+                return;
+            }
+
+            // /wwmark here <group> — save to the specified group
+            var group = WaymarkService.FindGroupByName(remainder);
+            if (group == null)
+            {
+                ChatGui.PrintError($"[WukWaymark] Group '{remainder}' not found. Available groups: {WaymarkService.GetGroupNamesList()}");
+                return;
+            }
+
+            Log.Information($"Saving current location to group '{group.Name}'...");
+            WaymarkService.SaveCurrentLocation(group.Id);
             return;
         }
 
         // Unknown argument
-        ChatGui.Print($"[WukWaymark] Unknown command. Use '{WaymarkCommandName}' to view waymarks or '{WaymarkCommandName} here' to save current location.");
+        ChatGui.Print($"[WukWaymark] Unknown command. Use '{WaymarkCommandName}' to view waymarks or '{WaymarkCommandName} here [group]' to save current location.");
     }
 
     /// <summary>Toggles the visibility of the configuration window</summary>

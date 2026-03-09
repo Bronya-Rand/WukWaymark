@@ -24,8 +24,9 @@ namespace WukWaymark.Windows
         /// <param name="colorU32">The fill color in ImGui 32-bit RGBA format (generated via ImGui.ColorConvertFloat4ToU32)</param>
         public static void RenderWaymarkShape(ImDrawListPtr drawList, Vector2 position, WaymarkShape shape, float markerSize, uint colorU32)
         {
-            // Draw black outline for visibility
-            var outlineColor = 0xFF000000u;
+            // Extract alpha from the fill color so outline fades with the shape
+            var alpha = (colorU32 >> 24) & 0xFF;
+            var outlineColor = 0x00000000u | (alpha << 24);
             var outlineThickness = 1.5f;
 
             switch (shape)
@@ -123,6 +124,51 @@ namespace WukWaymark.Windows
                 var p2 = center + new Vector2(MathF.Cos(angle2) * r2, MathF.Sin(angle2) * r2);
 
                 drawList.AddTriangleFilled(center, p1, p2, colorU32);
+            }
+        }
+
+        /// <summary>
+        /// Renders a waymark using a game texture icon via ITextureProvider.
+        /// The icon is drawn centered at the specified position.
+        /// </summary>
+        /// <param name="drawList">The ImGui draw list to render to</param>
+        /// <param name="position">Screen-space center position for the icon</param>
+        /// <param name="iconId">The game icon ID to load via ITextureProvider</param>
+        /// <param name="markerSize">Half-size of the icon in pixels (icon will be 2x this value)</param>
+        public static void RenderWaymarkIcon(ImDrawListPtr drawList, Vector2 position, uint iconId, float markerSize, uint tintColor = uint.MaxValue)
+        {
+            var iconTex = Plugin.TextureProvider.GetFromGameIcon(iconId).GetWrapOrEmpty();
+            if (iconTex == null || iconTex.Handle == nint.Zero)
+                return;
+
+            var halfSize = markerSize * 1.5f; // Slightly larger than shape markers for clarity
+            var topLeft = position - new Vector2(halfSize, halfSize);
+            var bottomRight = position + new Vector2(halfSize, halfSize);
+
+            drawList.AddImage(iconTex.Handle, topLeft, bottomRight, Vector2.Zero, Vector2.One, tintColor);
+        }
+
+        /// <summary>
+        /// Renders a waymark using either an icon (if IconId is set) or a shape fallback.
+        /// This is the primary entry point for rendering waymarks.
+        /// </summary>
+        /// <param name="drawList">The ImGui draw list to render to</param>
+        /// <param name="position">Screen-space center position</param>
+        /// <param name="shape">Fallback shape if no icon</param>
+        /// <param name="markerSize">Marker size in pixels</param>
+        /// <param name="colorU32">Fill color for shape rendering</param>
+        /// <param name="iconId">Optional game icon ID; if set, renders icon instead of shape</param>
+        public static void RenderWaymark(ImDrawListPtr drawList, Vector2 position, WaymarkShape shape, float markerSize, uint colorU32, uint? iconId)
+        {
+            if (iconId.HasValue && iconId.Value != 0)
+            {
+                // Pass the fill color as tint so icon respects alpha fade
+                var tint = 0x00FFFFFFu | (colorU32 & 0xFF000000u); // white RGB + alpha from colorU32
+                RenderWaymarkIcon(drawList, position, iconId.Value, markerSize, tint);
+            }
+            else
+            {
+                RenderWaymarkShape(drawList, position, shape, markerSize, colorU32);
             }
         }
     }

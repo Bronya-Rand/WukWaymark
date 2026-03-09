@@ -16,6 +16,11 @@ public class Configuration : IPluginConfiguration
     public List<Waymark> Waymarks { get; set; } = [];
 
     /// <summary>
+    /// Collection of all saved waymark groups for organizing waymarks.
+    /// </summary>
+    public List<WaymarkGroup> WaymarkGroups { get; set; } = [];
+
+    /// <summary>
     /// Enable or disable rendering of waymarks on the in-game map overlay.
     /// When disabled, waymarks are still saved but not displayed.
     /// </summary>
@@ -38,6 +43,12 @@ public class Configuration : IPluginConfiguration
     /// Useful for quickly identifying waymarks without opening the UI.
     /// </summary>
     public bool ShowWaymarkTooltips { get; set; } = true;
+
+    /// <summary>
+    /// When true, the main window shows Group View (collapsible group headers).
+    /// When false, shows Table View (flat list of all waymarks with search).
+    /// </summary>
+    public bool UseGroupView { get; set; } = false;
 
     /// <summary>
     /// Default shape applied to newly created waymarks.

@@ -52,11 +52,11 @@ namespace WukWaymark.Windows
             var mousePos = ImGui.GetMousePos();
             string? hoveredWaymarkName = null;
 
-            foreach (var (position, shape, size, color, name) in service.WaymarksToRender)
+            foreach (var (position, shape, size, color, name, iconId) in service.WaymarksToRender)
             {
                 var colorU32 = ImGui.ColorConvertFloat4ToU32(color);
 
-                WaymarkRenderer.RenderWaymarkShape(drawList, position, shape, size, colorU32);
+                WaymarkRenderer.RenderWaymark(drawList, position, shape, size, colorU32, iconId);
 
                 if (plugin.Configuration.ShowWaymarkTooltips &&
                     !string.IsNullOrEmpty(name) &&
