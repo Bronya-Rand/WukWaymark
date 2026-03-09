@@ -190,11 +190,23 @@ namespace WukWaymark.Services
 
             var multiplierForWaymarks = GetMultiplier(zoomIndex, areaMap->Scale);
             var mapCenterWorldPos = Vector3.Zero;
+            var currentMapId = agentMap->SelectedMapId;
 
             foreach (var waymark in plugin.WaymarkStorageService.GetVisibleWaymarks())
             {
-                if (waymark.MapId != agentMap->SelectedMapId)
+                // Early culling
+                if (waymark.MapId != currentMapId)
                     continue;
+
+                // Visibility radius check
+                if (configuration.FadeWaymarkOnMapEdge && waymark.VisibilityRadius > 0)
+                {
+                    var distSquared = Vector3.DistanceSquared(player.Position, waymark.Position);
+                    var radiusSquared = waymark.VisibilityRadius * waymark.VisibilityRadius;
+
+                    if (distSquared > radiusSquared)
+                        continue; // Beyond visibility radius — don't render
+                }
 
                 var deltaWorldX = waymark.Position.X - mapCenterWorldPos.X;
                 var deltaWorldY = waymark.Position.Z - mapCenterWorldPos.Z;
@@ -248,18 +260,17 @@ namespace WukWaymark.Services
                     markerSize = 10.6f * areaMap->Scale * ImGuiHelpers.GlobalScale;
                 }
 
-                // Visibility radius — skip or fade based on distance from player
+                // Apply visibility radius fade (last 20% of radius)
                 var targetAlpha = 1.0f;
                 if (configuration.FadeWaymarkOnMapEdge && waymark.VisibilityRadius > 0)
                 {
-                    var dist = Vector3.Distance(player.Position, waymark.Position);
-                    if (dist > waymark.VisibilityRadius)
-                        continue; // Beyond visibility radius — don't render
-
-                    // Fade out in the last 20% of the radius
+                    var distSquared = Vector3.DistanceSquared(player.Position, waymark.Position);
                     var fadeStart = waymark.VisibilityRadius * 0.8f;
-                    if (dist > fadeStart)
+                    var fadeStartSquared = fadeStart * fadeStart;
+
+                    if (distSquared > fadeStartSquared)
                     {
+                        var dist = MathF.Sqrt(distSquared); // Only apply when fading
                         targetAlpha = 1.0f - ((dist - fadeStart) / (waymark.VisibilityRadius - fadeStart));
                     }
                 }

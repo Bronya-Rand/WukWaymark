@@ -16,10 +16,9 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
     private readonly WaymarkStorageService storageService = storageService;
 
     /// <summary>
-    /// Stack-based undo buffer for recently deleted waymarks.
-    /// Kept in memory only — not persisted across sessions.
+    /// Undo buffer for recently deleted waymarks.
     /// </summary>
-    private readonly Stack<Waymark> deletedWaymarks = new();
+    private readonly LinkedList<Waymark> deletedWaymarks = new();
 
     /// <summary>Maximum number of deletions to remember for undo.</summary>
     private const int MaxUndoHistory = 10;
@@ -77,19 +76,21 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
         }
 
         // Create a new waymark with current location data
+        var totalCount = storageService.PersonalWaymarks.Count + storageService.SharedWaymarks.Count;
         var waymark = new Waymark
         {
             Position = player.Position,
             TerritoryId = territoryId,
             MapId = mapId,
             WorldId = currentWorldId,
-            Name = $"Waymark {configuration.Waymarks.Count + 1}",
-            Color = Colors.GetNextColor(configuration.Waymarks.Count),
+            Name = $"Waymark {totalCount + 1}",
+            Color = Colors.GetNextColor(totalCount),
             Shape = configuration.DefaultWaymarkShape,
             CreatedAt = DateTime.Now,
             GroupId = group?.Id,
             Scope = scope,
-            CharacterHash = scope == WaymarkScope.Personal ? storageService.CurrentCharacterHash : null,
+            CharacterHash = storageService.CurrentCharacterHash, // Set creator for both personal and shared
+            IsReadOnly = group?.IsReadOnly ?? false // Use group's read-only status if available
         };
 
         // Persist to correct storage based on scope
@@ -100,8 +101,8 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
         }
         else
         {
-            configuration.Waymarks.Add(waymark);
-            configuration.Save();
+            storageService.PersonalWaymarks.Add(waymark);
+            storageService.SavePersonalWaymarks();
         }
 
         // Provide user feedback
@@ -124,26 +125,34 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
     /// <param name="waymark">The waymark to delete.</param>
     public void DeleteWaymark(Waymark waymark)
     {
-        // Push to undo stack before removing
-        if (deletedWaymarks.Count >= MaxUndoHistory)
+        // Validate permissions before allowing deletion
+        if (waymark.IsReadOnly)
         {
-            // Remove the oldest entry while preserving LIFO order (newest on top)
-            var items = deletedWaymarks.ToArray(); // items[0] is current top, items[^1] is bottom
-            var keepCount = Math.Min(items.Length, MaxUndoHistory - 1);
-            deletedWaymarks.Clear();
-            // Rebuild the stack so that items[0] (original top) remains on top
-            for (var i = keepCount - 1; i >= 0; i--)
-                deletedWaymarks.Push(items[i]);
+            Plugin.ChatGui.PrintError($"[WukWaymark] Waymark '{waymark.Name}' is read-only and cannot be deleted.");
+            return;
+        }
+        if (waymark.Scope == WaymarkScope.Personal && waymark.CharacterHash != storageService.CurrentCharacterHash)
+        {
+            Plugin.ChatGui.PrintError($"[WukWaymark] You do not have permission to delete waymark '{waymark.Name}'.");
+            return;
         }
 
-        deletedWaymarks.Push(waymark);
+        // Push to undo buffer (LIFO - most recent at front)
+        if (deletedWaymarks.Count >= MaxUndoHistory)
+        {
+            // Remove oldest entry (at end)
+            deletedWaymarks.RemoveLast();
+        }
+
+        // Add newest entry at front
+        deletedWaymarks.AddFirst(waymark);
 
         // Remove from whichever storage contains it
-        var removedFromConfig = configuration.Waymarks.Remove(waymark);
+        var removedFromPersonal = storageService.PersonalWaymarks.Remove(waymark);
         var removedFromShared = storageService.SharedWaymarks.Remove(waymark);
 
-        if (removedFromConfig)
-            configuration.Save();
+        if (removedFromPersonal)
+            storageService.SavePersonalWaymarks();
         if (removedFromShared)
             storageService.SaveSharedWaymarks();
 
@@ -159,7 +168,9 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
         if (!CanUndo)
             return null;
 
-        var waymark = deletedWaymarks.Pop();
+        // Remove from front (most recent)
+        var waymark = deletedWaymarks.First!.Value;
+        deletedWaymarks.RemoveFirst();
 
         if (waymark.Scope == WaymarkScope.Shared)
         {
@@ -168,8 +179,8 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
         }
         else
         {
-            configuration.Waymarks.Add(waymark);
-            configuration.Save();
+            storageService.PersonalWaymarks.Add(waymark);
+            storageService.SavePersonalWaymarks();
         }
 
         Plugin.ChatGui.Print($"[WukWaymark] Restored waymark '{waymark.Name}'.");
@@ -185,7 +196,8 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
     /// <returns>The matching group, or null if not found.</returns>
     public WaymarkGroup? FindGroupByName(string name)
     {
-        foreach (var group in configuration.WaymarkGroups)
+        var allGroups = storageService.GetVisibleGroups();
+        foreach (var group in allGroups)
         {
             if (group.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
                 return group;
@@ -198,12 +210,13 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
     /// </summary>
     public string GetGroupNamesList()
     {
-        if (configuration.WaymarkGroups.Count == 0)
+        var allGroups = storageService.GetVisibleGroups();
+        if (allGroups.Count == 0)
             return "(no groups exist)";
 
         var output = new StringBuilder();
         // Format as a bullet list with each name on a new line
-        foreach (var group in configuration.WaymarkGroups)
+        foreach (var group in allGroups)
             output.AppendLine($"- {group.Name}");
 
         return output.ToString().TrimEnd();

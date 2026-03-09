@@ -68,6 +68,11 @@ public class MainWindow : Window, IDisposable
     private string editingIconSearch = string.Empty;
     private WaymarkScope editingScope = WaymarkScope.Personal;
 
+    /// <summary>
+    /// Whether to make the waymark read-only (only applies to shared waymarks)
+    /// </summary>
+    private bool editingReadOnly = false;
+
     /// <summary>Whether the icon picker modal is open</summary>
     private bool showIconPickerModal = false;
 
@@ -77,6 +82,12 @@ public class MainWindow : Window, IDisposable
 
     /// <summary>Name for new/editing group</summary>
     private string groupEditName = string.Empty;
+
+    /// <summary>Scope being edited for the group</summary>
+    private WaymarkScope groupEditScope = WaymarkScope.Personal;
+
+    /// <summary>Read-only flag being edited for the group</summary>
+    private bool groupEditIsReadOnly = false;
 
     /// <summary>Whether the create group popup should open</summary>
     private bool showCreateGroupPopup;
@@ -153,7 +164,7 @@ public class MainWindow : Window, IDisposable
 
         // Main content area with scrolling
         using var child = ImRaii.Child("WaymarkListChild", Vector2.Zero, true);
-        ImGui.Separator();
+        //ImGui.Separator();
 
         var visibleWaymarks = plugin.WaymarkStorageService.GetVisibleWaymarks();
 
@@ -181,21 +192,20 @@ public class MainWindow : Window, IDisposable
         ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.0f, 1.0f), "Custom Waymark Locations");
 
         // Position buttons on the right side of the header
-        var buttonWidth = 30.0f;
-        var buttonSpacing = 5.0f;
-        var totalButtonWidth = (buttonWidth * 4) + (buttonSpacing * 3) + 8;
-        ImGui.SameLine(ImGui.GetWindowWidth() - totalButtonWidth);
+        var buttonWidth = ImGui.GetFrameHeight();
+        var buttonSpacing = 5.0f * ImGuiHelpers.GlobalScale;
+        var totalButtonWidth = (buttonWidth * 4) + (buttonSpacing * 4);
+        ImGui.SameLine(ImGui.GetWindowContentRegionMax().X - totalButtonWidth);
 
         // Import from clipboard
         if (ImGuiComponents.IconButton(FontAwesomeIcon.FileImport))
         {
-            var allKnownWaymarks = plugin.Configuration.Waymarks
-                .Concat(plugin.WaymarkStorageService.SharedWaymarks)
-                .ToList();
+            var allKnownWaymarks = plugin.WaymarkStorageService.GetVisibleWaymarks();
+            var allKnownGroups = plugin.WaymarkStorageService.GetVisibleGroups();
 
             var result = WaymarkExportService.ImportFromClipboard(
                 allKnownWaymarks,
-                plugin.Configuration.WaymarkGroups);
+                allKnownGroups);
 
             if (!result.Success)
             {
@@ -315,7 +325,7 @@ public class MainWindow : Window, IDisposable
 
     private void DrawGroupView(List<Waymark> waymarks)
     {
-        var groups = plugin.Configuration.WaymarkGroups;
+        var groups = plugin.WaymarkStorageService.GetVisibleGroups();
 
         // Draw create group popup if needed
         DrawCreateGroupPopup();
@@ -325,6 +335,8 @@ public class MainWindow : Window, IDisposable
         if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus))
         {
             groupEditName = string.Empty;
+            groupEditScope = WaymarkScope.Personal; // Default to personal
+            groupEditIsReadOnly = false; // Default to not read-only
             showCreateGroupPopup = true;
         }
         if (ImGui.IsItemHovered())
@@ -405,16 +417,48 @@ public class MainWindow : Window, IDisposable
         // Calculate right-aligned position for buttons
         var buttonSize = 20.0f * ImGuiHelpers.GlobalScale;
         var spacing = 5.0f;
-        var totalWidth = (buttonSize * 3) + (spacing * 2) + 8;
+        var scopeIconSize = 18.0f * ImGuiHelpers.GlobalScale;
+        var totalWidth = (buttonSize * 3) + (spacing * 2) + scopeIconSize + spacing + 8;
 
         ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalWidth + ImGui.GetCursorPosX());
+
+        var groupScopeIcon = FontAwesomeIcon.EyeSlash;
+        if (group.Scope == WaymarkScope.Shared)
+            groupScopeIcon = group.IsReadOnly ? FontAwesomeIcon.Lock : FontAwesomeIcon.Users;
+
+        using (ImRaii.PushFont(Plugin.PluginInterface.UiBuilder.FontIcon))
+        {
+            // Move it slightly down to align with icon buttons vertically
+            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (2 * ImGuiHelpers.GlobalScale));
+            ImGui.TextDisabled(groupScopeIcon.ToIconString());
+        }
+        if (ImGui.IsItemHovered())
+        {
+            if (group.Scope == WaymarkScope.Personal) ImGui.SetTooltip("Scope: Personal");
+            else if (group.IsReadOnly) ImGui.SetTooltip("Scope: Shared (Read-Only)");
+            else ImGui.SetTooltip("Scope: Shared");
+        }
+
+        // Move cursor back up if we shifted it down
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() - (2 * ImGuiHelpers.GlobalScale));
+        ImGui.SameLine(0, spacing);
+
+        // Check if this group can be edited by the current user
+        var currentHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+        // Owner check for Edit Group and Delete Group
+        var canDelete = group.CreatorHash != null && currentHash != null && group.CreatorHash == currentHash;
+        // Read-Only check for Save Current Location
+        var canAdd = !group.IsReadOnly || canDelete;
 
         // Quick-save to this group
         using (ImRaii.PushId("groupsave"))
         {
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
+            using (ImRaii.Disabled(!canAdd))
             {
-                plugin.WaymarkService.SaveCurrentLocation(group);
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
+                {
+                    plugin.WaymarkService.SaveCurrentLocation(group, group.Scope);
+                }
             }
             if (ImGui.IsItemHovered())
             {
@@ -427,15 +471,20 @@ public class MainWindow : Window, IDisposable
         // Edit group
         using (ImRaii.PushId("groupedit"))
         {
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.Edit))
+            using (ImRaii.Disabled(!canDelete))
             {
-                groupEditName = group.Name;
-                editingGroup = group;
-                showCreateGroupPopup = true;
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.Edit))
+                {
+                    groupEditName = group.Name;
+                    groupEditScope = group.Scope;
+                    groupEditIsReadOnly = group.IsReadOnly;
+                    editingGroup = group;
+                    showCreateGroupPopup = true;
+                }
             }
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("Edit Group");
+                ImGui.SetTooltip("Edit Group Properties");
             }
         }
 
@@ -444,10 +493,13 @@ public class MainWindow : Window, IDisposable
         // Delete group
         using (ImRaii.PushId("groupdelete"))
         {
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash))
+            using (ImRaii.Disabled(!canDelete))
             {
-                groupToDelete = group;
-                showDeleteGroupConfirmation = true;
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash))
+                {
+                    groupToDelete = group;
+                    showDeleteGroupConfirmation = true;
+                }
             }
             if (ImGui.IsItemHovered())
             {
@@ -522,18 +574,33 @@ public class MainWindow : Window, IDisposable
                 // Actions
                 ImGui.TableNextColumn();
 
+                // Check if this waymark can be edited by the current user
+                var currentCharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+
+                // Can only edit if waymark is not read only (Shared) or if it's personal and belongs to the current character
+                var canEdit = (waymark.Scope == WaymarkScope.Shared &&
+                    !waymark.IsReadOnly) ||
+                    (waymark.Scope == WaymarkScope.Personal &&
+                    waymark.CharacterHash != null &&
+                    currentCharacterHash != null &&
+                    waymark.CharacterHash == currentCharacterHash);
+
                 // Edit button
-                if (ImGuiComponents.IconButton(FontAwesomeIcon.Edit))
+                using (ImRaii.Disabled(!canEdit))
                 {
-                    editingName = waymark.Name;
-                    editingColor = waymark.Color;
-                    editingShape = waymark.Shape;
-                    editingNote = waymark.Notes;
-                    editingGroupId = waymark.GroupId;
-                    editingVisibilityRadius = waymark.VisibilityRadius;
-                    editingIconId = waymark.IconId;
-                    editingScope = waymark.Scope;
-                    ImGui.OpenPopup($"EditWaymark##{waymark.Id}");
+                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Edit))
+                    {
+                        editingName = waymark.Name;
+                        editingColor = waymark.Color;
+                        editingShape = waymark.Shape;
+                        editingNote = waymark.Notes;
+                        editingGroupId = waymark.GroupId;
+                        editingVisibilityRadius = waymark.VisibilityRadius;
+                        editingIconId = waymark.IconId;
+                        editingScope = waymark.Scope;
+                        editingReadOnly = waymark.IsReadOnly;
+                        ImGui.OpenPopup($"EditWaymark##{waymark.Id}");
+                    }
                 }
                 if (ImGui.IsItemHovered())
                 {
@@ -554,18 +621,6 @@ public class MainWindow : Window, IDisposable
                     ImGui.SetTooltip("Flag Location on Map");
                 }
 
-                // Delete button
-                ImGui.SameLine();
-                if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash))
-                {
-                    waymarkToDelete = waymark;
-                    showDeleteWaymarkConfirmation = true;
-                }
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip("Delete Waymark");
-                }
-
                 // Export to clipboard button (single waymark)
                 ImGui.SameLine();
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.Clipboard))
@@ -577,6 +632,21 @@ public class MainWindow : Window, IDisposable
                 if (ImGui.IsItemHovered())
                 {
                     ImGui.SetTooltip("Copy to Clipboard");
+                }
+
+                // Delete button
+                ImGui.SameLine();
+                using (ImRaii.Disabled(!canEdit))
+                {
+                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash))
+                    {
+                        waymarkToDelete = waymark;
+                        showDeleteWaymarkConfirmation = true;
+                    }
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip("Delete Waymark");
                 }
             }
 
@@ -618,6 +688,22 @@ public class MainWindow : Window, IDisposable
 
     private void DrawEditPopup(Waymark waymark)
     {
+        if (waymark.IsReadOnly)
+        {
+            // Show read-only notice if this waymark is shared and read-only
+            if (ImGui.BeginPopup($"EditWaymark##{waymark.Id}"))
+            {
+                ImGui.Text($"'{waymark.Name}' is read-only and cannot be edited.");
+                ImGui.Spacing();
+                if (ImGui.Button("Close"))
+                {
+                    ImGui.CloseCurrentPopup();
+                }
+                ImGui.EndPopup();
+            }
+            return;
+        }
+
         if (ImGui.BeginPopup($"EditWaymark##{waymark.Id}"))
         {
             ImGui.Text($"Edit Waymark");
@@ -652,7 +738,7 @@ public class MainWindow : Window, IDisposable
             // Group assignment dropdown
             ImGui.Text("Group:");
             ImGui.SetNextItemWidth(250);
-            var groups = plugin.Configuration.WaymarkGroups;
+            var groups = plugin.WaymarkStorageService.GetVisibleGroups();
             var currentGroupName = editingGroupId == null
                 ? "Ungrouped"
                 : groups.FirstOrDefault(g => g.Id == editingGroupId)?.Name ?? "Unknown";
@@ -693,6 +779,20 @@ public class MainWindow : Window, IDisposable
                         editingScope = WaymarkScope.Personal;
                     if (ImGui.Selectable(WaymarkScope.Shared.ToString(), editingScope == WaymarkScope.Shared))
                         editingScope = WaymarkScope.Shared;
+                }
+            }
+
+            // Read-only checkbox (only shown for shared waymarks)
+            if (editingScope == WaymarkScope.Shared)
+            {
+                ImGui.Spacing();
+                if (ImGui.Checkbox("Read-Only (Only creator can edit)##WaymarkReadOnly", ref editingReadOnly))
+                {
+                    waymark.IsReadOnly = editingReadOnly;
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip("When enabled, only you can edit or delete this shared waymark");
                 }
             }
 
@@ -785,6 +885,7 @@ public class MainWindow : Window, IDisposable
                 waymark.VisibilityRadius = editingVisibilityRadius;
                 waymark.IconId = editingIconId;
                 waymark.Scope = editingScope;
+                waymark.IsReadOnly = editingReadOnly;
 
                 if (oldScope != waymark.Scope)
                 {
@@ -793,17 +894,18 @@ public class MainWindow : Window, IDisposable
                     {
                         plugin.WaymarkStorageService.SharedWaymarks.Remove(waymark);
                         waymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
-                        plugin.Configuration.Waymarks.Add(waymark);
+                        waymark.IsReadOnly = false;
+                        plugin.WaymarkStorageService.PersonalWaymarks.Add(waymark);
                     }
                     else
                     {
-                        plugin.Configuration.Waymarks.Remove(waymark);
-                        waymark.CharacterHash = null;
+                        plugin.WaymarkStorageService.PersonalWaymarks.Remove(waymark);
+                        waymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
                         plugin.WaymarkStorageService.SharedWaymarks.Add(waymark);
                     }
                 }
 
-                plugin.Configuration.Save();
+                plugin.WaymarkStorageService.SavePersonalWaymarks();
                 plugin.WaymarkStorageService.SaveSharedWaymarks();
                 ImGui.CloseCurrentPopup();
             }
@@ -940,7 +1042,7 @@ public class MainWindow : Window, IDisposable
     {
         if (result.Payload == null) return;
 
-        var config = plugin.Configuration;
+        var groupIdSwaps = new Dictionary<Guid, Guid>();
         var conflictIds = new HashSet<Guid>(result.Conflicts.Select(c => c.Id));
         var addedWaymarks = 0;
         var addedGroups = 0;
@@ -948,25 +1050,64 @@ public class MainWindow : Window, IDisposable
         // Apply groups first (waymarks may reference them)
         foreach (var importedGroup in result.Payload.Groups)
         {
+            var isSharedGroup = importedGroup.Scope == WaymarkScope.Shared;
             if (conflictIds.Contains(importedGroup.Id))
             {
                 var shouldOverwrite = overwriteAll || (importConflictChoices.TryGetValue(importedGroup.Id, out var v) && v);
                 if (shouldOverwrite)
                 {
-                    var existing = config.WaymarkGroups.FirstOrDefault(g => g.Id == importedGroup.Id);
-                    if (existing != null)
+                    // Remove entirely from both group collections first to safely overwrite
+                    plugin.WaymarkStorageService.PersonalGroups.RemoveAll(g => g.Id == importedGroup.Id);
+                    plugin.WaymarkStorageService.SharedGroups.RemoveAll(g => g.Id == importedGroup.Id);
+                    importedGroup.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                    if (isSharedGroup)
                     {
-                        existing.Name = importedGroup.Name;
-                        existing.IconId = importedGroup.IconId;
-                        existing.Scope = importedGroup.Scope;
+                        plugin.WaymarkStorageService.SharedGroups.Add(importedGroup);
+                    }
+                    else
+                    {
+                        plugin.WaymarkStorageService.PersonalGroups.Add(importedGroup);
+                    }
+                    addedGroups++;
+                }
+                else
+                {
+                    // User chose NOT to overwrite. Apply specific resolution rules.
+                    var localGroup = plugin.WaymarkStorageService.PersonalGroups.FirstOrDefault(g => g.Id == importedGroup.Id)
+                                  ?? plugin.WaymarkStorageService.SharedGroups.FirstOrDefault(g => g.Id == importedGroup.Id);
+
+                    // Rules 1 & 3: If local group is Shared and Read-Only, generate a new Guid so we don't merge into a locked group.
+                    if (localGroup != null && localGroup.Scope == WaymarkScope.Shared && localGroup.IsReadOnly)
+                    {
+                        var oldId = importedGroup.Id;
+                        importedGroup.Id = Guid.NewGuid();
+                        groupIdSwaps[oldId] = importedGroup.Id;
+
+                        importedGroup.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                        if (isSharedGroup)
+                        {
+                            plugin.WaymarkStorageService.SharedGroups.Add(importedGroup);
+                        }
+                        else
+                        {
+                            plugin.WaymarkStorageService.PersonalGroups.Add(importedGroup);
+                        }
                         addedGroups++;
                     }
+                    // Rules 2, 4, 5: Merge into existing. Group is skipped, waymarks will attach to existing local group.
                 }
-                // else skip
             }
             else
             {
-                config.WaymarkGroups.Add(importedGroup);
+                importedGroup.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                if (isSharedGroup)
+                {
+                    plugin.WaymarkStorageService.SharedGroups.Add(importedGroup);
+                }
+                else
+                {
+                    plugin.WaymarkStorageService.PersonalGroups.Add(importedGroup);
+                }
                 addedGroups++;
             }
         }
@@ -974,6 +1115,14 @@ public class MainWindow : Window, IDisposable
         // Apply waymarks
         foreach (var importedWaymark in result.Payload.Waymarks)
         {
+            if (importedWaymark.GroupId.HasValue && groupIdSwaps.TryGetValue(importedWaymark.GroupId.Value, out var newGroupId))
+            {
+                importedWaymark.GroupId = newGroupId;
+                // Since the group's ID changed (Rules 1 & 3), we clone the waymark so it doesn't conflict
+                // and gets safely appended to the new group.
+                importedWaymark.Id = Guid.NewGuid();
+            }
+
             var isShared = importedWaymark.Scope == WaymarkScope.Shared;
             if (conflictIds.Contains(importedWaymark.Id))
             {
@@ -981,18 +1130,18 @@ public class MainWindow : Window, IDisposable
                 if (shouldOverwrite)
                 {
                     // Remove entirely from both first to safely overwrite
-                    config.Waymarks.RemoveAll(w => w.Id == importedWaymark.Id);
+                    plugin.WaymarkStorageService.PersonalWaymarks.RemoveAll(w => w.Id == importedWaymark.Id);
                     plugin.WaymarkStorageService.SharedWaymarks.RemoveAll(w => w.Id == importedWaymark.Id);
 
                     if (isShared)
                     {
-                        importedWaymark.CharacterHash = null;
+                        importedWaymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
                         plugin.WaymarkStorageService.SharedWaymarks.Add(importedWaymark);
                     }
                     else
                     {
                         importedWaymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
-                        config.Waymarks.Add(importedWaymark);
+                        plugin.WaymarkStorageService.PersonalWaymarks.Add(importedWaymark);
                     }
                     addedWaymarks++;
                 }
@@ -1002,19 +1151,19 @@ public class MainWindow : Window, IDisposable
             {
                 if (isShared)
                 {
-                    importedWaymark.CharacterHash = null;
+                    importedWaymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
                     plugin.WaymarkStorageService.SharedWaymarks.Add(importedWaymark);
                 }
                 else
                 {
                     importedWaymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
-                    config.Waymarks.Add(importedWaymark);
+                    plugin.WaymarkStorageService.PersonalWaymarks.Add(importedWaymark);
                 }
                 addedWaymarks++;
             }
         }
 
-        config.Save();
+        plugin.WaymarkStorageService.SavePersonalWaymarks();
         plugin.WaymarkStorageService.SaveSharedWaymarks();
         importFeedback = $"Imported {addedWaymarks} waymark(s) and {addedGroups} group(s).";
         importFeedbackTicks = 240;
@@ -1026,13 +1175,26 @@ public class MainWindow : Window, IDisposable
     private void DrawDeleteWaypointModal()
     {
         if (!showDeleteWaymarkConfirmation || waymarkToDelete == null) return;
+        if ((waymarkToDelete.Scope == WaymarkScope.Shared &&
+            waymarkToDelete.IsReadOnly) ||
+            (waymarkToDelete.Scope == WaymarkScope.Personal &&
+            (waymarkToDelete.CharacterHash == null ||
+            plugin.WaymarkStorageService.CurrentCharacterHash == null ||
+            waymarkToDelete.CharacterHash != plugin.WaymarkStorageService.CurrentCharacterHash)))
+        {
+            // This should never happen since the delete button is disabled in this case, but just in case:
+            Plugin.Log.Warning("Attempted to delete a waymark that doesn't belong to the current character. Action blocked.");
+            showDeleteWaymarkConfirmation = false;
+            waymarkToDelete = null;
+            return;
+        }
 
-        ImGui.OpenPopup("Delete Waypoint?");
+        ImGui.OpenPopup("Delete Waypoint?##WWDeleteWaypointModal");
 
         var center = ImGui.GetMainViewport().GetCenter();
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
 
-        if (ImGui.BeginPopupModal("Delete Waypoint?", ref showDeleteWaymarkConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
+        if (ImGui.BeginPopupModal("Delete Waypoint?##WWDeleteWaypointModal", ref showDeleteWaymarkConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
         {
             ImGui.Text($"Are you sure you want to delete the waymark '{waymarkToDelete.Name}'?");
             ImGui.Text("This action can be undone with the Undo button.");
@@ -1078,17 +1240,24 @@ public class MainWindow : Window, IDisposable
     {
         if (showCreateGroupPopup)
         {
-            ImGui.OpenPopup("GroupEditor");
+            ImGui.OpenPopup("Group Editor##WWGroupEditorModal");
             showCreateGroupPopup = false;
             groupEditorOpen = true;
         }
 
         if (!groupEditorOpen) return;
+        if (editingGroup != null && editingGroup.IsReadOnly)
+        {
+            Plugin.Log.Warning("Attempted to edit a read-only group. Action blocked.");
+            editingGroup = null;
+            groupEditorOpen = false;
+            return;
+        }
 
         var center = ImGui.GetMainViewport().GetCenter();
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
 
-        if (ImGui.BeginPopupModal("GroupEditor", ref groupEditorOpen, ImGuiWindowFlags.AlwaysAutoResize))
+        if (ImGui.BeginPopupModal("Group Editor##WWGroupEditorModal", ref groupEditorOpen, ImGuiWindowFlags.AlwaysAutoResize))
         {
             var isEditing = editingGroup != null;
             ImGui.Text(isEditing ? "Edit Group" : "Create New Group");
@@ -1100,22 +1269,101 @@ public class MainWindow : Window, IDisposable
 
             ImGui.Spacing();
 
+            // Scope dropdown
+            ImGui.Text("Scope:");
+            ImGui.SetNextItemWidth(250);
+            var scopeDropPreview = Enum.GetName(groupEditScope) ?? "Unknown";
+            using (var scopeDrop = ImRaii.Combo("##GroupScope", scopeDropPreview))
+            {
+                if (scopeDrop.Success)
+                {
+                    if (ImGui.Selectable(WaymarkScope.Personal.ToString(), groupEditScope == WaymarkScope.Personal))
+                        groupEditScope = WaymarkScope.Personal;
+                    if (ImGui.Selectable(WaymarkScope.Shared.ToString(), groupEditScope == WaymarkScope.Shared))
+                        groupEditScope = WaymarkScope.Shared;
+                }
+            }
+
+            // Read-only checkbox (only shown for shared groups)
+            if (groupEditScope == WaymarkScope.Shared)
+            {
+                ImGui.Spacing();
+                ImGui.Checkbox("Read-Only (Only creator can edit)", ref groupEditIsReadOnly);
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip("When enabled, only you can edit or delete this shared group");
+                }
+            }
+
+            ImGui.Spacing();
+
             if (ImGui.Button("Save"))
             {
                 if (!string.IsNullOrWhiteSpace(groupEditName))
                 {
                     if (isEditing)
                     {
-                        editingGroup!.Name = groupEditName;
+                        var oldScope = editingGroup!.Scope;
+                        editingGroup.Name = groupEditName;
+                        editingGroup.Scope = groupEditScope;
+                        editingGroup.IsReadOnly = groupEditScope == WaymarkScope.Shared && groupEditIsReadOnly;
+
+                        // If scope changed, move between collections
+                        if (oldScope != groupEditScope)
+                        {
+                            if (groupEditScope == WaymarkScope.Shared)
+                            {
+                                plugin.WaymarkStorageService.PersonalGroups.Remove(editingGroup);
+                                editingGroup.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                                plugin.WaymarkStorageService.SharedGroups.Add(editingGroup);
+
+                                // Move all child waymarks from Personal to Shared
+                                var childWaymarks = plugin.WaymarkStorageService.PersonalWaymarks.Where(w => w.GroupId == editingGroup.Id).ToList();
+                                foreach (var w in childWaymarks)
+                                {
+                                    plugin.WaymarkStorageService.PersonalWaymarks.Remove(w);
+                                    w.Scope = WaymarkScope.Shared;
+                                    w.IsReadOnly = editingGroup.IsReadOnly; // Inherit read-only status from group
+                                    w.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                                    plugin.WaymarkStorageService.SharedWaymarks.Add(w);
+                                }
+                            }
+                            else
+                            {
+                                plugin.WaymarkStorageService.SharedGroups.Remove(editingGroup);
+                                editingGroup.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                                plugin.WaymarkStorageService.PersonalGroups.Add(editingGroup);
+
+                                // Move all child waymarks from Shared to Personal
+                                var childWaymarks = plugin.WaymarkStorageService.SharedWaymarks.Where(w => w.GroupId == editingGroup.Id).ToList();
+                                foreach (var w in childWaymarks)
+                                {
+                                    plugin.WaymarkStorageService.SharedWaymarks.Remove(w);
+                                    w.Scope = WaymarkScope.Personal;
+                                    w.IsReadOnly = false;
+                                    w.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                                    plugin.WaymarkStorageService.PersonalWaymarks.Add(w);
+                                }
+                            }
+                        }
                     }
                     else
                     {
-                        plugin.Configuration.WaymarkGroups.Add(new WaymarkGroup
+                        var newGroup = new WaymarkGroup
                         {
-                            Name = groupEditName
-                        });
+                            Name = groupEditName,
+                            CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash,
+                            IsReadOnly = groupEditScope == WaymarkScope.Shared && groupEditIsReadOnly,
+                            Scope = groupEditScope
+                        };
+
+                        if (groupEditScope == WaymarkScope.Shared)
+                            plugin.WaymarkStorageService.SharedGroups.Add(newGroup);
+                        else
+                            plugin.WaymarkStorageService.PersonalGroups.Add(newGroup);
                     }
-                    plugin.Configuration.Save();
+                    plugin.WaymarkStorageService.SavePersonalWaymarks();
+                    plugin.WaymarkStorageService.SaveSharedWaymarks();
                     editingGroup = null;
                     groupEditorOpen = false;
                     ImGui.CloseCurrentPopup();
@@ -1138,13 +1386,21 @@ public class MainWindow : Window, IDisposable
     private void DrawDeleteGroupConfirmation()
     {
         if (!showDeleteGroupConfirmation || groupToDelete == null) return;
+        if (groupToDelete.CreatorHash != plugin.WaymarkStorageService.CurrentCharacterHash)
+        {
+            // This should never happen since the delete button is disabled, but just in case:
+            Plugin.Log.Warning("Attempted to delete a group that doesn't belong to the current character. Action blocked.");
+            showDeleteGroupConfirmation = false;
+            groupToDelete = null;
+            return;
+        }
 
-        ImGui.OpenPopup("Delete Group?");
+        ImGui.OpenPopup("Delete Group?##WWDeleteGroupModal");
 
         var center = ImGui.GetMainViewport().GetCenter();
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
 
-        if (ImGui.BeginPopupModal("Delete Group?", ref showDeleteGroupConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
+        if (ImGui.BeginPopupModal("Delete Group?##WWDeleteGroupModal", ref showDeleteGroupConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
         {
             var waymarksInGroup = plugin.WaymarkStorageService.GetVisibleWaymarks().Count(w => w.GroupId == groupToDelete.Id);
             ImGui.Text($"Are you sure you want to delete the group '{groupToDelete.Name}'?");
@@ -1178,12 +1434,18 @@ public class MainWindow : Window, IDisposable
                     {
                         w.GroupId = null;
                     }
-                    plugin.Configuration.Save();
+                    plugin.WaymarkStorageService.SavePersonalWaymarks();
                     plugin.WaymarkStorageService.SaveSharedWaymarks();
                 }
 
-                plugin.Configuration.WaymarkGroups.Remove(groupToDelete);
-                plugin.Configuration.Save();
+                // Remove from correct storage based on scope
+                if (groupToDelete.Scope == WaymarkScope.Shared)
+                    plugin.WaymarkStorageService.SharedGroups.Remove(groupToDelete);
+                else
+                    plugin.WaymarkStorageService.PersonalGroups.Remove(groupToDelete);
+
+                plugin.WaymarkStorageService.SavePersonalWaymarks();
+                plugin.WaymarkStorageService.SaveSharedWaymarks();
                 showDeleteGroupConfirmation = false;
                 groupToDelete = null;
                 ImGui.CloseCurrentPopup();

@@ -26,4 +26,17 @@ public class WaymarkGroup
 
     /// <summary>Timestamp when this group was created.</summary>
     public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+    /// <summary>
+    /// Truncated SHA-256 hash of the character who created this group.
+    /// Used to enforce read-only restrictions on shared groups.
+    /// Only the creator can modify a shared group if IsReadOnly is true.
+    /// </summary>
+    public string? CreatorHash { get; set; }
+
+    /// <summary>
+    /// Determines if this shared group can only be modified by its creator.
+    /// When true, only the character whose hash matches CreatorHash can edit/delete this group.
+    /// </summary>
+    public bool IsReadOnly { get; set; } = false;
 }

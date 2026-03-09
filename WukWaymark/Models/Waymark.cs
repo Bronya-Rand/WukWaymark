@@ -85,7 +85,8 @@ public class Waymark
     /// <summary>
     /// Truncated SHA-256 hash of the character's content ID who created this waymark.
     /// Used for personal waymark scoping without storing raw content IDs.
-    /// Only relevant when <see cref="Scope"/> is <see cref="WaymarkScope.Personal"/>.
+    /// For shared waymarks, this tracks the creator for read-only enforcement.
+    /// Only relevant when <see cref="Scope"/> is <see cref="WaymarkScope.Personal"/> or when IsReadOnly is true.
     /// </summary>
     public string? CharacterHash { get; set; }
 
@@ -94,4 +95,10 @@ public class Waymark
     /// A value of 0 means the waymark is always visible regardless of distance.
     /// </summary>
     public float VisibilityRadius { get; set; } = 0f;
+
+    /// <summary>
+    /// Determines if this shared waymark can only be modified by its creator.
+    /// When true, only the character whose hash matches CharacterHash can edit/delete this waymark.
+    /// </summary>
+    public bool IsReadOnly { get; set; } = false;
 }

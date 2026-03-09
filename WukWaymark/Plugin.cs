@@ -90,13 +90,17 @@ public sealed class Plugin : IDalamudPlugin
 
         // Initialize services
         var pluginConfigDir = PluginInterface.GetPluginConfigDirectory();
-        WaymarkStorageService = new WaymarkStorageService(Configuration, pluginConfigDir);
+        WaymarkStorageService = new WaymarkStorageService(pluginConfigDir);
         WaymarkService = new WaymarkService(Configuration, WaymarkStorageService);
         IconBrowserService = new IconBrowserService(DataManager);
 
         // Set character hash if player is already logged in
+        // Note: We can't access ObjectTable.LocalPlayer in the constructor
+        // so we pass content ID directly from PlayerState
         if (PlayerState.ContentId != 0)
+        {
             WaymarkStorageService.SetCharacterHash(PlayerState.ContentId);
+        }
 
         // Subscribe to login/logout events for character hash management
         ClientState.Login += OnLogin;
@@ -166,7 +170,9 @@ public sealed class Plugin : IDalamudPlugin
     private void OnLogin()
     {
         if (PlayerState.ContentId != 0)
+        {
             WaymarkStorageService.SetCharacterHash(PlayerState.ContentId);
+        }
     }
 
     /// <summary>Called when the player logs out — clear character hash.</summary>
@@ -219,7 +225,7 @@ public sealed class Plugin : IDalamudPlugin
             }
 
             Log.Information($"Saving current location to group '{group.Name}'...");
-            WaymarkService.SaveCurrentLocation(group);
+            WaymarkService.SaveCurrentLocation(group, group.Scope);
             return;
         }
 
