@@ -3,6 +3,7 @@ using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace WukWaymark.Services
@@ -17,29 +18,33 @@ namespace WukWaymark.Services
     public class IconBrowserService : IDisposable
     {
         private readonly IDataManager dataManager;
+        private readonly CancellationTokenSource cts = new();
 
         public bool IsLoaded { get; private set; }
-        public List<IconInfo> AvailableIcons { get; private set; } = [];
-        private readonly HashSet<uint> mapSymbolIds = [];
+        public IReadOnlyList<IconInfo> AvailableIcons { get; private set; } = [];
+        private HashSet<uint> mapSymbolIds = [];
 
         public bool IsMapSymbol(uint iconId) => mapSymbolIds.Contains(iconId);
 
         public IconBrowserService(IDataManager dataManager)
         {
             this.dataManager = dataManager;
-            Task.Run(LoadIconsAsync);
+            Task.Run(() => LoadIconsAsync(cts.Token));
         }
 
-        private void LoadIconsAsync()
+        private void LoadIconsAsync(CancellationToken token)
         {
             try
             {
                 var uniqueIcons = new Dictionary<uint, IconInfo>();
+                var localMapSymbolIds = new HashSet<uint>();
 
                 void AddIcons<T>(IEnumerable<T> sheet, Func<T, uint> getIcon, Func<T, string> getName, string source)
                 {
                     foreach (var row in sheet)
                     {
+                        if (token.IsCancellationRequested) return;
+
                         var iconId = getIcon(row);
                         if (iconId == 0) continue;
 
@@ -56,6 +61,8 @@ namespace WukWaymark.Services
                 var macroSheet = dataManager.GetExcelSheet<MacroIcon>()!;
                 foreach (var row in macroSheet)
                 {
+                    if (token.IsCancellationRequested) return;
+
                     var iconId = (uint)row.Icon;
                     if (iconId == 0 || uniqueIcons.ContainsKey(iconId)) continue;
                     uniqueIcons[iconId] = new IconInfo { IconId = iconId, Name = $"Macro Icon {iconId}", Source = "Macro" };
@@ -77,26 +84,34 @@ namespace WukWaymark.Services
                 var mapSymbols = dataManager.GetExcelSheet<MapSymbol>()!;
                 foreach (var row in mapSymbols)
                 {
+                    if (token.IsCancellationRequested) return;
+
                     var iconId = (uint)row.Icon;
                     if (iconId == 0 || uniqueIcons.ContainsKey(iconId)) continue;
                     uniqueIcons[iconId] = new IconInfo { IconId = iconId, Name = $"Map Symbol {iconId}", Source = "Map" };
-                    mapSymbolIds.Add(iconId);
+                    localMapSymbolIds.Add(iconId);
                 }
 
+                if (token.IsCancellationRequested) return;
+
+                // Atomically assign collections here to prevent race conditions with main thread readers
                 AvailableIcons = uniqueIcons.Values.OrderBy(i => i.IconId).ToList();
+                mapSymbolIds = localMapSymbolIds;
+
                 IsLoaded = true;
                 Plugin.Log.Information($"Loaded {AvailableIcons.Count} unique icons for the UI picker.");
             }
             catch (Exception ex)
             {
+                if (ex is OperationCanceledException) return;
                 Plugin.Log.Error(ex, "Failed to load icon database.");
             }
         }
 
         public void Dispose()
         {
-            AvailableIcons.Clear();
-            mapSymbolIds.Clear();
+            cts.Cancel();
+            cts.Dispose();
             GC.SuppressFinalize(this);
         }
     }

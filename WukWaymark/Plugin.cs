@@ -4,7 +4,6 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using System;
-using System.Numerics;
 using WukWaymark.Services;
 using WukWaymark.Windows;
 
@@ -195,10 +194,13 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
+        var tokens = argsTrimmed.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+        var firstToken = tokens[0];
+
         // Check for "here" command (with optional group name)
-        if (argsTrimmed.StartsWith("here", StringComparison.OrdinalIgnoreCase))
+        if (firstToken.Equals("here", StringComparison.OrdinalIgnoreCase))
         {
-            var remainder = argsTrimmed[4..].Trim();
+            var remainder = tokens.Length > 1 ? tokens[1].Trim() : string.Empty;
 
             if (string.IsNullOrEmpty(remainder))
             {

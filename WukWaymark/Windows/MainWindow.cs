@@ -156,13 +156,10 @@ public class MainWindow : Window, IDisposable
         ImGui.Separator();
 
         var visibleWaymarks = plugin.WaymarkStorageService.GetVisibleWaymarks();
-        var waymarksToRender = plugin.Configuration.UseGroupView
-            ? visibleWaymarks
-            : FilterWaymarks(visibleWaymarks);
 
         if (!child.Success) return;
 
-        if (waymarksToRender.Count == 0)
+        if (visibleWaymarks.Count == 0)
         {
             DrawEmptyState();
             return;
@@ -170,9 +167,9 @@ public class MainWindow : Window, IDisposable
 
         // Draw the appropriate view
         if (plugin.Configuration.UseGroupView)
-            DrawGroupView(waymarksToRender);
+            DrawGroupView(visibleWaymarks);
         else
-            DrawTableView(waymarksToRender);
+            DrawTableView(visibleWaymarks);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -192,8 +189,12 @@ public class MainWindow : Window, IDisposable
         // Import from clipboard
         if (ImGuiComponents.IconButton(FontAwesomeIcon.FileImport))
         {
+            var allKnownWaymarks = plugin.Configuration.Waymarks
+                .Concat(plugin.WaymarkStorageService.SharedWaymarks)
+                .ToList();
+
             var result = WaymarkExportService.ImportFromClipboard(
-                plugin.Configuration.Waymarks,
+                allKnownWaymarks,
                 plugin.Configuration.WaymarkGroups);
 
             if (!result.Success)
@@ -835,7 +836,8 @@ public class MainWindow : Window, IDisposable
             return;
         }
 
-        if (ImGui.BeginChild($"IconGrid_{category}", new Vector2(0, -1), true)) // -1 stretch to bottom
+        var childVisible = ImGui.BeginChild($"IconGrid_{category}", new Vector2(0, -1), true); // -1 stretch to bottom
+        if (childVisible)
         {
             var contentRegion = ImGui.GetContentRegionAvail().X;
             var iconSize = 40f * ImGuiHelpers.GlobalScale;
@@ -869,8 +871,8 @@ public class MainWindow : Window, IDisposable
                 }
                 ImGui.EndTable();
             }
-            ImGui.EndChild();
         }
+        ImGui.EndChild();
     }
 
     // ═══════════════════════════════════════════════════════════════

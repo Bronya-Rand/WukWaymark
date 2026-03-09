@@ -119,14 +119,13 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
         // Push to undo stack before removing
         if (deletedWaymarks.Count >= MaxUndoHistory)
         {
-            // Remove the oldest entry by rebuilding the stack
-            var temp = new Stack<Waymark>();
-            var items = deletedWaymarks.ToArray();
-            for (var i = Math.Min(items.Length, MaxUndoHistory - 1) - 1; i >= 0; i--)
-                temp.Push(items[i]);
+            // Remove the oldest entry while preserving LIFO order (newest on top)
+            var items = deletedWaymarks.ToArray(); // items[0] is current top, items[^1] is bottom
+            var keepCount = Math.Min(items.Length, MaxUndoHistory - 1);
             deletedWaymarks.Clear();
-            foreach (var item in temp)
-                deletedWaymarks.Push(item);
+            // Rebuild the stack so that items[0] (original top) remains on top
+            for (var i = keepCount - 1; i >= 0; i--)
+                deletedWaymarks.Push(items[i]);
         }
 
         deletedWaymarks.Push(waymark);
@@ -153,7 +152,7 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
             return null;
 
         var waymark = deletedWaymarks.Pop();
-        
+
         if (waymark.Scope == WaymarkScope.Shared)
         {
             storageService.SharedWaymarks.Add(waymark);

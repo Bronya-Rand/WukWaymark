@@ -20,6 +20,7 @@ public class WaymarkStorageService
 {
     private readonly Configuration configuration;
     private readonly string sharedWaymarksPath;
+    private readonly JsonSerializerOptions jsonOptions = new() { WriteIndented = true, IncludeFields = true };
 
     /// <summary>
     /// Hashed identifier for the currently logged-in character.
@@ -49,7 +50,7 @@ public class WaymarkStorageService
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(contentId.ToString()));
         CurrentCharacterHash = Convert.ToHexString(bytes)[..16];
-        Plugin.Log.Information($"Character hash set: {CurrentCharacterHash}");
+        Plugin.Log.Debug("Character hash set for current character.");
     }
 
     /// <summary>
@@ -104,7 +105,7 @@ public class WaymarkStorageService
         try
         {
             var json = File.ReadAllText(sharedWaymarksPath);
-            SharedWaymarks = JsonSerializer.Deserialize<List<Waymark>>(json) ?? [];
+            SharedWaymarks = JsonSerializer.Deserialize<List<Waymark>>(json, jsonOptions) ?? [];
         }
         catch (Exception ex)
         {
@@ -120,7 +121,7 @@ public class WaymarkStorageService
     {
         try
         {
-            var json = JsonSerializer.Serialize(SharedWaymarks, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(SharedWaymarks, jsonOptions);
             File.WriteAllText(sharedWaymarksPath, json);
         }
         catch (Exception ex)

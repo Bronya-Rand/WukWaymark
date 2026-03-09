@@ -132,7 +132,7 @@ namespace WukWaymark.Services
             minimapRadius = mapSize.X * 0.315f;
 
             // Cache waymarks to render
-            foreach (var waymark in configuration.Waymarks)
+            foreach (var waymark in plugin.WaymarkStorageService.GetVisibleWaymarks())
             {
                 // Minimap only shows waymarks in the current zone
                 if (waymark.MapId != agentMap->CurrentMapId)

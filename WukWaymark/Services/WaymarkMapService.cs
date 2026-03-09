@@ -191,7 +191,7 @@ namespace WukWaymark.Services
             var multiplierForWaymarks = GetMultiplier(zoomIndex, areaMap->Scale);
             var mapCenterWorldPos = Vector3.Zero;
 
-            foreach (var waymark in configuration.Waymarks)
+            foreach (var waymark in plugin.WaymarkStorageService.GetVisibleWaymarks())
             {
                 if (waymark.MapId != agentMap->SelectedMapId)
                     continue;

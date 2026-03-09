@@ -134,7 +134,7 @@ namespace WukWaymark.Windows
         /// <param name="drawList">The ImGui draw list to render to</param>
         /// <param name="position">Screen-space center position for the icon</param>
         /// <param name="iconId">The game icon ID to load via ITextureProvider</param>
-        /// <param name="markerSize">Half-size of the icon in pixels (icon will be 2x this value)</param>
+        /// <param name="markerSize">Half-size of the icon in pixels (icon will be 1.5x this value)</param>
         public static void RenderWaymarkIcon(ImDrawListPtr drawList, Vector2 position, uint iconId, float markerSize, uint tintColor = uint.MaxValue)
         {
             var iconTex = Plugin.TextureProvider.GetFromGameIcon(iconId).GetWrapOrEmpty();

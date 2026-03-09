@@ -71,7 +71,10 @@ public class Waymark
     /// Game icon ID for rendering this waymark. Loaded via ITextureProvider.
     /// When null, the <see cref="Shape"/> and <see cref="Color"/> are used for rendering instead.
     /// </summary>
-    /// <remarks>Game icons cannot be tinted — they render as-is from the game's .tex files.</remarks>
+    /// <remarks>
+    /// Game icons render with their original RGB colors from the game's .tex files; RGB tinting is not applied.
+    /// However, their alpha may be modified by the renderer.
+    /// </remarks>
     public uint? IconId { get; set; }
 
     /// <summary>
