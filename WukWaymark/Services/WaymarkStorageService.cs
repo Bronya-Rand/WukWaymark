@@ -115,7 +115,7 @@ public class WaymarkStorageService
     {
         CheckWaymarkCache();
         cachedVisibleWaymarks ??= [.. PersonalWaymarks, .. SharedWaymarks];
-        var sharedWaymarks = cachedVisibleWaymarks.Where(w => w.CharacterHash == CurrentCharacterHash).ToList();
+        var sharedWaymarks = cachedVisibleWaymarks.Where(w => w.CharacterHash == CurrentCharacterHash && w.Scope == WaymarkScope.Shared).ToList();
         return sharedWaymarks.Count;
     }
 
@@ -239,6 +239,7 @@ public class WaymarkStorageService
         {
             PersonalWaymarks = [];
             PersonalGroups = [];
+            InvalidateCache();
             return;
         }
 
@@ -264,6 +265,8 @@ public class WaymarkStorageService
             PersonalWaymarks = [];
             PersonalGroups = [];
         }
+
+        InvalidateCache();
     }
 
     /// <summary>
@@ -288,6 +291,7 @@ public class WaymarkStorageService
 
             var obfuscatedData = ObfuscationHelper.Obfuscate(data);
             File.WriteAllText(personalWaymarksPath, obfuscatedData);
+            InvalidateCache();
         }
         catch (Exception ex)
         {
