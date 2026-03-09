@@ -1,4 +1,5 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using System;
 using System.Numerics;
@@ -59,6 +60,36 @@ public class ConfigWindow : Window, IDisposable
         {
             configuration.WaymarkMarkerSize = markerSize;
             configuration.Save();
+        }
+
+        ImGui.Spacing();
+
+        // Minimap edge fading
+        var fadeOnMinimapEdge = configuration.FadeWaymarkOnMinimapEdge;
+        if (ImGui.Checkbox("Fade Waymarks on Minimap Edge", ref fadeOnMinimapEdge))
+        {
+            configuration.FadeWaymarkOnMinimapEdge = fadeOnMinimapEdge;
+            configuration.Save();
+        }
+
+        // Map edge fading
+        var fadeOnMapEdge = configuration.FadeWaymarkOnMapEdge;
+        if (ImGui.Checkbox("Fade Waymarks on Map Edge", ref fadeOnMapEdge))
+        {
+            configuration.FadeWaymarkOnMapEdge = fadeOnMapEdge;
+            configuration.Save();
+        }
+
+        using (ImRaii.Disabled(!fadeOnMapEdge && !fadeOnMinimapEdge))
+        {
+            var edgeFadeAlpha = configuration.MapEdgeFadeAlpha;
+            ImGui.Text("Edge Fade Opacity:");
+            ImGui.SetNextItemWidth(200);
+            if (ImGui.SliderFloat("##EdgeFadeAlpha", ref edgeFadeAlpha, 0.3f, 1.0f, "%.2f"))
+            {
+                configuration.MapEdgeFadeAlpha = edgeFadeAlpha;
+                configuration.Save();
+            }
         }
 
         ImGui.Spacing();

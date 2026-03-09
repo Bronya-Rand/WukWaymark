@@ -205,6 +205,7 @@ namespace WukWaymark.Services
                 // Edge clamping via ray-to-rectangle intersection
                 var outOfBoundsX = waymarkScreenX < MapMinX || waymarkScreenX > MapMaxX;
                 var outOfBoundsY = waymarkScreenY < MapMinY || waymarkScreenY > MapMaxY;
+                var isClamped = false;
 
                 if (outOfBoundsX || outOfBoundsY)
                 {
@@ -229,12 +230,15 @@ namespace WukWaymark.Services
                     {
                         waymarkScreenX = mapCenterScreenPos.X + (rayDirX * tIntersect);
                         waymarkScreenY = mapCenterScreenPos.Y + (rayDirY * tIntersect);
+                        isClamped = true;
                     }
                 }
 
                 // Final safety clamp
                 waymarkScreenX = Math.Clamp(waymarkScreenX, MapMinX, MapMaxX);
                 waymarkScreenY = Math.Clamp(waymarkScreenY, MapMinY, MapMaxY);
+                if (waymarkScreenX <= MapMinX || waymarkScreenX >= MapMaxX || waymarkScreenY <= MapMinY || waymarkScreenY >= MapMaxY)
+                    isClamped = true;
 
                 var colorU32 = ImGui.ColorConvertFloat4ToU32(waymark.Color);
                 var markerSize = configuration.WaymarkMarkerSize * ImGuiHelpers.GlobalScale;
@@ -245,7 +249,8 @@ namespace WukWaymark.Services
                 }
 
                 // Visibility radius — skip or fade based on distance from player
-                if (waymark.VisibilityRadius > 0)
+                var targetAlpha = 1.0f;
+                if (configuration.FadeWaymarkOnMapEdge && waymark.VisibilityRadius > 0)
                 {
                     var dist = Vector3.Distance(player.Position, waymark.Position);
                     if (dist > waymark.VisibilityRadius)
@@ -255,12 +260,22 @@ namespace WukWaymark.Services
                     var fadeStart = waymark.VisibilityRadius * 0.8f;
                     if (dist > fadeStart)
                     {
-                        var alpha = 1.0f - ((dist - fadeStart) / (waymark.VisibilityRadius - fadeStart));
-                        alpha = Math.Clamp(alpha, 0f, 1f);
-                        // Modify the U32 color's alpha channel
-                        var a = (uint)(alpha * 255f);
-                        colorU32 = (colorU32 & 0x00FFFFFF) | (a << 24);
+                        targetAlpha = 1.0f - ((dist - fadeStart) / (waymark.VisibilityRadius - fadeStart));
                     }
+                }
+
+                if (configuration.FadeWaymarkOnMapEdge && isClamped)
+                {
+                    targetAlpha = Math.Min(targetAlpha, configuration.MapEdgeFadeAlpha);
+                }
+
+                if (targetAlpha < 1.0f)
+                {
+                    targetAlpha = Math.Clamp(targetAlpha, 0f, 1f);
+                    // Modify the U32 color's alpha channel
+                    var originalAlpha = ((colorU32 >> 24) & 0xFF) / 255f;
+                    var a = (uint)(targetAlpha * originalAlpha * 255f);
+                    colorU32 = (colorU32 & 0x00FFFFFF) | (a << 24);
                 }
 
                 WaymarksToRender.Add((new Vector2(waymarkScreenX, waymarkScreenY), waymark.Shape, markerSize, colorU32, waymark.Name, waymark.IconId));

@@ -51,6 +51,22 @@ public class Configuration : IPluginConfiguration
     public bool UseGroupView { get; set; } = false;
 
     /// <summary>
+    /// Enable fading for waymarks clamped to the edge of the minimap.
+    /// </summary>
+    public bool FadeWaymarkOnMinimapEdge { get; set; } = true;
+
+    /// <summary>
+    /// Enable fading for waymarks clamped to the edge of the area map.
+    /// </summary>
+    public bool FadeWaymarkOnMapEdge { get; set; } = true;
+
+    /// <summary>
+    /// The target alpha to fade to when a waymark is mapped to the edge of the area map/minimap.
+    /// Default is 0.4f. Range: 0.1f to 1.0f.
+    /// </summary>
+    public float MapEdgeFadeAlpha { get; set; } = 0.4f;
+
+    /// <summary>
     /// Default shape applied to newly created waymarks.
     /// Users can customize individual waymarks after creation.
     /// Options: Circle, Square, Triangle, Diamond, Star

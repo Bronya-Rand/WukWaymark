@@ -186,7 +186,7 @@ namespace WukWaymark.Services
 
                 // Apply visibility radius alpha fade (last 20% of radius)
                 var fadedColor = color;
-                if (visibilityRadius > 0)
+                if (configuration.FadeWaymarkOnMinimapEdge && visibilityRadius > 0)
                 {
                     var dist = MathF.Sqrt(
                         MathF.Pow(playerWorldPos.X - worldPos.X, 2) +
@@ -202,7 +202,7 @@ namespace WukWaymark.Services
 
                 // Minimap border fade — reduce alpha when marker is clamped to edge
                 var screenDist = Vector2.Distance(mapCenterScreenPos, circlePos);
-                if (screenDist >= minimapRadius * 0.95f)
+                if (configuration.FadeWaymarkOnMinimapEdge && screenDist >= minimapRadius * 0.95f)
                 {
                     var edgeFade = 1.0f - ((screenDist - (minimapRadius * 0.95f)) / (minimapRadius * 0.05f));
                     fadedColor.W *= Math.Clamp(edgeFade, 0.4f, 1.0f);
