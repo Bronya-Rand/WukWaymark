@@ -414,7 +414,7 @@ public class MainWindow : Window, IDisposable
         {
             if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
             {
-                plugin.WaymarkService.SaveCurrentLocation(group.Id);
+                plugin.WaymarkService.SaveCurrentLocation(group);
             }
             if (ImGui.IsItemHovered())
             {

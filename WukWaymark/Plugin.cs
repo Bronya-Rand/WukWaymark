@@ -214,12 +214,12 @@ public sealed class Plugin : IDalamudPlugin
             var group = WaymarkService.FindGroupByName(remainder);
             if (group == null)
             {
-                ChatGui.PrintError($"[WukWaymark] Group '{remainder}' not found. Available groups: {WaymarkService.GetGroupNamesList()}");
+                ChatGui.PrintError($"[WukWaymark] Group '{remainder}' not found. Available groups:\n{WaymarkService.GetGroupNamesList()}");
                 return;
             }
 
             Log.Information($"Saving current location to group '{group.Name}'...");
-            WaymarkService.SaveCurrentLocation(group.Id);
+            WaymarkService.SaveCurrentLocation(group);
             return;
         }
 

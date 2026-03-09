@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using WukWaymark.Models;
 using WukWaymark.Utils;
 
@@ -44,7 +45,7 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
     /// <param name="groupId">Optional group to assign the waymark to.</param>
     /// <param name="scope">The scope of the waymark (Personal or Shared).</param>
     /// <returns>The created waymark if successful, null if validation failed</returns>
-    public Waymark? SaveCurrentLocation(Guid? groupId = null, WaymarkScope scope = WaymarkScope.Personal)
+    public Waymark? SaveCurrentLocation(WaymarkGroup? group = null, WaymarkScope scope = WaymarkScope.Personal)
     {
         // Verify player is logged in
         var player = Plugin.ObjectTable.LocalPlayer;
@@ -86,7 +87,7 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
             Color = Colors.GetNextColor(configuration.Waymarks.Count),
             Shape = configuration.DefaultWaymarkShape,
             CreatedAt = DateTime.Now,
-            GroupId = groupId,
+            GroupId = group?.Id,
             Scope = scope,
             CharacterHash = scope == WaymarkScope.Personal ? storageService.CurrentCharacterHash : null,
         };
@@ -104,7 +105,14 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
         }
 
         // Provide user feedback
-        Plugin.ChatGui.Print($"[WukWaymark] Saved waymark '{waymark.Name}' at current location.");
+        if (group != null)
+        {
+            Plugin.ChatGui.Print($"[WukWaymark] Saved waymark '{waymark.Name}' at current location in group '{group.Name}'.");
+        }
+        else
+        {
+            Plugin.ChatGui.Print($"[WukWaymark] Saved waymark '{waymark.Name}' at current location.");
+        }
         Plugin.Log.Information($"Saved waymark: {waymark.Name} at {waymark.Position} (Territory: {territoryId}, Map: {mapId}, Scope: {scope})");
 
         return waymark;
@@ -186,16 +194,18 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
     }
 
     /// <summary>
-    /// Returns a comma-separated list of all group names, for error messages.
+    /// Returns a list of all group names, for error messages.
     /// </summary>
     public string GetGroupNamesList()
     {
         if (configuration.WaymarkGroups.Count == 0)
             return "(no groups exist)";
 
-        var names = new List<string>();
+        var output = new StringBuilder();
+        // Format as a bullet list with each name on a new line
         foreach (var group in configuration.WaymarkGroups)
-            names.Add(group.Name);
-        return string.Join(", ", names);
+            output.AppendLine($"- {group.Name}");
+
+        return output.ToString().TrimEnd();
     }
 }
