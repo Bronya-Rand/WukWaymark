@@ -10,15 +10,6 @@ public class Configuration : IPluginConfiguration
 {
     /// <summary>Configuration version for tracking schema changes</summary>
     public int Version { get; set; } = 0;
-    /// <summary>
-    /// Collection of all saved waymarks persisted across sessions.
-    /// </summary>
-    public List<Waymark> Waymarks { get; set; } = [];
-
-    /// <summary>
-    /// Collection of all saved waymark groups for organizing waymarks.
-    /// </summary>
-    public List<WaymarkGroup> WaymarkGroups { get; set; } = [];
 
     /// <summary>
     /// Enable or disable rendering of waymarks on the in-game map overlay.

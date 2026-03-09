@@ -13,6 +13,7 @@ namespace WukWaymark.Windows;
 public class ConfigWindow : Window, IDisposable
 {
     private readonly Configuration configuration;
+    private readonly Plugin plugin;
 
     /// <summary>Tracks whether the "Clear All" confirmation dialog is shown</summary>
     private bool showClearConfirmation = false;
@@ -20,6 +21,7 @@ public class ConfigWindow : Window, IDisposable
     public ConfigWindow(Plugin plugin) : base("WukWaymark Settings##WWSettings")
     {
         Size = new Vector2(400, 300);
+        this.plugin = plugin;
         configuration = plugin.Configuration;
     }
 
@@ -130,14 +132,18 @@ public class ConfigWindow : Window, IDisposable
         // Confirmation popup
         if (ImGui.BeginPopupModal("ClearConfirmation", ref showClearConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
         {
-            ImGui.Text($"Are you sure you want to delete all {configuration.Waymarks.Count} waymarks?");
+            var totalWaymarks = plugin.WaymarkStorageService.PersonalWaymarks.Count + 
+                               plugin.WaymarkStorageService.SharedWaymarks.Count;
+            ImGui.Text($"Are you sure you want to delete all {totalWaymarks} waymarks?");
             ImGui.Text("This action cannot be undone!");
             ImGui.Spacing();
 
             if (ImGui.Button("Yes, Delete All", new Vector2(150, 0)))
             {
-                configuration.Waymarks.Clear();
-                configuration.Save();
+                plugin.WaymarkStorageService.PersonalWaymarks.Clear();
+                plugin.WaymarkStorageService.SharedWaymarks.Clear();
+                plugin.WaymarkStorageService.SavePersonalWaymarks();
+                plugin.WaymarkStorageService.SaveSharedWaymarks();
                 Plugin.ChatGui.Print("[WukWaymark] All waymarks have been deleted.");
                 ImGui.CloseCurrentPopup();
             }

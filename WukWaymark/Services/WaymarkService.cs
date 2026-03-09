@@ -77,19 +77,21 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
         }
 
         // Create a new waymark with current location data
+        var totalCount = storageService.PersonalWaymarks.Count + storageService.SharedWaymarks.Count;
         var waymark = new Waymark
         {
             Position = player.Position,
             TerritoryId = territoryId,
             MapId = mapId,
             WorldId = currentWorldId,
-            Name = $"Waymark {configuration.Waymarks.Count + 1}",
-            Color = Colors.GetNextColor(configuration.Waymarks.Count),
+            Name = $"Waymark {totalCount + 1}",
+            Color = Colors.GetNextColor(totalCount),
             Shape = configuration.DefaultWaymarkShape,
             CreatedAt = DateTime.Now,
             GroupId = group?.Id,
             Scope = scope,
-            CharacterHash = scope == WaymarkScope.Personal ? storageService.CurrentCharacterHash : null,
+            CharacterHash = storageService.CurrentCharacterHash, // Set creator for both personal and shared
+            IsReadOnly = scope == WaymarkScope.Shared, // Shared waymarks are read-only by default
         };
 
         // Persist to correct storage based on scope
@@ -100,8 +102,8 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
         }
         else
         {
-            configuration.Waymarks.Add(waymark);
-            configuration.Save();
+            storageService.PersonalWaymarks.Add(waymark);
+            storageService.SavePersonalWaymarks();
         }
 
         // Provide user feedback
@@ -139,11 +141,11 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
         deletedWaymarks.Push(waymark);
 
         // Remove from whichever storage contains it
-        var removedFromConfig = configuration.Waymarks.Remove(waymark);
+        var removedFromPersonal = storageService.PersonalWaymarks.Remove(waymark);
         var removedFromShared = storageService.SharedWaymarks.Remove(waymark);
 
-        if (removedFromConfig)
-            configuration.Save();
+        if (removedFromPersonal)
+            storageService.SavePersonalWaymarks();
         if (removedFromShared)
             storageService.SaveSharedWaymarks();
 
@@ -168,8 +170,8 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
         }
         else
         {
-            configuration.Waymarks.Add(waymark);
-            configuration.Save();
+            storageService.PersonalWaymarks.Add(waymark);
+            storageService.SavePersonalWaymarks();
         }
 
         Plugin.ChatGui.Print($"[WukWaymark] Restored waymark '{waymark.Name}'.");
@@ -185,7 +187,8 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
     /// <returns>The matching group, or null if not found.</returns>
     public WaymarkGroup? FindGroupByName(string name)
     {
-        foreach (var group in configuration.WaymarkGroups)
+        var allGroups = storageService.GetVisibleGroups();
+        foreach (var group in allGroups)
         {
             if (group.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
                 return group;
@@ -198,12 +201,13 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
     /// </summary>
     public string GetGroupNamesList()
     {
-        if (configuration.WaymarkGroups.Count == 0)
+        var allGroups = storageService.GetVisibleGroups();
+        if (allGroups.Count == 0)
             return "(no groups exist)";
 
         var output = new StringBuilder();
         // Format as a bullet list with each name on a new line
-        foreach (var group in configuration.WaymarkGroups)
+        foreach (var group in allGroups)
             output.AppendLine($"- {group.Name}");
 
         return output.ToString().TrimEnd();

@@ -95,8 +95,12 @@ public sealed class Plugin : IDalamudPlugin
         IconBrowserService = new IconBrowserService(DataManager);
 
         // Set character hash if player is already logged in
+        // Note: We can't access ObjectTable.LocalPlayer in the constructor
+        // so we pass empty string
         if (PlayerState.ContentId != 0)
-            WaymarkStorageService.SetCharacterHash(PlayerState.ContentId);
+        {
+            WaymarkStorageService.SetCharacterHash(PlayerState.ContentId, string.Empty);
+        }
 
         // Subscribe to login/logout events for character hash management
         ClientState.Login += OnLogin;
@@ -166,7 +170,10 @@ public sealed class Plugin : IDalamudPlugin
     private void OnLogin()
     {
         if (PlayerState.ContentId != 0)
-            WaymarkStorageService.SetCharacterHash(PlayerState.ContentId);
+        {
+            var playerName = ObjectTable.LocalPlayer?.Name.ToString() ?? string.Empty;
+            WaymarkStorageService.SetCharacterHash(PlayerState.ContentId, playerName);
+        }
     }
 
     /// <summary>Called when the player logs out — clear character hash.</summary>
