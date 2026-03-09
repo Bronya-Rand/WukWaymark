@@ -16,10 +16,9 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
     private readonly WaymarkStorageService storageService = storageService;
 
     /// <summary>
-    /// Stack-based undo buffer for recently deleted waymarks.
-    /// Kept in memory only — not persisted across sessions.
+    /// Undo buffer for recently deleted waymarks.
     /// </summary>
-    private readonly Stack<Waymark> deletedWaymarks = new();
+    private readonly LinkedList<Waymark> deletedWaymarks = new();
 
     /// <summary>Maximum number of deletions to remember for undo.</summary>
     private const int MaxUndoHistory = 10;
@@ -138,19 +137,15 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
             return;
         }
 
-        // Push to undo stack before removing
+        // Push to undo buffer (LIFO - most recent at front)
         if (deletedWaymarks.Count >= MaxUndoHistory)
         {
-            // Remove the oldest entry while preserving LIFO order (newest on top)
-            var items = deletedWaymarks.ToArray(); // items[0] is current top, items[^1] is bottom
-            var keepCount = Math.Min(items.Length, MaxUndoHistory - 1);
-            deletedWaymarks.Clear();
-            // Rebuild the stack so that items[0] (original top) remains on top
-            for (var i = keepCount - 1; i >= 0; i--)
-                deletedWaymarks.Push(items[i]);
+            // Remove oldest entry (at end)
+            deletedWaymarks.RemoveLast();
         }
 
-        deletedWaymarks.Push(waymark);
+        // Add newest entry at front
+        deletedWaymarks.AddFirst(waymark);
 
         // Remove from whichever storage contains it
         var removedFromPersonal = storageService.PersonalWaymarks.Remove(waymark);
@@ -173,7 +168,9 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
         if (!CanUndo)
             return null;
 
-        var waymark = deletedWaymarks.Pop();
+        // Remove from front (most recent)
+        var waymark = deletedWaymarks.First!.Value;
+        deletedWaymarks.RemoveFirst();
 
         if (waymark.Scope == WaymarkScope.Shared)
         {

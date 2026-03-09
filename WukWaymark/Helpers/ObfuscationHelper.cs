@@ -30,11 +30,18 @@ public static class ObfuscationHelper
         var json = JsonSerializer.Serialize(data, JsonOptions);
         var jsonBytes = Encoding.UTF8.GetBytes(json);
 
-        // Apply XOR cipher
-        var obfuscated = new byte[jsonBytes.Length];
+        // Apply XOR cipher using Span<T> to reduce allocations
+        var keySpan = XorKey.AsSpan();
+        var keyLength = keySpan.Length;
+
+        // Use stackalloc for small payloads, heap for large ones
+        var obfuscated = jsonBytes.Length <= 2048
+            ? stackalloc byte[jsonBytes.Length]
+            : new byte[jsonBytes.Length];
+
         for (var i = 0; i < jsonBytes.Length; i++)
         {
-            obfuscated[i] = (byte)(jsonBytes[i] ^ XorKey[i % XorKey.Length]);
+            obfuscated[i] = (byte)(jsonBytes[i] ^ keySpan[i % keyLength]);
         }
 
         // Encode to Base64
@@ -54,10 +61,16 @@ public static class ObfuscationHelper
         var obfuscated = Convert.FromBase64String(base64Data);
 
         // Reverse XOR cipher
-        var jsonBytes = new byte[obfuscated.Length];
+        var keySpan = XorKey.AsSpan();
+        var keyLength = keySpan.Length;
+
+        var jsonBytes = obfuscated.Length <= 2048
+            ? stackalloc byte[obfuscated.Length]
+            : new byte[obfuscated.Length];
+
         for (var i = 0; i < obfuscated.Length; i++)
         {
-            jsonBytes[i] = (byte)(obfuscated[i] ^ XorKey[i % XorKey.Length]);
+            jsonBytes[i] = (byte)(obfuscated[i] ^ keySpan[i % keyLength]);
         }
 
         // Deserialize from JSON

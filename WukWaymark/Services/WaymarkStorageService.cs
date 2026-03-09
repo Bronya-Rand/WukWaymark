@@ -51,11 +51,33 @@ public class WaymarkStorageService
     /// </summary>
     public List<WaymarkGroup> PersonalGroups { get; private set; } = [];
 
+    // Cached combined lists to avoid per-frame allocations
+    private List<Waymark>? cachedVisibleWaymarks;
+    private List<WaymarkGroup>? cachedVisibleGroups;
+    private bool cacheInvalidated = true;
+
     public WaymarkStorageService(string pluginConfigDir)
     {
         this.pluginConfigDir = pluginConfigDir;
         sharedWaymarksPath = Path.Combine(pluginConfigDir, "shared_waymarks.json");
         LoadSharedWaymarks();
+    }
+
+    /// <summary>
+    /// Invalidates the visible waymarks/groups cache.
+    /// </summary>
+    private void InvalidateCache()
+    {
+        cacheInvalidated = true;
+    }
+
+    private void CheckWaymarkCache()
+    {
+        if (cacheInvalidated || cachedVisibleWaymarks == null)
+        {
+            cachedVisibleWaymarks = [.. PersonalWaymarks, .. SharedWaymarks];
+            cacheInvalidated = false;
+        }
     }
 
     /// <summary>
@@ -86,41 +108,50 @@ public class WaymarkStorageService
     /// <summary>
     /// Gets the number of waymarks that have been shared and created by the current character.
     /// </summary>
-    /// <remarks>Ensure that the current character hash is set appropriately before calling this method. Only
-    /// waymarks associated with the current character are included in the count.</remarks>
+    /// <remarks>Ensure that the current character hash and waymark cache is set appropriately before calling this method.
+    /// Only waymarks associated with the current character are included in the count.</remarks>
     /// <returns>The number of shared waymarks created by the character identified by the current character hash.</returns>
     public int GetSharedCreatedWaymarksCount()
     {
-        var sharedWaymarks = SharedWaymarks.Where(w => w.CharacterHash == CurrentCharacterHash).ToList();
+        CheckWaymarkCache();
+        cachedVisibleWaymarks ??= [.. PersonalWaymarks, .. SharedWaymarks];
+        var sharedWaymarks = cachedVisibleWaymarks.Where(w => w.CharacterHash == CurrentCharacterHash).ToList();
         return sharedWaymarks.Count;
     }
 
     /// <summary>
     /// Returns all waymarks that should be visible to the current session.
-    /// This merges:
-    /// - Personal waymarks for the current character
-    /// - Shared waymarks
     /// </summary>
+    /// <remarks>
+    /// This merges:
+    /// - Personal groups for the current character
+    /// - Shared groups
+    /// Results are cached to avoid per-frame allocations.
+    /// </remarks>
     public List<Waymark> GetVisibleWaymarks()
     {
-        var result = new List<Waymark>();
-        result.AddRange(PersonalWaymarks);
-        result.AddRange(SharedWaymarks);
-        return result;
+        CheckWaymarkCache();
+        cachedVisibleWaymarks ??= [.. PersonalWaymarks, .. SharedWaymarks];
+        return cachedVisibleWaymarks;
     }
 
     /// <summary>
     /// Returns all groups that should be visible to the current session.
+    /// </summary>
+    /// <remarks>
     /// This merges:
     /// - Personal groups for the current character
     /// - Shared groups
-    /// </summary>
+    /// Results are cached to avoid per-frame allocations.
+    /// </remarks>
     public List<WaymarkGroup> GetVisibleGroups()
     {
-        var result = new List<WaymarkGroup>();
-        result.AddRange(PersonalGroups);
-        result.AddRange(SharedGroups);
-        return result;
+        if (cacheInvalidated || cachedVisibleGroups == null)
+        {
+            cachedVisibleGroups = [.. PersonalGroups, .. SharedGroups];
+            cacheInvalidated = false;
+        }
+        return cachedVisibleGroups;
     }
 
     /// <summary>
@@ -133,6 +164,7 @@ public class WaymarkStorageService
         {
             SharedWaymarks = [];
             SharedGroups = [];
+            InvalidateCache();
             return;
         }
 
@@ -158,6 +190,8 @@ public class WaymarkStorageService
             SharedWaymarks = [];
             SharedGroups = [];
         }
+
+        InvalidateCache();
     }
 
     /// <summary>
@@ -176,6 +210,7 @@ public class WaymarkStorageService
 
             var obfuscatedData = ObfuscationHelper.Obfuscate(data);
             File.WriteAllText(sharedWaymarksPath, obfuscatedData);
+            InvalidateCache();
         }
         catch (Exception ex)
         {
