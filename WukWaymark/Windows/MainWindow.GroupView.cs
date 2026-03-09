@@ -36,10 +36,8 @@ public partial class MainWindow
 
         ImGui.Spacing();
 
-        // Optimization: Remove .ToList() here, iterate directly over groups
         foreach (var group in groups)
         {
-            // Optimization: Remove .ToList() and array instantiation
             var groupWaymarks = FilterWaymarks(waymarks.Where(w => w.GroupId == group.Id));
 
             // Recompute count once properly instead of .Count which might enumerate early if not a List
@@ -55,7 +53,6 @@ public partial class MainWindow
                     continue;
             }
 
-            // Optimization: Avoid ToString()
             using var groupId = ImRaii.PushId(group.Id.GetHashCode());
 
             // Group header with collapsing

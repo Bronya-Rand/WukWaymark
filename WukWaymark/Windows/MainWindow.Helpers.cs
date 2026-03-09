@@ -8,8 +8,8 @@ namespace WukWaymark.Windows;
 
 public partial class MainWindow
 {
-    private readonly Dictionary<ushort, string> _territoryNameCache = new();
-    private readonly Dictionary<uint, string> _worldNameCache = new();
+    private readonly Dictionary<ushort, string> territoryNameCache = [];
+    private readonly Dictionary<uint, string> worldNameCache = [];
 
     private string GetLocationName(ushort territoryId, uint worldId)
     {
@@ -25,35 +25,35 @@ public partial class MainWindow
 
     private string GetTerritoryName(ushort territoryId)
     {
-        if (_territoryNameCache.TryGetValue(territoryId, out var cachedName))
+        if (territoryNameCache.TryGetValue(territoryId, out var cachedName))
             return cachedName;
 
         if (Plugin.DataManager.GetExcelSheet<TerritoryType>().TryGetRow(territoryId, out var territoryRow))
         {
             var name = territoryRow.PlaceName.Value.Name.ToString();
-            _territoryNameCache[territoryId] = name;
+            territoryNameCache[territoryId] = name;
             return name;
         }
 
         var unknownName = $"Unknown (ID: {territoryId})";
-        _territoryNameCache[territoryId] = unknownName;
+        territoryNameCache[territoryId] = unknownName;
         return unknownName;
     }
 
     private string GetWorldName(uint worldId)
     {
-        if (_worldNameCache.TryGetValue(worldId, out var cachedName))
+        if (worldNameCache.TryGetValue(worldId, out var cachedName))
             return cachedName;
 
         if (Plugin.DataManager.GetExcelSheet<World>().TryGetRow(worldId, out var worldRow))
         {
             var name = worldRow.Name.ToString();
-            _worldNameCache[worldId] = name;
+            worldNameCache[worldId] = name;
             return name;
         }
 
         var unknownName = $"Unknown (ID: {worldId})";
-        _worldNameCache[worldId] = unknownName;
+        worldNameCache[worldId] = unknownName;
         return unknownName;
     }
 

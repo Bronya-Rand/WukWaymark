@@ -38,10 +38,8 @@ public partial class MainWindow
             ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthFixed, 150);
             ImGui.TableHeadersRow();
 
-            // Optimization: Remove .ToList() here, enumerate directly
             foreach (var waymark in waymarks)
             {
-                // Optimization: Avoid Guid.ToString() which allocates every frame
                 using var rowId = ImRaii.PushId(waymark.Id.GetHashCode());
                 ImGui.TableNextRow();
 
