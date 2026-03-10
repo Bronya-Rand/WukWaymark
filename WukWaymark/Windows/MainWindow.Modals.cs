@@ -21,7 +21,7 @@ public partial class MainWindow
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
         ImGui.SetNextWindowSize(new Vector2(480, 0), ImGuiCond.Always);
 
-        var importConflictModal = ImRaii.PopupModal("Import Conflicts", ref showImportConflictModal, ImGuiWindowFlags.AlwaysAutoResize);
+        using var importConflictModal = ImRaii.PopupModal("Import Conflicts", ref showImportConflictModal, ImGuiWindowFlags.AlwaysAutoResize);
         if (importConflictModal)
         {
             ImGui.TextColored(new Vector4(1f, 0.8f, 0.2f, 1f), "Some items already exist in your collection.");
@@ -64,8 +64,6 @@ public partial class MainWindow
                 showImportConflictModal = false;
                 ImGui.CloseCurrentPopup();
             }
-
-            ImGui.EndPopup();
         }
     }
 
@@ -223,7 +221,7 @@ public partial class MainWindow
         var center = ImGui.GetMainViewport().GetCenter();
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
 
-        var deleteWaypointModal = ImRaii.PopupModal("Delete Waypoint?##WWDeleteWaypointModal", ref showDeleteWaymarkConfirmation, ImGuiWindowFlags.AlwaysAutoResize);
+        using var deleteWaypointModal = ImRaii.PopupModal("Delete Waypoint?##WWDeleteWaypointModal", ref showDeleteWaymarkConfirmation, ImGuiWindowFlags.AlwaysAutoResize);
         if (deleteWaypointModal)
         {
             ImGui.Text($"Are you sure you want to delete the waymark '{waymarkToDelete.Name}'?");
@@ -257,8 +255,6 @@ public partial class MainWindow
                 showDeleteWaymarkConfirmation = false;
                 ImGui.CloseCurrentPopup();
             }
-
-            ImGui.EndPopup();
         }
     }
 
@@ -283,7 +279,7 @@ public partial class MainWindow
         var center = ImGui.GetMainViewport().GetCenter();
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
 
-        var deleteGroupModal = ImRaii.PopupModal("Delete Group?##WWDeleteGroupModal", ref showDeleteGroupConfirmation, ImGuiWindowFlags.AlwaysAutoResize);
+        using var deleteGroupModal = ImRaii.PopupModal("Delete Group?##WWDeleteGroupModal", ref showDeleteGroupConfirmation, ImGuiWindowFlags.AlwaysAutoResize);
         if (deleteGroupModal)
         {
             var waymarksInGroup = plugin.WaymarkStorageService.GetVisibleWaymarks().Count(w => w.GroupId == groupToDelete.Id);
@@ -343,8 +339,6 @@ public partial class MainWindow
                 groupToDelete = null;
                 ImGui.CloseCurrentPopup();
             }
-
-            ImGui.EndPopup();
         }
     }
 }

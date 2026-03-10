@@ -56,11 +56,7 @@ namespace WukWaymark.Windows
             // Display tooltip for hovered waymark
             if (hoveredWaymarkName != null)
             {
-                using var tooltip = ImRaii.Tooltip();
-                if (tooltip)
-                {
-                    ImGui.TextUnformatted(hoveredWaymarkName);
-                }
+                ImGui.SetTooltip(hoveredWaymarkName);
             }
         }
 

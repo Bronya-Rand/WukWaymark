@@ -1,4 +1,5 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using System;
@@ -61,7 +62,7 @@ public class ConfigWindow : Window, IDisposable
         // Marker size slider
         var markerSize = configuration.WaymarkMarkerSize;
         ImGui.Text("Marker Size:");
-        ImGui.SetNextItemWidth(200);
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
         if (ImGui.SliderFloat("##MarkerSize", ref markerSize, 4.0f, 20.0f, "%.1f"))
         {
             configuration.WaymarkMarkerSize = markerSize;
@@ -90,7 +91,7 @@ public class ConfigWindow : Window, IDisposable
         {
             var edgeFadeAlpha = configuration.MapEdgeFadeAlpha;
             ImGui.Text("Edge Fade Opacity:");
-            ImGui.SetNextItemWidth(200);
+            ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
             if (ImGui.SliderFloat("##EdgeFadeAlpha", ref edgeFadeAlpha, 0.3f, 1.0f, "%.2f"))
             {
                 configuration.MapEdgeFadeAlpha = edgeFadeAlpha;
@@ -101,7 +102,7 @@ public class ConfigWindow : Window, IDisposable
         ImGui.Spacing();
 
         ImGui.Text("Default Shape for New Waymarks:");
-        ImGui.SetNextItemWidth(200);
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
         var shapeIndex = (int)configuration.DefaultWaymarkShape;
         if (ImGui.Combo("##DefaultShape", ref shapeIndex, "Circle\0Square\0Triangle\0Diamond\0Star\0", 5))
         {
@@ -134,7 +135,7 @@ public class ConfigWindow : Window, IDisposable
         }
 
         // Confirmation popup
-        var eraseWaymarksModal = ImRaii.PopupModal("Erase All Created Waymarks##WWClearConfirmation", ref showClearConfirmation, ImGuiWindowFlags.AlwaysAutoResize);
+        using var eraseWaymarksModal = ImRaii.PopupModal("Erase All Created Waymarks##WWClearConfirmation", ref showClearConfirmation, ImGuiWindowFlags.AlwaysAutoResize);
         if (eraseWaymarksModal)
         {
             var totalWaymarks = plugin.WaymarkStorageService.PersonalWaymarks.Count +
@@ -159,8 +160,6 @@ public class ConfigWindow : Window, IDisposable
             {
                 ImGui.CloseCurrentPopup();
             }
-
-            ImGui.EndPopup();
         }
     }
 }

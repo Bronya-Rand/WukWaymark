@@ -275,8 +275,26 @@ public partial class MainWindow : Window, IDisposable
 
     private void DrawSearchBar()
     {
+        // Calculate the width of the elements that will be placed to the right of the search bar
+        var spacing = ImGui.GetStyle().ItemSpacing.X;
+        
+        // "Current Zone" checkbox width
+        // A checkbox is composed of the square frame + inner spacing + text width
+        var checkboxTextWidth = ImGui.CalcTextSize("Current Zone").X;
+        var checkboxFramePadded = ImGui.GetFrameHeight() + ImGui.GetStyle().ItemInnerSpacing.X;
+        var checkboxTotalWidth = checkboxFramePadded + checkboxTextWidth;
+
+        var rightElementsWidth = checkboxTotalWidth + spacing;
+
+        // Undo button width
+        if (plugin.WaymarkService.CanUndo)
+        {
+            var undoButtonWidth = ImGui.GetFrameHeight(); // Icon buttons are square based on frame height
+            rightElementsWidth += undoButtonWidth + spacing;
+        }
+
         // Search input
-        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - 160);
+        ImGui.SetNextItemWidth(Math.Max(50, ImGui.GetContentRegionAvail().X - rightElementsWidth));
         ImGui.InputTextWithHint("##Search", "Search waymarks...", ref searchFilter, 200);
 
         ImGui.SameLine();

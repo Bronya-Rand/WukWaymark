@@ -29,7 +29,7 @@ public partial class MainWindow
     {
         // Use a persistent numeric ID for the table instead of string. Assuming we just need one table active at a time, or passing an explicit ID.
         // For multiple tables per frame (e.g. group view), we will use ImGui.PushID around this method call from the caller.
-        var waymarkTableMode = ImRaii.Table("WaymarkTable", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Resizable);
+        using var waymarkTableMode = ImRaii.Table("WaymarkTable", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Resizable);
         if (waymarkTableMode)
         {
             ImGui.TableSetupColumn("Marker", ImGuiTableColumnFlags.WidthFixed, 120);
@@ -64,13 +64,7 @@ public partial class MainWindow
                     ImGui.Text(waymark.Name);
                     if (waymark.Notes.Length > 0)
                         if (ImGui.IsItemHovered())
-                        {
-                            using var tooltip = ImRaii.Tooltip();
-                            if (tooltip)
-                            {
-                                ImGui.Text(waymark.Notes);
-                            }
-                        }
+                            ImGui.SetTooltip(waymark.Notes);
 
                     // Location
                     ImGui.TableNextColumn();
