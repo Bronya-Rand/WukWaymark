@@ -207,7 +207,7 @@ namespace WukWaymark.Services
                     continue; // Wrong world
                 if (waymark.MapId != currentMapId)
                     continue; // Wrong map
-                if (waymark.WardId != wardId)
+                if (waymark.WardId != -1 && waymark.WardId != wardId)
                     continue; // Wrong ward (for housing areas)
 
                 // Visibility radius check
