@@ -79,7 +79,7 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
         }
 
         // Get current world ID (used to differentiate waymarks across data centers)
-        var currentWorldId = Plugin.ObjectTable.LocalPlayer?.CurrentWorld.RowId ?? 0;
+        var currentWorldId = player.CurrentWorld.RowId;
         if (currentWorldId == 0)
         {
             Plugin.ChatGui.PrintError("[WukWaymark] Unable to determine current world.");

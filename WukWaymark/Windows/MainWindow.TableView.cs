@@ -79,6 +79,8 @@ public partial class MainWindow
                             ImGui.Text($"Territory ID: {waymark.TerritoryId}");
                             ImGui.Text($"Map ID: {waymark.MapId}");
                             ImGui.Text($"World ID: {waymark.WorldId}");
+                            if (waymark.WardId != -1)
+                                ImGui.Text($"Ward ID: {waymark.WardId}");
                         }
                     }
 
