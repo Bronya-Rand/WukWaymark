@@ -134,7 +134,7 @@ public class ConfigWindow : Window, IDisposable
         }
 
         // Confirmation popup
-        var eraseWaymarksModal = ImRaii.PopupModal("Erase All Created Waymarks##WWClearConfirmation", ref showClearConfirmation, ImGuiWindowFlags.AlwaysAutoResize);
+        using var eraseWaymarksModal = ImRaii.PopupModal("Erase All Created Waymarks##WWClearConfirmation", ref showClearConfirmation, ImGuiWindowFlags.AlwaysAutoResize);
         if (eraseWaymarksModal)
         {
             var totalWaymarks = plugin.WaymarkStorageService.PersonalWaymarks.Count +
@@ -159,8 +159,6 @@ public class ConfigWindow : Window, IDisposable
             {
                 ImGui.CloseCurrentPopup();
             }
-
-            ImGui.EndPopup();
         }
     }
 }
