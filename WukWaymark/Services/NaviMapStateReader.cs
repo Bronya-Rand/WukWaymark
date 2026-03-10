@@ -5,10 +5,10 @@ namespace WukWaymark.Services
     internal static unsafe class NaviMapStateReader
     {
         /// <summary>
-        /// Reads all minimap state values in a single pass, performing each node lookup only once.
-        /// Returns false if any required node is missing (no try/catch needed — callers guard on return value).
+        /// Reads all minimap state values in a single pass, performing each lookup once.
+        /// Returns false if any required value is missing.
         /// </summary>
-        /// <param name="naviMap">Pointer to the _NaviMap AtkUnitBase.</param>
+        /// <param name="naviMap">Pointer to _NaviMap.</param>
         /// <param name="isLocked">Whether the minimap rotation is locked.</param>
         /// <param name="rotation">Current minimap rotation in radians.</param>
         /// <param name="zoom">Current minimap zoom (ScaleX of the inner image node).</param>
@@ -28,7 +28,7 @@ namespace WukWaymark.Services
             if (lockedComponentCheckbox == null) return false;
             isLocked = lockedComponentCheckbox->IsChecked;
 
-            // Read zoom (ScaleX of image node 6 inside the same component)
+            // Read zoom 
             var imageNode = naviMap->MapImage;
             if (imageNode == null)
                 return false;
