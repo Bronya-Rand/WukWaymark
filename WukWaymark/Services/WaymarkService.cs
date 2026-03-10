@@ -231,8 +231,11 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
         // Format as a bullet list with each name on a new line
         foreach (var group in allGroups)
         {
-            if (group.IsReadOnly) continue;
-            output.AppendLine($"- {group.Name}");
+            var isCreator = group.CreatorHash != null && storageService.CurrentCharacterHash != null && group.CreatorHash == storageService.CurrentCharacterHash;
+            var canEdit = group.Scope == WaymarkScope.Personal || !group.IsReadOnly || isCreator;
+
+            if (canEdit)
+                output.AppendLine($"- {group.Name}");
         }
 
         return output.ToString().TrimEnd();

@@ -53,10 +53,11 @@ public partial class MainWindow
                     continue;
             }
 
-            using var groupId = ImRaii.PushId(group.Id.GetHashCode());
+            var identifier = group.Id.ToString();
+            using var groupId = ImRaii.PushId(identifier);
 
             // Group header with collapsing
-            var headerOpen = ImGui.CollapsingHeader($"{group.Name} ({groupWaymarksList.Count})###group_{group.Id.GetHashCode()}", ImGuiTreeNodeFlags.AllowItemOverlap);
+            var headerOpen = ImGui.CollapsingHeader($"{group.Name} ({groupWaymarksList.Count})###group_{identifier}", ImGuiTreeNodeFlags.AllowItemOverlap);
 
             // Right-aligned buttons on the header line
             DrawGroupHeaderButtons(group);

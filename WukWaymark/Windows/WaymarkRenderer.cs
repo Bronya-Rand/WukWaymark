@@ -1,4 +1,6 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Textures.Internal;
+using Dalamud.Interface.Textures.TextureWraps;
 using System;
 using System.Numerics;
 using WukWaymark.Models;
@@ -137,7 +139,15 @@ namespace WukWaymark.Windows
         /// <param name="markerSize">Half-size of the icon in pixels (icon will be 1.5x this value)</param>
         public static void RenderWaymarkIcon(ImDrawListPtr drawList, Vector2 position, uint iconId, float markerSize, uint tintColor = uint.MaxValue)
         {
-            var iconTex = Plugin.TextureProvider.GetFromGameIcon(iconId).GetWrapOrEmpty();
+            IDalamudTextureWrap? iconTex;
+            try
+            {
+                iconTex = Plugin.TextureProvider.GetFromGameIcon(iconId).GetWrapOrEmpty();
+            }
+            catch (IconNotFoundException)
+            {
+                iconTex = null;
+            }
             if (iconTex == null || iconTex.Handle == nint.Zero)
                 return;
 

@@ -131,8 +131,7 @@ public partial class MainWindow
                 ImGui.Spacing();
                 using (ImRaii.Disabled(waymark.CharacterHash != plugin.WaymarkStorageService.CurrentCharacterHash))
                 {
-                    if (ImGui.Checkbox("Read-Only##WaymarkReadOnly", ref editingReadOnly))
-                        waymark.IsReadOnly = editingReadOnly;
+                    ImGui.Checkbox("Read-Only##WaymarkReadOnly", ref editingReadOnly);
                 }
                 if (ImGui.IsItemHovered())
                 {

@@ -26,12 +26,14 @@ namespace WukWaymark.Services
         public bool IsLoaded { get; private set; }
         public IReadOnlyList<IconInfo> AvailableIcons { get; private set; } = [];
 
+        // Cache for icon sizes
+        private IReadOnlyDictionary<uint, Vector2> iconSizeCache = new Dictionary<uint, Vector2>();
+
         public IconBrowserService(IDataManager dataManager)
         {
             this.dataManager = dataManager;
             Task.Run(() => LoadIconsAsync(cts.Token));
         }
-
         private void LoadIconsAsync(CancellationToken token)
         {
             try
@@ -120,9 +122,12 @@ namespace WukWaymark.Services
                 Plugin.Log.Error(ex, "Failed to load icon database.");
             }
         }
-
         public Vector2? GetIconSize(uint iconId)
         {
+            // Search cache first
+            if (iconSizeCache.TryGetValue(iconId, out var cachedSize))
+                return cachedSize;
+
             IDalamudTextureWrap? tex;
             try
             {
@@ -133,10 +138,12 @@ namespace WukWaymark.Services
                 return null;
             }
             var texSize = new Vector2(tex.Width, tex.Height);
+
+            // Cache the size for future lookups
+            iconSizeCache = new Dictionary<uint, Vector2>(iconSizeCache);
             tex.Dispose();
             return texSize;
         }
-
         public void Dispose()
         {
             cts.Cancel();

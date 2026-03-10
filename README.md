@@ -39,7 +39,7 @@ To delete a waymark, open the WukWaymark window and click the `Delete Waymark` b
 
 ![Delete Waymark](./.github/assets/WindowDeleteMarker.png)
 
-### Sharing a Waymark to Others Using WukWaymap
+### Sharing a Waymark to Others Using WukWaymark
 
 To share a waymark with others, open the WukWaymark window and click the `Copy to Clipboard` button.
 
