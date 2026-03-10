@@ -29,14 +29,14 @@ public partial class MainWindow
     {
         // Use a persistent numeric ID for the table instead of string. Assuming we just need one table active at a time, or passing an explicit ID.
         // For multiple tables per frame (e.g. group view), we will use ImGui.PushID around this method call from the caller.
-        using var waymarkTableMode = ImRaii.Table("WaymarkTable", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Resizable);
+        using var waymarkTableMode = ImRaii.Table("WaymarkTable", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.ScrollX | ImGuiTableFlags.Resizable);
         if (waymarkTableMode)
         {
-            ImGui.TableSetupColumn("Marker", ImGuiTableColumnFlags.WidthFixed, 120);
+            ImGui.TableSetupColumn("Marker", ImGuiTableColumnFlags.WidthFixed, 50);
             ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 100);
-            ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.WidthStretch, 140);
-            ImGui.TableSetupColumn("Created", ImGuiTableColumnFlags.WidthFixed, 140);
-            ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthFixed, 150);
+            ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.WidthStretch, 160);
+            ImGui.TableSetupColumn("Created", ImGuiTableColumnFlags.WidthFixed, 120);
+            ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthFixed, 120);
             ImGui.TableHeadersRow();
 
             foreach (var waymark in waymarks)

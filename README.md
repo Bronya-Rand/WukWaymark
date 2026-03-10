@@ -1,7 +1,9 @@
 # WukWaymark
 A Final Fantasy XIV plugin for making custom waymarks around Eorzea.
 
-![WukWaymark Main Window](./.github/assets/MainWindowWithMarkers.png)
+| Table View | Group View |
+| :---: | :---: |
+| ![WukWaymark Main Window](./.github/assets/MainWindowWithMarkersTable.png) | ![WukWaymark Group View](./.github/assets/MainWindowWithMarkersGroup.png) |
 
 ## What is WukWaymark?
 
@@ -10,8 +12,13 @@ WukWaymark is a plugin that allows players to create and manage custom waymarks 
 ## Features
 - Create and manage custom waymarks
 - Configure how waymarks are displayed on the map and minimap
-- Set different icons for waymarks (shapes)
+- Set different icons for waymarks (shapes or game icons)
 - Add personal notes to waymarks
+- Set different scopes for waymarks (personal, shared)
+   > Shared waymarks are visible to anyone who logs into the game from your computer.
+- Per-character waymarks
+- Group waymarks for different purposes
+- Import waymarks from other players/Export waymarks to other players
 - Displays in-game locations and world locations by name
 
 ## How To Use
