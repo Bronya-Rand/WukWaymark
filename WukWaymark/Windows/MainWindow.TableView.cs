@@ -68,7 +68,7 @@ public partial class MainWindow
 
                     // Location
                     ImGui.TableNextColumn();
-                    var locationText = GetLocationName(waymark.TerritoryId, waymark.WorldId);
+                    var locationText = GetLocationName(waymark.TerritoryId, waymark.WorldId, waymark.WardId);
                     ImGui.Text(locationText);
                     if (ImGui.IsItemHovered())
                     {

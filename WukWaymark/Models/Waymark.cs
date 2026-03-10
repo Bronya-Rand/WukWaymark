@@ -30,6 +30,11 @@ public class Waymark
     public ushort TerritoryId { get; set; }
 
     /// <summary>
+    /// Ward ID for this waymark location. (Only relevant for residential areas)
+    /// </summary>
+    public sbyte WardId { get; set; }
+
+    /// <summary>
     /// Map ID for this waymark location.
     /// </summary>
     public uint MapId { get; set; }
