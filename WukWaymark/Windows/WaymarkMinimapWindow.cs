@@ -74,7 +74,9 @@ namespace WukWaymark.Windows
 
         public override bool DrawConditions()
         {
-            return IsEnabled;
+            return Plugin.ClientState.IsLoggedIn &&
+                !NaviMapStateReader.IsUIFading() &&
+                IsEnabled;
         }
     }
 }

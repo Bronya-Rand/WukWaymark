@@ -1,3 +1,4 @@
+using FFXIVClientStructs.FFXIV.Client.Game;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -44,9 +45,11 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
     /// <param name="group">Optional group to assign the waymark to.</param>
     /// <param name="scope">The scope of the waymark (Personal or Shared).</param>
     /// <returns>The created waymark if successful, null if validation failed</returns>
-    public Waymark? SaveCurrentLocation(WaymarkGroup? group = null, WaymarkScope scope = WaymarkScope.Personal)
+    public unsafe Waymark? SaveCurrentLocation(WaymarkGroup? group = null, WaymarkScope scope = WaymarkScope.Personal)
     {
         // Verify player is logged in
+        if (!Plugin.ClientState.IsLoggedIn) return null;
+
         var player = Plugin.ObjectTable.LocalPlayer;
         if (player == null)
             return null;
@@ -59,6 +62,14 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
             return null;
         }
 
+        var housingManager = HousingManager.Instance();
+        if (housingManager == null)
+        {
+            Plugin.ChatGui.PrintError("[WukWaymark] Unable to access housing manager for location data.");
+            return null;
+        }
+        var wardId = housingManager->GetCurrentWard();
+
         // Look up the map ID from the territory data
         var mapId = Plugin.ClientState.MapId;
         if (mapId == 0)
@@ -68,7 +79,7 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
         }
 
         // Get current world ID (used to differentiate waymarks across data centers)
-        var currentWorldId = Plugin.ObjectTable.LocalPlayer?.CurrentWorld.RowId ?? 0;
+        var currentWorldId = player.CurrentWorld.RowId;
         if (currentWorldId == 0)
         {
             Plugin.ChatGui.PrintError("[WukWaymark] Unable to determine current world.");
@@ -83,6 +94,7 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
             TerritoryId = territoryId,
             MapId = mapId,
             WorldId = currentWorldId,
+            WardId = wardId,
             Name = $"Waymark {totalCount + 1}",
             Color = Colors.GetNextColor(totalCount),
             Shape = configuration.DefaultWaymarkShape,

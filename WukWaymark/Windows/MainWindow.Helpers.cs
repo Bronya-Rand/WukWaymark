@@ -11,9 +11,12 @@ public partial class MainWindow
     private readonly Dictionary<ushort, string> territoryNameCache = [];
     private readonly Dictionary<uint, string> worldNameCache = [];
 
-    private string GetLocationName(ushort territoryId, uint worldId)
+    private string GetLocationName(ushort territoryId, uint worldId, sbyte wardId)
     {
         var territoryName = GetTerritoryName(territoryId);
+        if (wardId >= 0)
+            territoryName += $" - Ward {wardId + 1}";
+
         var worldName = GetWorldName(worldId);
 
         var player = Plugin.ObjectTable.LocalPlayer;

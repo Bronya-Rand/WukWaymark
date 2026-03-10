@@ -68,7 +68,7 @@ public partial class MainWindow
 
                     // Location
                     ImGui.TableNextColumn();
-                    var locationText = GetLocationName(waymark.TerritoryId, waymark.WorldId);
+                    var locationText = GetLocationName(waymark.TerritoryId, waymark.WorldId, waymark.WardId);
                     ImGui.Text(locationText);
                     if (ImGui.IsItemHovered())
                     {
@@ -79,6 +79,8 @@ public partial class MainWindow
                             ImGui.Text($"Territory ID: {waymark.TerritoryId}");
                             ImGui.Text($"Map ID: {waymark.MapId}");
                             ImGui.Text($"World ID: {waymark.WorldId}");
+                            if (waymark.WardId != -1)
+                                ImGui.Text($"Ward ID: {waymark.WardId}");
                         }
                     }
 

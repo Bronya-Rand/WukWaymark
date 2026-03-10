@@ -1,6 +1,7 @@
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
@@ -72,13 +73,20 @@ namespace WukWaymark.Services
             waymarksToRender.Clear();
             window.IsEnabled = configuration.WaymarksMinimapEnabled;
 
+            if (!Plugin.ClientState.IsLoggedIn) return;
             if (!configuration.WaymarksMinimapEnabled)
                 return;
+
+            // Get Housing Manager
+            var housingManager = HousingManager.Instance();
+            if (housingManager != null) return;
+            var wardId = housingManager->GetCurrentWard();
 
             // Get local player
             var localPlayer = Plugin.ObjectTable.LocalPlayer;
             if (localPlayer == null)
                 return;
+            var currentWorldId = localPlayer.CurrentWorld.RowId;
 
             // Skip rendering in combat
             var playerCharacter = (Character*)localPlayer.Address;
@@ -134,9 +142,13 @@ namespace WukWaymark.Services
             // Cache waymarks to render
             foreach (var waymark in plugin.WaymarkStorageService.GetVisibleWaymarks())
             {
-                // Minimap only shows waymarks in the current zone
+                // Minimap early culling
+                if (waymark.WorldId != currentWorldId)
+                    continue; // Wrong world
                 if (waymark.MapId != agentMap->CurrentMapId)
-                    continue;
+                    continue; // Wrong map
+                if (waymark.WardId != -1 && waymark.WardId != wardId)
+                    continue; // Wrong ward (for housing areas)
 
                 // Visibility radius check using squared distance (avoids sqrt)
                 if (configuration.FadeWaymarkOnMinimapEdge && waymark.VisibilityRadius > 0)

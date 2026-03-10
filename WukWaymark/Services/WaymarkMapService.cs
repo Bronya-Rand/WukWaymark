@@ -1,6 +1,7 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
@@ -66,18 +67,20 @@ namespace WukWaymark.Services
             WaymarksToRender.Clear();
             MapCenterScreenPos = null;
 
+            if (!Plugin.ClientState.IsLoggedIn) return;
             if (!configuration.WaymarksMapEnabled)
                 return;
+
+            // Get Housing Manager
+            var housingManager = HousingManager.Instance();
+            if (housingManager == null) return;
+            var wardId = housingManager->GetCurrentWard();
 
             // Get local player
             var player = Plugin.ObjectTable.LocalPlayer;
             if (player == null)
                 return;
-
-            // Do not render if UI is fading (handles the "Gridania | New Gridania" 
-            // screen transition when teleporting).
-            if (NaviMapStateReader.IsUIFading())
-                return;
+            var currentWorldId = player.CurrentWorld.RowId;
 
             // Skip rendering in combat
             var playerCharacter = (Character*)player.Address;
@@ -200,8 +203,12 @@ namespace WukWaymark.Services
             foreach (var waymark in plugin.WaymarkStorageService.GetVisibleWaymarks())
             {
                 // Early culling
+                if (waymark.WorldId != currentWorldId)
+                    continue; // Wrong world
                 if (waymark.MapId != currentMapId)
-                    continue;
+                    continue; // Wrong map
+                if (waymark.WardId != -1 && waymark.WardId != wardId)
+                    continue; // Wrong ward (for housing areas)
 
                 // Visibility radius check
                 if (configuration.FadeWaymarkOnMapEdge && waymark.VisibilityRadius > 0)

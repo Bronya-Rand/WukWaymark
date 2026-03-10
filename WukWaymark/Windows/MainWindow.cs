@@ -19,6 +19,7 @@ namespace WukWaymark.Windows;
 public partial class MainWindow : Window, IDisposable
 {
     private readonly Plugin plugin;
+    private static bool isLoggedIn => Plugin.ClientState.IsLoggedIn;
 
     // ═══════════════════════════════════════════════════════════════
     // UI STATE
@@ -194,53 +195,57 @@ public partial class MainWindow : Window, IDisposable
         ImGui.SameLine(ImGui.GetWindowContentRegionMax().X - totalButtonWidth);
 
         // Import from clipboard
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.FileImport))
+        using (ImRaii.Disabled(!isLoggedIn))
         {
-            var allKnownWaymarks = plugin.WaymarkStorageService.GetVisibleWaymarks();
-            var allKnownGroups = plugin.WaymarkStorageService.GetVisibleGroups();
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.FileImport))
+            {
+                var allKnownWaymarks = plugin.WaymarkStorageService.GetVisibleWaymarks();
+                var allKnownGroups = plugin.WaymarkStorageService.GetVisibleGroups();
 
-            var result = WaymarkExportService.ImportFromClipboard(
-                allKnownWaymarks,
-                allKnownGroups);
+                var result = WaymarkExportService.ImportFromClipboard(
+                    allKnownWaymarks,
+                    allKnownGroups);
 
-            if (!result.Success)
-            {
-                importFeedback = $"Import failed: {result.ErrorMessage}";
-                importFeedbackTicks = 240;
+                if (!result.Success)
+                {
+                    importFeedback = $"Import failed: {result.ErrorMessage}";
+                    importFeedbackTicks = 240;
+                }
+                else if (result.Conflicts.Count > 0)
+                {
+                    // Show conflict resolution modal
+                    pendingImport = result;
+                    importConflictChoices.Clear();
+                    foreach (var c in result.Conflicts)
+                        importConflictChoices[c.Id] = false; // default: skip
+                    showImportConflictModal = true;
+                    ImGui.OpenPopup("Import Conflicts");
+                }
+                else
+                {
+                    // No conflicts - apply directly
+                    ApplyImport(result, overwriteAll: false);
+                }
             }
-            else if (result.Conflicts.Count > 0)
+            if (ImGui.IsItemHovered())
             {
-                // Show conflict resolution modal
-                pendingImport = result;
-                importConflictChoices.Clear();
-                foreach (var c in result.Conflicts)
-                    importConflictChoices[c.Id] = false; // default: skip
-                showImportConflictModal = true;
-                ImGui.OpenPopup("Import Conflicts");
-            }
-            else
-            {
-                // No conflicts - apply directly
-                ApplyImport(result, overwriteAll: false);
+                ImGui.SetTooltip("Import Waymarks from Clipboard");
             }
         }
-        if (ImGui.IsItemHovered())
-        {
-            ImGui.SetTooltip("Import Waymarks from Clipboard");
-        }
-
         ImGui.SameLine(0, buttonSpacing);
 
         // Save Location button (pin icon)
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
+        using (ImRaii.Disabled(!isLoggedIn))
         {
-            plugin.WaymarkService.SaveCurrentLocation();
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
+            {
+                plugin.WaymarkService.SaveCurrentLocation();
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Save Current Location");
+            }
         }
-        if (ImGui.IsItemHovered())
-        {
-            ImGui.SetTooltip("Save Current Location");
-        }
-
         ImGui.SameLine(0, buttonSpacing);
 
         // View toggle button
@@ -255,7 +260,6 @@ public partial class MainWindow : Window, IDisposable
         {
             ImGui.SetTooltip(viewTooltip);
         }
-
         ImGui.SameLine(0, buttonSpacing);
 
         // Settings button (gear icon)
@@ -277,7 +281,7 @@ public partial class MainWindow : Window, IDisposable
     {
         // Calculate the width of the elements that will be placed to the right of the search bar
         var spacing = ImGui.GetStyle().ItemSpacing.X;
-        
+
         // "Current Zone" checkbox width
         // A checkbox is composed of the square frame + inner spacing + text width
         var checkboxTextWidth = ImGui.CalcTextSize("Current Zone").X;
@@ -300,19 +304,23 @@ public partial class MainWindow : Window, IDisposable
         ImGui.SameLine();
 
         // Zone filter toggle
-        ImGui.Checkbox("Current Zone", ref filterCurrentZone);
+        using (ImRaii.Disabled(!isLoggedIn))
+            ImGui.Checkbox("Current Zone", ref filterCurrentZone);
 
         // Undo button (only when deletions exist)
         if (plugin.WaymarkService.CanUndo)
         {
             ImGui.SameLine();
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.Undo))
+            using (ImRaii.Disabled(!isLoggedIn))
             {
-                plugin.WaymarkService.UndoDelete();
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip($"Undo Delete ({plugin.WaymarkService.UndoCount})");
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.Undo))
+                {
+                    plugin.WaymarkService.UndoDelete();
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip($"Undo Delete ({plugin.WaymarkService.UndoCount})");
+                }
             }
         }
 
@@ -325,15 +333,23 @@ public partial class MainWindow : Window, IDisposable
 
     private void DrawEmptyState()
     {
-        ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "No waymarks saved yet. Create one!");
-        ImGui.Indent(5);
-        ImGui.Text("Use '/wwmark here' or the");
-        ImGui.SameLine();
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
+        var coloredText = "No waymarks saved yet. Create one!";
+        if (!isLoggedIn)
+            coloredText = "Log in first to save waymarks!";
+        var coloredTextSize = ImGui.CalcTextSize(coloredText);
+        ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - coloredTextSize.X) / 2);
+        ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), coloredText);
+        if (isLoggedIn)
         {
-            plugin.WaymarkService.SaveCurrentLocation();
+            ImGui.Indent(5);
+            ImGui.Text("Use '/wwmark here' or the");
+            ImGui.SameLine();
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
+            {
+                plugin.WaymarkService.SaveCurrentLocation();
+            }
+            ImGui.SameLine();
+            ImGui.Text("button above to save your current location as a waymark.");
         }
-        ImGui.SameLine();
-        ImGui.Text("button above to save your current location as a waymark.");
     }
 }
