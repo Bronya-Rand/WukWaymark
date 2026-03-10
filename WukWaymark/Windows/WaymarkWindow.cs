@@ -1,4 +1,5 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility.Raii;
 using System;
 using System.Numerics;
 using WukWaymark.Services;
@@ -55,9 +56,11 @@ namespace WukWaymark.Windows
             // Display tooltip for hovered waymark
             if (hoveredWaymarkName != null)
             {
-                ImGui.BeginTooltip();
-                ImGui.TextUnformatted(hoveredWaymarkName);
-                ImGui.EndTooltip();
+                using var tooltip = ImRaii.Tooltip();
+                if (tooltip)
+                {
+                    ImGui.TextUnformatted(hoveredWaymarkName);
+                }
             }
         }
 

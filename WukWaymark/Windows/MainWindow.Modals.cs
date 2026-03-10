@@ -1,4 +1,5 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility.Raii;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,7 +21,8 @@ public partial class MainWindow
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
         ImGui.SetNextWindowSize(new Vector2(480, 0), ImGuiCond.Always);
 
-        if (ImGui.BeginPopupModal("Import Conflicts", ref showImportConflictModal, ImGuiWindowFlags.AlwaysAutoResize))
+        var importConflictModal = ImRaii.PopupModal("Import Conflicts", ref showImportConflictModal, ImGuiWindowFlags.AlwaysAutoResize);
+        if (importConflictModal)
         {
             ImGui.TextColored(new Vector4(1f, 0.8f, 0.2f, 1f), "Some items already exist in your collection.");
             ImGui.Text("Choose how to handle each conflict:");
@@ -221,7 +223,8 @@ public partial class MainWindow
         var center = ImGui.GetMainViewport().GetCenter();
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
 
-        if (ImGui.BeginPopupModal("Delete Waypoint?##WWDeleteWaypointModal", ref showDeleteWaymarkConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
+        var deleteWaypointModal = ImRaii.PopupModal("Delete Waypoint?##WWDeleteWaypointModal", ref showDeleteWaymarkConfirmation, ImGuiWindowFlags.AlwaysAutoResize);
+        if (deleteWaypointModal)
         {
             ImGui.Text($"Are you sure you want to delete the waymark '{waymarkToDelete.Name}'?");
             ImGui.Text("This action can be undone with the Undo button.");
@@ -280,7 +283,8 @@ public partial class MainWindow
         var center = ImGui.GetMainViewport().GetCenter();
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
 
-        if (ImGui.BeginPopupModal("Delete Group?##WWDeleteGroupModal", ref showDeleteGroupConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
+        var deleteGroupModal = ImRaii.PopupModal("Delete Group?##WWDeleteGroupModal", ref showDeleteGroupConfirmation, ImGuiWindowFlags.AlwaysAutoResize);
+        if (deleteGroupModal)
         {
             var waymarksInGroup = plugin.WaymarkStorageService.GetVisibleWaymarks().Count(w => w.GroupId == groupToDelete.Id);
             ImGui.Text($"Are you sure you want to delete the group '{groupToDelete.Name}'?");
