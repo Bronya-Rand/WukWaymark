@@ -67,6 +67,7 @@ public class WaymarkExportService
             Name = waymark.Name,
             Position = waymark.Position,
             TerritoryId = waymark.TerritoryId,
+            WardId = waymark.WardId,
             MapId = waymark.MapId,
             WorldId = waymark.WorldId,
             Color = waymark.Color,
