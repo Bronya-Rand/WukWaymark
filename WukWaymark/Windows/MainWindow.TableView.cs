@@ -15,9 +15,9 @@ namespace WukWaymark.Windows;
 
 public partial class MainWindow
 {
-    private void DrawTableView(IEnumerable<Waymark> waymarks)
+    private void DrawTableView(List<Waymark> waymarks)
     {
-        var filteredWaymarks = FilterWaymarks(waymarks).ToList();
+        var filteredWaymarks = FilterWaymarks(waymarks);
 
         ImGui.Text($"Showing {filteredWaymarks.Count} of {waymarks.Count()} waymarks");
         ImGui.Spacing();
@@ -25,7 +25,7 @@ public partial class MainWindow
         DrawWaymarkTable(filteredWaymarks);
     }
 
-    private void DrawWaymarkTable(IEnumerable<Waymark> waymarks)
+    private void DrawWaymarkTable(List<Waymark> waymarks)
     {
         // Use a persistent numeric ID for the table instead of string. Assuming we just need one table active at a time, or passing an explicit ID.
         // For multiple tables per frame (e.g. group view), we will use ImGui.PushID around this method call from the caller.

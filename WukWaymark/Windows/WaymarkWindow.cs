@@ -12,13 +12,13 @@ namespace WukWaymark.Windows
     /// </summary>
     public unsafe class WaymarkWindow : IDisposable
     {
-        private readonly WaymarkMapService _service;
-        private readonly Plugin _plugin;
+        private readonly WaymarkMapService service;
+        private readonly Plugin plugin;
 
         internal WaymarkWindow(WaymarkMapService service, Plugin plugin)
         {
-            _service = service;
-            _plugin = plugin;
+            this.service = service;
+            this.plugin = plugin;
             Plugin.PluginInterface.UiBuilder.Draw += Draw;
         }
 
@@ -28,23 +28,23 @@ namespace WukWaymark.Windows
         /// </summary>
         private void Draw()
         {
-            if (!_plugin.Configuration.WaymarksMapEnabled)
+            if (!plugin.Configuration.WaymarksMapEnabled)
                 return;
 
-            if (_service.MapCenterScreenPos == null)
+            if (service.MapCenterScreenPos == null)
                 return; // AreaMap not fully loaded/visible
 
-            var drawList = ImGui.GetForegroundDrawList();
+            var drawList = ImGui.GetBackgroundDrawList();
             var mousePos = ImGui.GetMousePos();
             string? hoveredWaymarkName = null;
 
             // Iterate through pre-calculated waymarks from the Service
-            foreach (var (position, shape, size, colorU32, name, iconId) in _service.WaymarksToRender)
+            foreach (var (position, shape, size, colorU32, name, iconId) in service.WaymarksToRender)
             {
                 WaymarkRenderer.RenderWaymark(drawList, position, shape, size, colorU32, iconId);
 
                 // Display tooltip if enabled and mouse is hovering within marker bounds
-                if (_plugin.Configuration.ShowWaymarkTooltips &&
+                if (plugin.Configuration.ShowWaymarkTooltips &&
                     !string.IsNullOrEmpty(name) &&
                     Vector2.Distance(mousePos, position) <= size + 2.0f)
                 {

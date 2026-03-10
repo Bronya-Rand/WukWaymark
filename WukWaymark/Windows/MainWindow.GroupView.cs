@@ -13,7 +13,7 @@ namespace WukWaymark.Windows;
 
 public partial class MainWindow
 {
-    private void DrawGroupView(IEnumerable<Waymark> waymarks)
+    private void DrawGroupView(List<Waymark> waymarks)
     {
         var groups = plugin.WaymarkStorageService.GetVisibleGroups();
 
@@ -38,7 +38,8 @@ public partial class MainWindow
 
         foreach (var group in groups)
         {
-            var groupWaymarks = FilterWaymarks(waymarks.Where(w => w.GroupId == group.Id));
+            var groupWaymarksQuery = waymarks.Where(w => w.GroupId == group.Id).ToList();
+            var groupWaymarks = FilterWaymarks(groupWaymarksQuery);
 
             // Recompute count once properly instead of .Count which might enumerate early if not a List
             var groupWaymarksList = groupWaymarks.ToList();
@@ -81,7 +82,8 @@ public partial class MainWindow
         }
 
         // Ungrouped waymarks section
-        var ungroupedWaymarksList = FilterWaymarks(waymarks.Where(w => w.GroupId == null)).ToList();
+        var ungroupedWaymarksQuery = waymarks.Where(w => w.GroupId == null).ToList();
+        var ungroupedWaymarksList = FilterWaymarks(ungroupedWaymarksQuery);
 
         if (!string.IsNullOrEmpty(searchFilter) && ungroupedWaymarksList.Count == 0)
             return; // Hide ungrouped section when search yields no results

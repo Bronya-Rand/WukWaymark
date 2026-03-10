@@ -57,7 +57,7 @@ public partial class MainWindow
         return unknownName;
     }
 
-    private IEnumerable<Waymark> FilterWaymarks(IEnumerable<Waymark> waymarks)
+    private List<Waymark> FilterWaymarks(List<Waymark> waymarks)
     {
         var filtered = waymarks;
 
@@ -65,7 +65,7 @@ public partial class MainWindow
         if (filterCurrentZone)
         {
             var currentMapId = Plugin.ClientState.MapId;
-            filtered = filtered.Where(w => w.MapId == currentMapId);
+            filtered = filtered.Where(w => w.MapId == currentMapId).ToList();
         }
 
         // Text search filter
@@ -75,7 +75,7 @@ public partial class MainWindow
                 w.Name.Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ||
                 w.Notes.Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ||
                 GetTerritoryName(w.TerritoryId).Contains(searchFilter, StringComparison.OrdinalIgnoreCase)
-            );
+            ).ToList();
         }
 
         return filtered;
