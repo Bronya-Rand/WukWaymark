@@ -66,17 +66,13 @@ namespace WukWaymark.Services
             WaymarksToRender.Clear();
             MapCenterScreenPos = null;
 
+            if (!Plugin.ClientState.IsLoggedIn) return;
             if (!configuration.WaymarksMapEnabled)
                 return;
 
             // Get local player
             var player = Plugin.ObjectTable.LocalPlayer;
             if (player == null)
-                return;
-
-            // Do not render if UI is fading (handles the "Gridania | New Gridania" 
-            // screen transition when teleporting).
-            if (NaviMapStateReader.IsUIFading())
                 return;
 
             // Skip rendering in combat

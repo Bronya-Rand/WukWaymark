@@ -48,6 +48,8 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
     public unsafe Waymark? SaveCurrentLocation(WaymarkGroup? group = null, WaymarkScope scope = WaymarkScope.Personal)
     {
         // Verify player is logged in
+        if (!Plugin.ClientState.IsLoggedIn) return null;
+
         var player = Plugin.ObjectTable.LocalPlayer;
         if (player == null)
             return null;

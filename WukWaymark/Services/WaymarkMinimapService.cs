@@ -72,6 +72,7 @@ namespace WukWaymark.Services
             waymarksToRender.Clear();
             window.IsEnabled = configuration.WaymarksMinimapEnabled;
 
+            if (!Plugin.ClientState.IsLoggedIn) return;
             if (!configuration.WaymarksMinimapEnabled)
                 return;
 

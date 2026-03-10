@@ -1,5 +1,4 @@
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Utility.Raii;
 using System;
 using System.Numerics;
 using WukWaymark.Services;
@@ -29,11 +28,13 @@ namespace WukWaymark.Windows
         /// </summary>
         private void Draw()
         {
-            if (!plugin.Configuration.WaymarksMapEnabled)
-                return;
+            if (!Plugin.ClientState.IsLoggedIn) return;
+            if (!plugin.Configuration.WaymarksMapEnabled) return;
 
-            if (service.MapCenterScreenPos == null)
-                return; // AreaMap not fully loaded/visible
+            // Do not render if UI is fading (handles the "Gridania | New Gridania" 
+            // screen transition when teleporting).
+            if (NaviMapStateReader.IsUIFading()) return;
+            if (service.MapCenterScreenPos == null) return; // AreaMap not fully loaded/visible
 
             var drawList = ImGui.GetBackgroundDrawList();
             var mousePos = ImGui.GetMousePos();
