@@ -30,9 +30,10 @@ namespace WukWaymark.Services
                 return false;
 
             // Read lock state
-            var lockedComponent = (AtkComponentCheckBox*)baseComponent->Component->UldManager.SearchNodeById(4);
-            if (lockedComponent == null)
-                return false;
+            var lockedComponentNode = (AtkResNode*)naviMap->GetComponentNodeById(4);
+            if (lockedComponentNode == null) return false;
+            var lockedComponent = lockedComponentNode->GetAsAtkComponentCheckBox();
+            if (lockedComponent == null) return false;
             isLocked = lockedComponent->IsChecked;
 
             // Read zoom (ScaleX of image node 6 inside the same component)
