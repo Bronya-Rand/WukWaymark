@@ -1,8 +1,9 @@
+using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 
 namespace WukWaymark.Services
 {
-    internal static class NaviMapStateReader
+    internal static unsafe class NaviMapStateReader
     {
         /// <summary>
         /// Reads all minimap state values in a single pass, performing each node lookup only once.
@@ -13,7 +14,7 @@ namespace WukWaymark.Services
         /// <param name="rotation">Current minimap rotation in radians.</param>
         /// <param name="zoom">Current minimap zoom (ScaleX of the inner image node).</param>
         /// <returns>True if all values were read successfully, false if any node was missing.</returns>
-        public static unsafe bool TryReadMinimapState(
+        public static bool TryReadMinimapState(
             AtkUnitBase* naviMap,
             out bool isLocked,
             out float rotation,
@@ -47,6 +48,12 @@ namespace WukWaymark.Services
             rotation = rotationNode->Rotation;
 
             return true;
+        }
+
+        public static bool IsUIFading()
+        {
+            var raptureAtkUnitManager = RaptureAtkUnitManager.Instance();
+            return raptureAtkUnitManager != null && raptureAtkUnitManager->IsUiFading;
         }
     }
 }

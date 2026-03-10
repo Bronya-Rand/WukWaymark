@@ -74,6 +74,11 @@ namespace WukWaymark.Services
             if (player == null)
                 return;
 
+            // Do not render if UI is fading (handles the "Gridania | New Gridania" 
+            // screen transition when teleporting).
+            if (!NaviMapStateReader.IsUIFading())
+                return;
+
             // Skip rendering in combat
             var playerCharacter = (Character*)player.Address;
             if (playerCharacter->InCombat)
