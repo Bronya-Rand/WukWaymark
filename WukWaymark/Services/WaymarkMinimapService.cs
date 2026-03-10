@@ -79,7 +79,7 @@ namespace WukWaymark.Services
 
             // Get Housing Manager
             var housingManager = HousingManager.Instance();
-            if (housingManager != null) return;
+            if (housingManager == null) return;
             var wardId = housingManager->GetCurrentWard();
 
             // Get local player
