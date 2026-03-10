@@ -64,13 +64,7 @@ public partial class MainWindow
                     ImGui.Text(waymark.Name);
                     if (waymark.Notes.Length > 0)
                         if (ImGui.IsItemHovered())
-                        {
-                            using var tooltip = ImRaii.Tooltip();
-                            if (tooltip)
-                            {
-                                ImGui.Text(waymark.Notes);
-                            }
-                        }
+                            ImGui.SetTooltip(waymark.Notes);
 
                     // Location
                     ImGui.TableNextColumn();
