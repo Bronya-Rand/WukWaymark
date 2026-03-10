@@ -1,5 +1,4 @@
 using FFXIVClientStructs.FFXIV.Client.UI;
-using FFXIVClientStructs.FFXIV.Component.GUI;
 
 namespace WukWaymark.Services
 {
@@ -15,7 +14,7 @@ namespace WukWaymark.Services
         /// <param name="zoom">Current minimap zoom (ScaleX of the inner image node).</param>
         /// <returns>True if all values were read successfully, false if any node was missing.</returns>
         public static bool TryReadMinimapState(
-            AtkUnitBase* naviMap,
+            AddonNaviMap* naviMap,
             out bool isLocked,
             out float rotation,
             out float zoom)
@@ -24,20 +23,13 @@ namespace WukWaymark.Services
             rotation = 0f;
             zoom = 1f;
 
-            // Component node 18 is shared by both IsLocked and Zoom
-            var baseComponent = naviMap->GetComponentNodeById(18);
-            if (baseComponent == null || baseComponent->Component == null)
-                return false;
-
             // Read lock state
-            var lockedComponentNode = (AtkResNode*)naviMap->GetComponentNodeById(4);
-            if (lockedComponentNode == null) return false;
-            var lockedComponent = lockedComponentNode->GetAsAtkComponentCheckBox();
-            if (lockedComponent == null) return false;
-            isLocked = lockedComponent->IsChecked;
+            var lockedComponentCheckbox = naviMap->LockNorthCheckbox;
+            if (lockedComponentCheckbox == null) return false;
+            isLocked = lockedComponentCheckbox->IsChecked;
 
             // Read zoom (ScaleX of image node 6 inside the same component)
-            var imageNode = (AtkImageNode*)baseComponent->Component->UldManager.SearchNodeById(6);
+            var imageNode = naviMap->MapImage;
             if (imageNode == null)
                 return false;
             zoom = imageNode->AtkResNode.ScaleX;
