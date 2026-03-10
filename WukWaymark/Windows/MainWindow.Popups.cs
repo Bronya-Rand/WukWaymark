@@ -45,15 +45,15 @@ public partial class MainWindow
             ImGui.Separator();
 
             ImGui.Text("Name:");
-            ImGui.SetNextItemWidth(250);
+            ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
             ImGui.InputText($"##Name{identifier}", ref editingName, 100);
 
             ImGui.Text("Color:");
-            ImGui.SetNextItemWidth(250);
+            ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
             ImGui.ColorEdit4($"##Color{identifier}", ref editingColor);
 
             ImGui.Text("Shape:");
-            ImGui.SetNextItemWidth(250);
+            ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
             var shapeDropPreview = Enum.GetName(editingShape) ?? "Unknown";
             using (var shapeDrop = ImRaii.Combo($"##Shape{identifier}", shapeDropPreview))
             {
@@ -72,7 +72,7 @@ public partial class MainWindow
 
             // Group assignment dropdown
             ImGui.Text("Group:");
-            ImGui.SetNextItemWidth(250);
+            ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
             var groups = plugin.WaymarkStorageService.GetVisibleGroups();
             var currentHash = plugin.WaymarkStorageService.CurrentCharacterHash;
             var availableGroups = groups.Where(g =>
@@ -107,12 +107,12 @@ public partial class MainWindow
             }
 
             ImGui.Text("Note:");
-            ImGui.SetNextItemWidth(250);
+            ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
             ImGui.InputText($"##Note{identifier}", ref editingNote, 100);
 
             // Scope dropdown
             ImGui.Text("Scope:");
-            ImGui.SetNextItemWidth(250);
+            ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
             var scopeDropPreview = Enum.GetName(editingScope) ?? "Unknown";
             using (var scopeDrop = ImRaii.Combo($"##Scope{identifier}", scopeDropPreview))
             {
@@ -141,12 +141,12 @@ public partial class MainWindow
 
             // Visibility radius slider
             ImGui.Text("Visibility Radius:");
-            ImGui.SetNextItemWidth(250);
+            ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
             ImGui.SliderFloat($"##VisRadius{identifier}", ref editingVisibilityRadius, 0f, 500f, editingVisibilityRadius == 0 ? "Always Visible" : "%.0f yalms");
 
             // Icon picker
             ImGui.Text("Icon (Overrides Shape):");
-            ImGui.SetNextItemWidth(250);
+            ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
 
             var currentIconName = "Select Icon...";
             var previewTex = editingIconId.HasValue && editingIconId.Value > 0 ? Plugin.TextureProvider.GetFromGameIcon(editingIconId.Value).GetWrapOrEmpty() : null;
@@ -162,8 +162,8 @@ public partial class MainWindow
                 ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 2);
             }
 
-            ImGui.SetNextItemWidth(previewTex != null ? 218 : 250);
-            if (ImGui.Button($"{currentIconName}##IconBtn{identifier}", new Vector2(previewTex != null ? 218 : 250, 0)))
+            ImGui.SetNextItemWidth((previewTex != null ? 218 : 250) * ImGuiHelpers.GlobalScale);
+            if (ImGui.Button($"{currentIconName}##IconBtn{identifier}", new Vector2((previewTex != null ? 218 : 250) * ImGuiHelpers.GlobalScale, 0)))
             {
                 showIconPickerModal = true;
                 ImGui.OpenPopup($"Icon Picker ({waymark.Name})###{identifier}");
@@ -365,14 +365,14 @@ public partial class MainWindow
             ImGui.Separator();
 
             ImGui.Text("Group Name:");
-            ImGui.SetNextItemWidth(250);
+            ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
             ImGui.InputText("##GroupName", ref groupEditName, 100);
 
             ImGui.Spacing();
 
             // Scope dropdown
             ImGui.Text("Scope:");
-            ImGui.SetNextItemWidth(250);
+            ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
             var scopeDropPreview = Enum.GetName(groupEditScope) ?? "Unknown";
             using (var scopeDrop = ImRaii.Combo("##GroupScope", scopeDropPreview))
             {
