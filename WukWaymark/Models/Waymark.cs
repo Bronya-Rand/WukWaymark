@@ -59,6 +59,46 @@ public class Waymark
     /// Gets or sets the geometric shape used to represent the waymark.
     /// </summary>
     /// <remarks>The selected shape determines how the waymark is visually displayed in the user interface or
-    /// on a map. Ensure that the assigned value is supported by the rendering system in use.</remarks>
+    /// on a map. When <see cref="IconId"/> is set, the icon takes precedence over the shape.</remarks>
     public WaymarkShape Shape { get; set; } = WaymarkShape.Circle;
+
+    /// <summary>
+    /// Group this waymark belongs to. Null means ungrouped.
+    /// </summary>
+    public Guid? GroupId { get; set; }
+
+    /// <summary>
+    /// Game icon ID for rendering this waymark. Loaded via ITextureProvider.
+    /// When null, the <see cref="Shape"/> and <see cref="Color"/> are used for rendering instead.
+    /// </summary>
+    /// <remarks>
+    /// Game icons render with their original RGB colors from the game's .tex files; RGB tinting is not applied.
+    /// However, their alpha may be modified by the renderer.
+    /// </remarks>
+    public uint? IconId { get; set; }
+
+    /// <summary>
+    /// Persistence scope — Personal (character-specific) or Shared (all characters on this install).
+    /// </summary>
+    public WaymarkScope Scope { get; set; } = WaymarkScope.Personal;
+
+    /// <summary>
+    /// Truncated SHA-256 hash of the character's content ID who created this waymark.
+    /// Used for personal waymark scoping without storing raw content IDs.
+    /// For shared waymarks, this tracks the creator for read-only enforcement.
+    /// Only relevant when <see cref="Scope"/> is <see cref="WaymarkScope.Personal"/> or when IsReadOnly is true.
+    /// </summary>
+    public string? CharacterHash { get; set; }
+
+    /// <summary>
+    /// Maximum distance (in yalms) at which this waymark is visible on the map/minimap.
+    /// A value of 0 means the waymark is always visible regardless of distance.
+    /// </summary>
+    public float VisibilityRadius { get; set; } = 0f;
+
+    /// <summary>
+    /// Determines if this shared waymark can only be modified by its creator.
+    /// When true, only the character whose hash matches CharacterHash can edit/delete this waymark.
+    /// </summary>
+    public bool IsReadOnly { get; set; } = false;
 }

@@ -1,4 +1,5 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using System;
 using System.Numerics;
@@ -12,13 +13,19 @@ namespace WukWaymark.Windows;
 public class ConfigWindow : Window, IDisposable
 {
     private readonly Configuration configuration;
+    private readonly Plugin plugin;
 
     /// <summary>Tracks whether the "Clear All" confirmation dialog is shown</summary>
     private bool showClearConfirmation = false;
 
     public ConfigWindow(Plugin plugin) : base("WukWaymark Settings##WWSettings")
     {
-        Size = new Vector2(400, 300);
+        SizeConstraints = new WindowSizeConstraints
+        {
+            MinimumSize = new Vector2(400, 450),
+            MaximumSize = new Vector2(450, 550)
+        };
+        this.plugin = plugin;
         configuration = plugin.Configuration;
     }
 
@@ -63,6 +70,36 @@ public class ConfigWindow : Window, IDisposable
 
         ImGui.Spacing();
 
+        // Minimap edge fading
+        var fadeOnMinimapEdge = configuration.FadeWaymarkOnMinimapEdge;
+        if (ImGui.Checkbox("Fade Waymarks on Minimap Edge", ref fadeOnMinimapEdge))
+        {
+            configuration.FadeWaymarkOnMinimapEdge = fadeOnMinimapEdge;
+            configuration.Save();
+        }
+
+        // Map edge fading
+        var fadeOnMapEdge = configuration.FadeWaymarkOnMapEdge;
+        if (ImGui.Checkbox("Fade Waymarks on Map Edge", ref fadeOnMapEdge))
+        {
+            configuration.FadeWaymarkOnMapEdge = fadeOnMapEdge;
+            configuration.Save();
+        }
+
+        using (ImRaii.Disabled(!fadeOnMapEdge && !fadeOnMinimapEdge))
+        {
+            var edgeFadeAlpha = configuration.MapEdgeFadeAlpha;
+            ImGui.Text("Edge Fade Opacity:");
+            ImGui.SetNextItemWidth(200);
+            if (ImGui.SliderFloat("##EdgeFadeAlpha", ref edgeFadeAlpha, 0.3f, 1.0f, "%.2f"))
+            {
+                configuration.MapEdgeFadeAlpha = edgeFadeAlpha;
+                configuration.Save();
+            }
+        }
+
+        ImGui.Spacing();
+
         ImGui.Text("Default Shape for New Waymarks:");
         ImGui.SetNextItemWidth(200);
         var shapeIndex = (int)configuration.DefaultWaymarkShape;
@@ -90,23 +127,27 @@ public class ConfigWindow : Window, IDisposable
         ImGui.Spacing();
 
         // Clear all waymarks button with confirmation
-        if (ImGui.Button("Clear All Waymarks"))
+        if (ImGui.Button("Erase All Created Waymarks"))
         {
             showClearConfirmation = true;
-            ImGui.OpenPopup("ClearConfirmation");
+            ImGui.OpenPopup("Erase All Created Waymarks##WWClearConfirmation");
         }
 
         // Confirmation popup
-        if (ImGui.BeginPopupModal("ClearConfirmation", ref showClearConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
+        if (ImGui.BeginPopupModal("Erase All Created Waymarks##WWClearConfirmation", ref showClearConfirmation, ImGuiWindowFlags.AlwaysAutoResize))
         {
-            ImGui.Text($"Are you sure you want to delete all {configuration.Waymarks.Count} waymarks?");
+            var totalWaymarks = plugin.WaymarkStorageService.PersonalWaymarks.Count +
+                               plugin.WaymarkStorageService.GetSharedCreatedWaymarksCount();
+            ImGui.Text($"Are you sure you want to delete all {totalWaymarks} waymarks?");
             ImGui.Text("This action cannot be undone!");
             ImGui.Spacing();
 
             if (ImGui.Button("Yes, Delete All", new Vector2(150, 0)))
             {
-                configuration.Waymarks.Clear();
-                configuration.Save();
+                plugin.WaymarkStorageService.PersonalWaymarks.Clear();
+                plugin.WaymarkStorageService.EraseCreatedSharedWaymarks();
+                plugin.WaymarkStorageService.SavePersonalWaymarks();
+                plugin.WaymarkStorageService.SaveSharedWaymarks();
                 Plugin.ChatGui.Print("[WukWaymark] All waymarks have been deleted.");
                 ImGui.CloseCurrentPopup();
             }

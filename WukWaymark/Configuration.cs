@@ -1,6 +1,5 @@
 using Dalamud.Configuration;
 using System;
-using System.Collections.Generic;
 using WukWaymark.Models;
 
 namespace WukWaymark;
@@ -10,10 +9,6 @@ public class Configuration : IPluginConfiguration
 {
     /// <summary>Configuration version for tracking schema changes</summary>
     public int Version { get; set; } = 0;
-    /// <summary>
-    /// Collection of all saved waymarks persisted across sessions.
-    /// </summary>
-    public List<Waymark> Waymarks { get; set; } = [];
 
     /// <summary>
     /// Enable or disable rendering of waymarks on the in-game map overlay.
@@ -38,6 +33,28 @@ public class Configuration : IPluginConfiguration
     /// Useful for quickly identifying waymarks without opening the UI.
     /// </summary>
     public bool ShowWaymarkTooltips { get; set; } = true;
+
+    /// <summary>
+    /// When true, the main window shows Group View (collapsible group headers).
+    /// When false, shows Table View (flat list of all waymarks with search).
+    /// </summary>
+    public bool UseGroupView { get; set; } = false;
+
+    /// <summary>
+    /// Enable fading for waymarks clamped to the edge of the minimap.
+    /// </summary>
+    public bool FadeWaymarkOnMinimapEdge { get; set; } = true;
+
+    /// <summary>
+    /// Enable fading for waymarks clamped to the edge of the area map.
+    /// </summary>
+    public bool FadeWaymarkOnMapEdge { get; set; } = true;
+
+    /// <summary>
+    /// The target alpha to fade to when a waymark is mapped to the edge of the area map/minimap.
+    /// Default is 0.4f. Range: 0.1f to 1.0f.
+    /// </summary>
+    public float MapEdgeFadeAlpha { get; set; } = 0.4f;
 
     /// <summary>
     /// Default shape applied to newly created waymarks.

@@ -18,16 +18,17 @@ namespace WukWaymark.Services
     /// </summary>
     internal class WaymarkMinimapService : IDisposable
     {
+        private readonly Plugin plugin;
         private readonly Configuration configuration;
         private readonly WaymarkMinimapWindow window;
         private readonly WindowSystem windowSystem;
         private bool disposed;
 
         // Publicly accessible list mapping Waymarks to their PreDraw evaluated locations
-        public List<(Vector2 Position, WaymarkShape Shape, float Size, Vector4 Color, string? Name)> WaymarksToRender { get; } = [];
+        public List<(Vector2 Position, WaymarkShape Shape, float Size, Vector4 Color, string? Name, uint? IconId)> WaymarksToRender { get; } = [];
 
         // Player data gathered during Framework.Update
-        private readonly List<(Vector3 WorldPos, WaymarkShape Shape, Vector4 Color, string? Name)> waymarksToRender = [];
+        private readonly List<(Vector3 WorldPos, WaymarkShape Shape, Vector4 Color, string? Name, uint? IconId, float VisibilityRadius)> waymarksToRender = [];
 
         // Minimap state cached per frame
         private float minimapRadius;
@@ -50,6 +51,7 @@ namespace WukWaymark.Services
 
         public WaymarkMinimapService(Plugin plugin)
         {
+            this.plugin = plugin;
             configuration = plugin.Configuration;
             windowSystem = plugin.WindowSystem;
             window = new WaymarkMinimapWindow(this, plugin);
@@ -130,14 +132,23 @@ namespace WukWaymark.Services
             minimapRadius = mapSize.X * 0.315f;
 
             // Cache waymarks to render
-            foreach (var waymark in configuration.Waymarks)
+            foreach (var waymark in plugin.WaymarkStorageService.GetVisibleWaymarks())
             {
                 // Minimap only shows waymarks in the current zone
                 if (waymark.MapId != agentMap->CurrentMapId)
                     continue;
 
+                // Visibility radius check using squared distance (avoids sqrt)
+                if (configuration.FadeWaymarkOnMinimapEdge && waymark.VisibilityRadius > 0)
+                {
+                    var distSquared = Vector3.DistanceSquared(localPlayer.Position, waymark.Position);
+                    var radiusSquared = waymark.VisibilityRadius * waymark.VisibilityRadius;
+                    if (distSquared > radiusSquared)
+                        continue;
+                }
+
                 // Store world position - will convert to screen coords in PreDraw
-                waymarksToRender.Add((waymark.Position, waymark.Shape, waymark.Color, waymark.Name));
+                waymarksToRender.Add((waymark.Position, waymark.Shape, waymark.Color, waymark.Name, waymark.IconId, waymark.VisibilityRadius));
             }
         }
 
@@ -164,11 +175,54 @@ namespace WukWaymark.Services
             mapCenterScreenPos.Y -= 5f * globalScale;
 
             // Pass pre-computed cos/sin to avoid recomputing per waymark
-            foreach (var (worldPos, shape, color, name) in waymarksToRender)
+            foreach (var (worldPos, shape, color, name, iconId, visibilityRadius) in waymarksToRender)
             {
                 var circlePos = CalculateCirclePosition(worldPos, cosRotation, sinRotation);
                 var markerSize = configuration.WaymarkMarkerSize * globalScale;
-                WaymarksToRender.Add((circlePos, shape, markerSize, color, name));
+                if (iconId != null)
+                {
+                    var iconSize = plugin.IconBrowserService.GetIconSize(iconId.Value);
+                    var deSize = 6.0f / naviScale * globalScale;
+                    if (iconSize.HasValue)
+                    {
+                        markerSize = iconSize.Value.X / deSize;
+                    }
+                    else
+                    {
+                        // Fallback to 64x64 (seems most icons are this size?)
+                        markerSize = 64f / deSize;
+                    }
+                }
+
+                // Apply visibility radius alpha fade (last 20% of radius)
+                var fadedColor = color;
+                if (configuration.FadeWaymarkOnMinimapEdge && visibilityRadius > 0)
+                {
+                    // Use squared distance to avoid sqrt, only compute sqrt when fading
+                    var dx = playerWorldPos.X - worldPos.X;
+                    var dy = playerWorldPos.Y - worldPos.Z;
+                    var distSquared = (dx * dx) + (dy * dy);
+
+                    var fadeStart = visibilityRadius * 0.8f;
+                    var fadeStartSquared = fadeStart * fadeStart;
+
+                    if (distSquared > fadeStartSquared)
+                    {
+                        var dist = MathF.Sqrt(distSquared); // Only sqrt when actually fading
+                        var alpha = 1.0f - ((dist - fadeStart) / (visibilityRadius - fadeStart));
+                        fadedColor.W = Math.Clamp(alpha, 0f, 1f) * color.W;
+                    }
+                }
+
+                // Minimap border fade — reduce alpha when marker is clamped to edge
+                var screenDist = Vector2.Distance(mapCenterScreenPos, circlePos);
+                if (configuration.FadeWaymarkOnMinimapEdge && screenDist >= minimapRadius * 0.95f)
+                {
+                    var edgeFade = 1.0f - ((screenDist - (minimapRadius * 0.95f)) / (minimapRadius * 0.05f));
+                    fadedColor.W *= Math.Clamp(edgeFade, 0.4f, 1.0f);
+                }
+
+                WaymarksToRender.Add((circlePos, shape, markerSize, fadedColor, name, iconId));
             }
         }
 
