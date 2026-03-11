@@ -46,25 +46,30 @@ public partial class MainWindow
 
             ImGui.Text("Name:");
             ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
-            ImGui.InputText($"##Name{identifier}", ref editingName, 100);
+            using (ImRaii.Disabled(editingReadOnly))
+                ImGui.InputText($"##Name{identifier}", ref editingName, 100);
 
             ImGui.Text("Color:");
             ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
-            ImGui.ColorEdit4($"##Color{identifier}", ref editingColor);
+            using (ImRaii.Disabled(editingReadOnly))
+                ImGui.ColorEdit4($"##Color{identifier}", ref editingColor);
 
             ImGui.Text("Shape:");
             ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
             var shapeDropPreview = Enum.GetName(editingShape) ?? "Unknown";
-            using (var shapeDrop = ImRaii.Combo($"##Shape{identifier}", shapeDropPreview))
+            using (ImRaii.Disabled(editingReadOnly))
             {
-                if (shapeDrop.Success)
+                using (var shapeDrop = ImRaii.Combo($"##Shape{identifier}", shapeDropPreview))
                 {
-                    var shapeNames = Enum.GetNames<WaymarkShape>();
-                    foreach (var shapeName in shapeNames)
+                    if (shapeDrop.Success)
                     {
-                        if (ImGui.Selectable(shapeName, shapeName == shapeDropPreview))
+                        var shapeNames = Enum.GetNames<WaymarkShape>();
+                        foreach (var shapeName in shapeNames)
                         {
-                            editingShape = Enum.Parse<WaymarkShape>(shapeName);
+                            if (ImGui.Selectable(shapeName, shapeName == shapeDropPreview))
+                            {
+                                editingShape = Enum.Parse<WaymarkShape>(shapeName);
+                            }
                         }
                     }
                 }
@@ -85,22 +90,25 @@ public partial class MainWindow
             var currentGroupName = editingGroupId == null
                 ? "Ungrouped"
                 : groups.FirstOrDefault(g => g.Id == editingGroupId)?.Name ?? "Unknown";
-            using (var groupDrop = ImRaii.Combo($"##Group{identifier}", currentGroupName))
+            using (ImRaii.Disabled(editingReadOnly))
             {
-                if (groupDrop.Success)
+                using (var groupDrop = ImRaii.Combo($"##Group{identifier}", currentGroupName))
                 {
-                    // "Ungrouped" option
-                    if (ImGui.Selectable("Ungrouped", editingGroupId == null))
+                    if (groupDrop.Success)
                     {
-                        editingGroupId = null;
-                    }
-
-                    // Group options
-                    foreach (var group in availableGroups)
-                    {
-                        if (ImGui.Selectable(group.Name, editingGroupId == group.Id))
+                        // "Ungrouped" option
+                        if (ImGui.Selectable("Ungrouped", editingGroupId == null))
                         {
-                            editingGroupId = group.Id;
+                            editingGroupId = null;
+                        }
+
+                        // Group options
+                        foreach (var group in availableGroups)
+                        {
+                            if (ImGui.Selectable(group.Name, editingGroupId == group.Id))
+                            {
+                                editingGroupId = group.Id;
+                            }
                         }
                     }
                 }
@@ -108,20 +116,24 @@ public partial class MainWindow
 
             ImGui.Text("Note:");
             ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
-            ImGui.InputText($"##Note{identifier}", ref editingNote, 100);
+            using (ImRaii.Disabled(editingReadOnly))
+                ImGui.InputText($"##Note{identifier}", ref editingNote, 100);
 
             // Scope dropdown
             ImGui.Text("Scope:");
             ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
             var scopeDropPreview = Enum.GetName(editingScope) ?? "Unknown";
-            using (var scopeDrop = ImRaii.Combo($"##Scope{identifier}", scopeDropPreview))
+            using (ImRaii.Disabled(editingReadOnly))
             {
-                if (scopeDrop.Success)
+                using (var scopeDrop = ImRaii.Combo($"##Scope{identifier}", scopeDropPreview))
                 {
-                    if (ImGui.Selectable(WaymarkScope.Personal.ToString(), editingScope == WaymarkScope.Personal))
-                        editingScope = WaymarkScope.Personal;
-                    if (ImGui.Selectable(WaymarkScope.Shared.ToString(), editingScope == WaymarkScope.Shared))
-                        editingScope = WaymarkScope.Shared;
+                    if (scopeDrop.Success)
+                    {
+                        if (ImGui.Selectable(WaymarkScope.Personal.ToString(), editingScope == WaymarkScope.Personal))
+                            editingScope = WaymarkScope.Personal;
+                        if (ImGui.Selectable(WaymarkScope.Shared.ToString(), editingScope == WaymarkScope.Shared))
+                            editingScope = WaymarkScope.Shared;
+                    }
                 }
             }
 
@@ -142,31 +154,35 @@ public partial class MainWindow
             // Visibility radius slider
             ImGui.Text("Visibility Radius:");
             ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
-            ImGui.SliderFloat($"##VisRadius{identifier}", ref editingVisibilityRadius, 0f, 500f, editingVisibilityRadius == 0 ? "Always Visible" : "%.0f yalms");
+            using (ImRaii.Disabled(editingReadOnly))
+                ImGui.SliderFloat($"##VisRadius{identifier}", ref editingVisibilityRadius, 0f, 500f, editingVisibilityRadius == 0 ? "Always Visible" : "%.0f yalms");
 
             // Icon picker
             ImGui.Text("Icon (Overrides Shape):");
             ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
 
-            var currentIconName = "Select Icon...";
-            var previewTex = editingIconId.HasValue && editingIconId.Value > 0 ? Plugin.TextureProvider.GetFromGameIcon(editingIconId.Value).GetWrapOrEmpty() : null;
-            if (editingIconId.HasValue && editingIconId.Value > 0)
-                currentIconName = plugin.IconBrowserService.AvailableIcons.FirstOrDefault(i => i.IconId == editingIconId.Value)?.Name ?? $"ID: {editingIconId.Value}";
-
-            // Draw a preview image next to the combo if an icon is selected
-            if (previewTex != null && previewTex.Handle != nint.Zero)
+            using (ImRaii.Disabled(editingReadOnly))
             {
-                ImGui.Image(previewTex.Handle, new Vector2(24, 24));
-                ImGui.SameLine();
-                // Adjust Y to center the combo box with the image
-                ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 2);
-            }
+                var currentIconName = "Select Icon...";
+                var previewTex = editingIconId.HasValue && editingIconId.Value > 0 ? Plugin.TextureProvider.GetFromGameIcon(editingIconId.Value).GetWrapOrEmpty() : null;
+                if (editingIconId.HasValue && editingIconId.Value > 0)
+                    currentIconName = plugin.IconBrowserService.AvailableIcons.FirstOrDefault(i => i.IconId == editingIconId.Value)?.Name ?? $"ID: {editingIconId.Value}";
 
-            ImGui.SetNextItemWidth((previewTex != null ? 218 : 250) * ImGuiHelpers.GlobalScale);
-            if (ImGui.Button($"{currentIconName}##IconBtn{identifier}", new Vector2((previewTex != null ? 218 : 250) * ImGuiHelpers.GlobalScale, 0)))
-            {
-                showIconPickerModal = true;
-                ImGui.OpenPopup($"Icon Picker ({waymark.Name})###{identifier}");
+                // Draw a preview image next to the combo if an icon is selected
+                if (previewTex != null && previewTex.Handle != nint.Zero)
+                {
+                    ImGui.Image(previewTex.Handle, new Vector2(24, 24));
+                    ImGui.SameLine();
+                    // Adjust Y to center the combo box with the image
+                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 2);
+                }
+
+                ImGui.SetNextItemWidth((previewTex != null ? 218 : 250) * ImGuiHelpers.GlobalScale);
+                if (ImGui.Button($"{currentIconName}##IconBtn{identifier}", new Vector2((previewTex != null ? 218 : 250) * ImGuiHelpers.GlobalScale, 0)))
+                {
+                    showIconPickerModal = true;
+                    ImGui.OpenPopup($"Icon Picker ({waymark.Name})###{identifier}");
+                }
             }
 
             var center = ImGui.GetMainViewport().GetCenter();
@@ -366,7 +382,8 @@ public partial class MainWindow
 
             ImGui.Text("Group Name:");
             ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
-            ImGui.InputText("##GroupName", ref groupEditName, 100);
+            using (ImRaii.Disabled(groupEditIsReadOnly))
+                ImGui.InputText("##GroupName", ref groupEditName, 100);
 
             ImGui.Spacing();
 
@@ -374,14 +391,17 @@ public partial class MainWindow
             ImGui.Text("Scope:");
             ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
             var scopeDropPreview = Enum.GetName(groupEditScope) ?? "Unknown";
-            using (var scopeDrop = ImRaii.Combo("##GroupScope", scopeDropPreview))
+            using (ImRaii.Disabled(groupEditIsReadOnly))
             {
-                if (scopeDrop.Success)
+                using (var scopeDrop = ImRaii.Combo("##GroupScope", scopeDropPreview))
                 {
-                    if (ImGui.Selectable(WaymarkScope.Personal.ToString(), groupEditScope == WaymarkScope.Personal))
-                        groupEditScope = WaymarkScope.Personal;
-                    if (ImGui.Selectable(WaymarkScope.Shared.ToString(), groupEditScope == WaymarkScope.Shared))
-                        groupEditScope = WaymarkScope.Shared;
+                    if (scopeDrop.Success)
+                    {
+                        if (ImGui.Selectable(WaymarkScope.Personal.ToString(), groupEditScope == WaymarkScope.Personal))
+                            groupEditScope = WaymarkScope.Personal;
+                        if (ImGui.Selectable(WaymarkScope.Shared.ToString(), groupEditScope == WaymarkScope.Shared))
+                            groupEditScope = WaymarkScope.Shared;
+                    }
                 }
             }
 
