@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using WukWaymark.Models;
 using WukWaymark.Services;
+using WukWaymark.Utils;
 
 namespace WukWaymark.Windows;
 
@@ -19,7 +20,14 @@ namespace WukWaymark.Windows;
 public partial class MainWindow : Window, IDisposable
 {
     private readonly Plugin plugin;
-    private static bool isLoggedIn => Plugin.ClientState.IsLoggedIn;
+
+    // ═══════════════════════════════════════════════════════════════
+    // GAME STATE
+    // ═══════════════════════════════════════════════════════════════
+    private bool isLoggedIn => plugin.GameStateReaderService.IsLoggedIn;
+    private bool inPvP => plugin.GameStateReaderService.IsInPvP;
+    private bool inCombat => plugin.GameStateReaderService.IsInCombat;
+    private bool waymarksDisabled => plugin.GameStateReaderService.DisableWaymarkActions();
 
     // ═══════════════════════════════════════════════════════════════
     // UI STATE
@@ -227,24 +235,31 @@ public partial class MainWindow : Window, IDisposable
                     ApplyImport(result, overwriteAll: false);
                 }
             }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Import Waymarks from Clipboard");
-            }
+        }
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            var tooltip = !isLoggedIn ? "Log in to import waymarks!" :
+                          "Import waymarks from clipboard";
+            ImGui.SetTooltip(tooltip);
         }
         ImGui.SameLine(0, buttonSpacing);
 
         // Save Location button (pin icon)
-        using (ImRaii.Disabled(!isLoggedIn))
+        using (ImRaii.Disabled(waymarksDisabled))
         {
             if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
             {
                 plugin.WaymarkService.SaveCurrentLocation();
             }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Save Current Location");
-            }
+        }
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            var tooltip = !isLoggedIn ? "Log in to save waymarks" :
+                          inPvP ? "Saving waymarks is disabled in PvP zones" :
+                          inCombat ? "Saving waymarks is disabled in combat" :
+                          "Save Current Location as Waymark";
+            ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 1.0f);
+            ImGui.SetTooltip(tooltip);
         }
         ImGui.SameLine(0, buttonSpacing);
 
@@ -304,8 +319,13 @@ public partial class MainWindow : Window, IDisposable
         ImGui.SameLine();
 
         // Zone filter toggle
-        using (ImRaii.Disabled(!isLoggedIn))
+        using (ImRaii.Disabled(waymarksDisabled))
             ImGui.Checkbox("Current Zone", ref filterCurrentZone);
+        if (ImWuk.IsItemHoveredWhenDisabled())
+            ImGui.SetTooltip(!isLoggedIn ? "Log in to filter waymarks!" :
+                             inPvP ? "Filtering waymarks is disabled in PvP zones" :
+                             inCombat ? "Filtering waymarks is disabled in combat" :
+                             "Only show waymarks in the current zone");
 
         // Undo button (only when deletions exist)
         if (plugin.WaymarkService.CanUndo)
@@ -317,10 +337,12 @@ public partial class MainWindow : Window, IDisposable
                 {
                     plugin.WaymarkService.UndoDelete();
                 }
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip($"Undo Delete ({plugin.WaymarkService.UndoCount})");
-                }
+            }
+            if (ImWuk.IsItemHoveredWhenDisabled())
+            {
+                var tooltip = !isLoggedIn ? "Log in to undo deletions!" :
+                              $"Undo Deleted Waymark ({plugin.WaymarkService.UndoCount})";
+                ImGui.SetTooltip(tooltip);
             }
         }
 
@@ -344,9 +366,17 @@ public partial class MainWindow : Window, IDisposable
             ImGui.Indent(5);
             ImGui.Text("Use '/wwmark here' or the");
             ImGui.SameLine();
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
+            using (ImRaii.Disabled(waymarksDisabled))
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
+                {
+                    plugin.WaymarkService.SaveCurrentLocation();
+                }
+            if (ImWuk.IsItemHoveredWhenDisabled())
             {
-                plugin.WaymarkService.SaveCurrentLocation();
+                var tooltip = inPvP ? "Saving waymarks is disabled in PvP zones" :
+                              inCombat ? "Saving waymarks is disabled in combat" :
+                              "Save Current Location as Waymark";
+                ImGui.SetTooltip(tooltip);
             }
             ImGui.SameLine();
             ImGui.Text("button above to save your current location as a waymark.");
