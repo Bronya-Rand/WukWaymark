@@ -3,13 +3,12 @@ using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
 using WukWaymark.Helpers;
 using WukWaymark.Models;
 using WukWaymark.Services;
+using WukWaymark.Utils;
 
 namespace WukWaymark.Windows;
 
@@ -19,7 +18,7 @@ public partial class MainWindow
     {
         var filteredWaymarks = FilterWaymarks(waymarks);
 
-        ImGui.Text($"Showing {filteredWaymarks.Count} of {waymarks.Count()} waymarks");
+        ImGui.Text($"Showing {filteredWaymarks.Count} of {waymarks.Count} waymarks");
         ImGui.Spacing();
 
         DrawWaymarkTable(filteredWaymarks);
@@ -120,9 +119,12 @@ public partial class MainWindow
                             ImGui.OpenPopup($"EditWaymark##{waymark.Id.ToString()}");
                         }
                     }
-                    if (ImGui.IsItemHovered())
+                    if (ImWuk.IsItemHoveredWhenDisabled())
                     {
-                        ImGui.SetTooltip("Edit Waymark");
+                        var tooltip = !canEdit && waymark.Scope == WaymarkScope.Personal ? "Only the creator can edit this waymark." :
+                                      !canEdit && waymark.Scope == WaymarkScope.Shared && waymark.IsReadOnly ? "This shared waymark is read-only and cannot be edited." :
+                                      "Edit Waymark";
+                        ImGui.SetTooltip(tooltip);
                     }
 
                     // Edit popup
@@ -162,9 +164,13 @@ public partial class MainWindow
                             showDeleteWaymarkConfirmation = true;
                         }
                     }
-                    if (ImGui.IsItemHovered())
+                    if (ImWuk.IsItemHoveredWhenDisabled())
                     {
-                        ImGui.SetTooltip("Delete Waymark");
+                        var tooltip = !canDelete && waymark.Scope == WaymarkScope.Personal ? "Only the creator can delete this waymark." :
+                            !canDelete && waymark.Scope == WaymarkScope.Shared && waymark.IsReadOnly ? "This shared waymark is read-only and cannot be deleted." :
+                                      "Delete Waymark";
+
+                        ImGui.SetTooltip(tooltip);
                     }
                 }
             }

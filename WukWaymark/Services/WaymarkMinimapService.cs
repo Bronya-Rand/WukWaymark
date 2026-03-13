@@ -3,6 +3,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using System;
@@ -100,7 +101,7 @@ namespace WukWaymark.Services
             if (naviMapAddonPtr.IsNull)
                 return;
 
-            var naviMapAddon = (AtkUnitBase*)naviMapAddonPtr.Address;
+            var naviMapAddon = (AddonNaviMap*)naviMapAddonPtr.Address;
             if (naviMapAddon == null || !naviMapAddon->IsVisible || naviMapAddon->UldManager.LoadedState != AtkLoadState.Loaded)
                 return;
 

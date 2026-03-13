@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using WukWaymark.Models;
+using WukWaymark.Utils;
 
 namespace WukWaymark.Windows;
 
@@ -131,9 +132,10 @@ public partial class MainWindow
         }
         if (ImGui.IsItemHovered())
         {
-            if (group.Scope == WaymarkScope.Personal) ImGui.SetTooltip("Scope: Personal");
-            else if (group.IsReadOnly) ImGui.SetTooltip("Scope: Shared (Read-Only)");
-            else ImGui.SetTooltip("Scope: Shared");
+            var tooltip = group.Scope == WaymarkScope.Personal ? "Personal Group" :
+                group.IsReadOnly ? "Shared Group (Read-Only)" :
+                "Shared Group";
+            ImGui.SetTooltip(tooltip);
         }
 
         // Move cursor back up if we shifted it down
@@ -154,17 +156,21 @@ public partial class MainWindow
         // Quick-save to this group
         using (ImRaii.PushId("groupsave"))
         {
-            using (ImRaii.Disabled(!canAdd))
+            using (ImRaii.Disabled(!canAdd || waymarksDisabled))
             {
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
                 {
                     plugin.WaymarkService.SaveCurrentLocation(group, group.Scope);
                 }
             }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip($"Save Current Location to '{group.Name}'");
-            }
+        }
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            var tooltip = inPvP ? "Saving waymarks is disabled in PvP zones" :
+                inCombat ? "Saving waymarks is disabled in combat" :
+                group.IsReadOnly ? "Group is set to read-only" :
+                "Save current location to this group.";
+            ImGui.SetTooltip(tooltip);
         }
 
         ImGui.SameLine(0, spacing);
@@ -183,10 +189,12 @@ public partial class MainWindow
                     showCreateGroupPopup = true;
                 }
             }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Edit Group Properties");
-            }
+        }
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            var tooltip = group.IsReadOnly && !isCreator ? "Only the group's creator can edit this group" :
+                "Edit group properties";
+            ImGui.SetTooltip(tooltip);
         }
 
         ImGui.SameLine(0, spacing);
@@ -202,10 +210,13 @@ public partial class MainWindow
                     showDeleteGroupConfirmation = true;
                 }
             }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Delete Group");
-            }
+        }
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            var tooltip = group.IsReadOnly && isCreator ? "Cannot delete a read-only group" :
+                !isCreator ? "Only the group's creator can delete this group" :
+                "Delete Group";
+            ImGui.SetTooltip(tooltip);
         }
     }
 }

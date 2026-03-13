@@ -65,6 +65,8 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Background service for loading and caching game icons</summary>
     public IconBrowserService IconBrowserService { get; init; }
 
+    public GameStateReaderService GameStateReaderService { get; init; } = new();
+
     /// <summary>Handles cross-character waymark persistence and scoping</summary>
     public WaymarkStorageService WaymarkStorageService { get; init; }
 
@@ -93,6 +95,7 @@ public sealed class Plugin : IDalamudPlugin
         WaymarkStorageService = new WaymarkStorageService(pluginConfigDir);
         WaymarkService = new WaymarkService(Configuration, WaymarkStorageService);
         IconBrowserService = new IconBrowserService(DataManager);
+        GameStateReaderService = new GameStateReaderService();
 
         // Set character hash if player is already logged in
         // Note: We can't access ObjectTable.LocalPlayer in the constructor
@@ -160,6 +163,7 @@ public sealed class Plugin : IDalamudPlugin
         MainWindow.Dispose();
         WaymarkMapService.Dispose();
         WaymarkMinimapService.Dispose();
+        GameStateReaderService.Dispose();
         IconBrowserService.Dispose();
 
         // Unregister the slash command

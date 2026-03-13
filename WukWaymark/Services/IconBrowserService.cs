@@ -27,7 +27,7 @@ namespace WukWaymark.Services
         public IReadOnlyList<IconInfo> AvailableIcons { get; private set; } = [];
 
         // Cache for icon sizes
-        private IReadOnlyDictionary<uint, Vector2> iconSizeCache = new Dictionary<uint, Vector2>();
+        private Dictionary<uint, Vector2> iconSizeCache = [];
 
         public IconBrowserService(IDataManager dataManager)
         {
