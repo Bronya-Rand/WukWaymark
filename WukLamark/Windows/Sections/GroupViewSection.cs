@@ -123,7 +123,7 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, W
         if (group.Scope == WaymarkScope.Shared)
             groupScopeIcon = group.IsReadOnly ? FontAwesomeIcon.Lock : FontAwesomeIcon.Users;
 
-        using (ImRaii.PushFont(Plugin.PluginInterface.UiBuilder.FontIcon))
+        using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (2 * ImGuiHelpers.GlobalScale));
             ImGui.TextDisabled(groupScopeIcon.ToIconString());

@@ -57,48 +57,115 @@ internal class WaymarkEditPopup
         editingReadOnly = waymark.IsReadOnly;
     }
 
-    public void Draw(Waymark waymark)
+    public void Draw(Waymark waymark, WaymarkGroup? parentGroup = null)
     {
         var identifier = waymark.Id.ToString();
         using var editWaymarkPopup = ImRaii.Popup($"EditWaymark##{identifier}");
 
-        if (waymark.IsReadOnly && waymark.CharacterHash != plugin.WaymarkStorageService.CurrentCharacterHash)
+        if (!editWaymarkPopup) return;
+
+        var currentCharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+        var isWaymarkCreator = waymark.CharacterHash != null &&
+                               currentCharacterHash != null &&
+                               waymark.CharacterHash == currentCharacterHash;
+
+        // Inherit scope from group if waymark is in a group
+        var isGrouped = parentGroup != null;
+        var effectiveScope = isGrouped ? parentGroup!.Scope : waymark.Scope;
+
+        if (isGrouped)
         {
-            if (editWaymarkPopup)
+            editingScope = parentGroup!.Scope;
+        }
+
+        var selectedScope = isGrouped ? parentGroup!.Scope : editingScope;
+        var canOpenEdit = false;
+        var cannotEditReason = string.Empty;
+
+        // Validate edit permissions before rendering any fields
+        if (isGrouped)
+        {
+            // Validate group permissions
+            var isGroupCreator = parentGroup!.CreatorHash != null &&
+                                 currentCharacterHash != null &&
+                                 parentGroup.CreatorHash == currentCharacterHash;
+
+            if (parentGroup.Scope == WaymarkScope.Personal)
             {
-                ImGui.Text($"'{waymark.Name}' is read-only and cannot be edited.");
-                ImGui.Spacing();
-                if (ImGui.Button("Close"))
+                canOpenEdit = isGroupCreator;
+                if (!canOpenEdit)
+                    cannotEditReason = "Only the group's creator can edit waymarks in this personal group.";
+            }
+            else
+            {
+                if (parentGroup.IsReadOnly)
                 {
-                    ImGui.CloseCurrentPopup();
+                    canOpenEdit = false;
+                    cannotEditReason = "This group is read-only and waymarks cannot be edited.";
+                }
+                else
+                {
+                    canOpenEdit = !waymark.IsReadOnly || isWaymarkCreator;
+                    if (!canOpenEdit)
+                        cannotEditReason = $"'{waymark.Name}' is read-only and only the creator can edit it.";
                 }
             }
+        }
+        else
+        {
+            // Validate individual waymark permissions
+            canOpenEdit = (effectiveScope == WaymarkScope.Personal && isWaymarkCreator) ||
+                          (effectiveScope == WaymarkScope.Shared && (!waymark.IsReadOnly || isWaymarkCreator));
+
+            if (!canOpenEdit)
+            {
+                cannotEditReason = effectiveScope == WaymarkScope.Personal
+                    ? $"Only the creator can edit '{waymark.Name}'."
+                    : $"'{waymark.Name}' is read-only and cannot be edited.";
+            }
+        }
+
+        // Exit early if user lacks permissions
+        if (!canOpenEdit)
+        {
+            Plugin.Log.Warning($"Edit popup opened without permission for waymark '{waymark.Id}'. {cannotEditReason}.");
+            ImGui.CloseCurrentPopup();
             return;
         }
 
-        if (!editWaymarkPopup) return;
+        var isSharedReadOnly = selectedScope == WaymarkScope.Shared && editingReadOnly;
+        var canEditGeneralFields = !isSharedReadOnly;
+        var canEditScope = !isGrouped && isWaymarkCreator && !editingReadOnly;
+        var canEditReadOnly = selectedScope == WaymarkScope.Shared && isWaymarkCreator && !editingName.IsNullOrEmpty();
 
-        var isCreator = waymark.CharacterHash == plugin.WaymarkStorageService.CurrentCharacterHash;
-        var canEdit = (waymark.Scope == WaymarkScope.Shared && (!waymark.IsReadOnly || isCreator)) ||
-            (waymark.Scope == WaymarkScope.Personal && isCreator && !editingName.IsNullOrEmpty());
+        var canSave = !editingName.IsNullOrEmpty();
+        if (effectiveScope == WaymarkScope.Shared && waymark.IsReadOnly && editingReadOnly)
+        {
+            canSave = isWaymarkCreator && editingReadOnly != waymark.IsReadOnly;
+        }
 
         ImGui.Text("Edit Waymark");
         ImGui.Separator();
 
         ImGui.Text("Name:");
         ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
-        using (ImRaii.Disabled(editingReadOnly))
+        using (ImRaii.Disabled(!canEditGeneralFields))
             ImGui.InputText($"###Name{identifier}", ref editingName, 100);
 
         ImGui.Text("Color:");
         ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
-        using (ImRaii.Disabled(editingReadOnly))
+        using (ImRaii.Disabled(!canEditGeneralFields))
             ImGui.ColorEdit4($"###Color{identifier}", ref editingColor);
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            var tooltip = "Sets the color of the waymark on the minimap/map. This is overridden by the icon if one is selected.";
+            ImGui.SetTooltip(tooltip);
+        }
 
         ImGui.Text("Shape:");
         ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
         var shapeDropPreview = Enum.GetName(editingShape) ?? "Unknown";
-        using (ImRaii.Disabled(editingReadOnly))
+        using (ImRaii.Disabled(!canEditGeneralFields))
         {
             using (var shapeDrop = ImRaii.Combo($"###Shape{identifier}", shapeDropPreview))
             {
@@ -114,6 +181,11 @@ internal class WaymarkEditPopup
                     }
                 }
             }
+        }
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            var tooltip = "Assigns a shape to the waymark. This is overridden by the icon if one is selected.";
+            ImGui.SetTooltip(tooltip);
         }
 
         // Group assignment dropdown
@@ -131,7 +203,7 @@ internal class WaymarkEditPopup
         var currentGroupName = editingGroupId == null
             ? "Ungrouped"
             : groups.FirstOrDefault(g => g.Id == editingGroupId)?.Name ?? "Unknown";
-        using (ImRaii.Disabled(editingReadOnly))
+        using (ImRaii.Disabled(!canEditGeneralFields))
         {
             using (var groupDrop = ImRaii.Combo($"###Group{identifier}", currentGroupName))
             {
@@ -152,17 +224,27 @@ internal class WaymarkEditPopup
                 }
             }
         }
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            var tooltip = "Assigns a group to this waymark. Waymarks in a group inherit the group's scope and read-only status.\nOnly personal groups and shared, non-read-only groups are available for assignment.";
+            ImGui.SetTooltip(tooltip);
+        }
 
         ImGui.Text("Note:");
         ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
-        using (ImRaii.Disabled(editingReadOnly))
+        using (ImRaii.Disabled(!canEditGeneralFields))
             ImGui.InputText($"###Note{identifier}", ref editingNote, 100);
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            var tooltip = "Additional notes for this waymark.";
+            ImGui.SetTooltip(tooltip);
+        }
 
         // Scope dropdown
         ImGui.Text("Scope:");
         ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
         var scopeDropPreview = Enum.GetName(editingScope) ?? "Unknown";
-        using (ImRaii.Disabled(editingReadOnly))
+        using (ImRaii.Disabled(!canEditScope))
         {
             using (var scopeDrop = ImRaii.Combo($"###Scope{identifier}", scopeDropPreview))
             {
@@ -175,21 +257,32 @@ internal class WaymarkEditPopup
                 }
             }
         }
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            var tooltip = isGrouped
+                ? "Waymark scope is inherited from its group."
+                : !isWaymarkCreator
+                    ? "Only the creator can change scope."
+                    : editingReadOnly && selectedScope == WaymarkScope.Shared
+                        ? "Disable read-only before changing scope."
+                        : "Sets the visibility of the waymark to other players on the same PC.\nPersonal waymarks are only visible to you, while shared waymarks are visible to anyone who logs in to XIV from this PC";
+            ImGui.SetTooltip(tooltip);
+        }
 
         // Read-only checkbox (only for shared waymarks and only editable by the creator)
-        if (editingScope == WaymarkScope.Shared)
+        if (selectedScope == WaymarkScope.Shared)
         {
             ImGui.Spacing();
-            using (ImRaii.Disabled(waymark.CharacterHash != plugin.WaymarkStorageService.CurrentCharacterHash || editingName.IsNullOrEmpty()))
+            using (ImRaii.Disabled(!canEditReadOnly))
             {
                 ImGui.Checkbox("Read-Only###WaymarkReadOnly", ref editingReadOnly);
             }
             if (ImWuk.IsItemHoveredWhenDisabled())
             {
-                var tooltip = waymark.CharacterHash != plugin.WaymarkStorageService.CurrentCharacterHash ?
+                var tooltip = !isWaymarkCreator ?
                     "Only the creator can set this waymark to read-only." :
                     editingName.IsNullOrEmpty() ? "Waymarks must have a name before they can be set to read-only." :
-                    "When enabled, only you can edit this shared waymark. Prevents deletion until disabled.";
+                    "When enabled, only the creator can edit this shared waymark and deletion is blocked.";
                 ImGui.SetTooltip(tooltip);
             }
         }
@@ -197,14 +290,19 @@ internal class WaymarkEditPopup
         // Visibility radius slider
         ImGui.Text("Visibility Radius:");
         ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
-        using (ImRaii.Disabled(editingReadOnly))
+        using (ImRaii.Disabled(!canEditGeneralFields))
             ImGui.SliderFloat($"###VisRadius{identifier}", ref editingVisibilityRadius, 0f, 500f, editingVisibilityRadius == 0 ? "Always Visible" : "%.0f yalms");
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            var tooltip = "Set how far this waymark is visible on the minimap/map before it de-renders. Set to 0 for always visible.";
+            ImGui.SetTooltip(tooltip);
+        }
 
         // Icon picker
         ImGui.Text("Icon (Overrides Shape):");
         ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
 
-        using (ImRaii.Disabled(editingReadOnly))
+        using (ImRaii.Disabled(!canEditGeneralFields))
         {
             var currentIconName = "Select Icon...";
             var previewTex = editingIconId.HasValue && editingIconId.Value > 0 ? Plugin.TextureProvider.GetFromGameIcon(editingIconId.Value).GetWrapOrEmpty() : null;
@@ -224,12 +322,17 @@ internal class WaymarkEditPopup
                 iconPickerModal.OpenPopup(waymark.Name, identifier);
             }
         }
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            var tooltip = "Assigns an in-game icon to the waymark. This overrides the color and shape settings of the waymark.";
+            ImGui.SetTooltip(tooltip);
+        }
 
         iconPickerModal.Draw(waymark.Name, identifier);
 
         ImGui.Spacing();
 
-        using (ImRaii.Disabled(!canEdit))
+        using (ImRaii.Disabled(!canSave))
             if (ImGui.Button("Save###EditWaymarkSaveButton"))
             {
                 var result = new WaymarkEditResult
@@ -241,8 +344,8 @@ internal class WaymarkEditPopup
                     GroupId = editingGroupId,
                     VisibilityRadius = editingVisibilityRadius,
                     IconId = editingIconId,
-                    Scope = editingScope,
-                    IsReadOnly = editingReadOnly,
+                    Scope = isGrouped ? parentGroup!.Scope : editingScope,
+                    IsReadOnly = selectedScope == WaymarkScope.Shared ? editingReadOnly : false,
                 };
                 OnSave?.Invoke(waymark, result);
                 ImGui.CloseCurrentPopup();
