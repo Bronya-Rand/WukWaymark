@@ -79,7 +79,7 @@ internal class WaymarkEditPopup
         if (!editWaymarkPopup) return;
 
         var isCreator = waymark.CharacterHash == plugin.WaymarkStorageService.CurrentCharacterHash;
-        var canEdit = waymark.Scope == WaymarkScope.Shared && (!waymark.IsReadOnly || isCreator) ||
+        var canEdit = (waymark.Scope == WaymarkScope.Shared && (!waymark.IsReadOnly || isCreator)) ||
             (waymark.Scope == WaymarkScope.Personal && isCreator && !editingName.IsNullOrEmpty());
 
         ImGui.Text("Edit Waymark");

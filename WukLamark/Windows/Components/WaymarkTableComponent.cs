@@ -124,8 +124,8 @@ internal class WaymarkTableComponent
                         currentCharacterHash != null &&
                         waymark.CharacterHash == currentCharacterHash;
 
-        bool canEdit = false;
-        bool canDelete = false;
+        var canEdit = false;
+        var canDelete = false;
 
         if (parentGroup != null)
         {

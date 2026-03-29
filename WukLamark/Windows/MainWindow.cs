@@ -317,7 +317,7 @@ public class MainWindow : Window, IDisposable
         }
         else
         {
-            ApplyImport(result, new Dictionary<Guid, bool>(), overwriteAll: false);
+            ApplyImport(result, [], overwriteAll: false);
         }
     }
 
