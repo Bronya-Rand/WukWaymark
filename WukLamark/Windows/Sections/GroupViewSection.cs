@@ -8,27 +8,31 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using WukLamark.Models;
+using WukLamark.Services;
 using WukLamark.Utils;
+using WukLamark.Windows.Components;
 
-namespace WukLamark.Windows;
+namespace WukLamark.Windows.Sections;
 
-public partial class MainWindow
+internal class GroupViewSection(GameStateReaderService gameStateReaderService, WaymarkStorageService waymarkStorageService, WaymarkTableComponent tableComponent)
 {
-    private void DrawGroupView(List<Waymark> waymarks)
-    {
-        var groups = plugin.WaymarkStorageService.GetVisibleGroups();
+    private readonly GameStateReaderService gameStateReaderService = gameStateReaderService;
+    private readonly WaymarkStorageService waymarkStorageService = waymarkStorageService;
+    private readonly WaymarkTableComponent tableComponent = tableComponent;
 
-        // Draw create group popup if needed
-        DrawCreateGroupPopup();
-        DrawDeleteGroupConfirmation();
+    public Action? OnCreateGroup { get; set; }
+    public Action<WaymarkGroup>? OnEditGroup { get; set; }
+    public Action<WaymarkGroup>? OnDeleteGroup { get; set; }
+    public Action<WaymarkGroup>? OnSaveToGroup { get; set; }
+
+    public void Draw(List<Waymark> filteredWaymarks, string searchFilter, bool filterCurrentZone)
+    {
+        var groups = waymarkStorageService.GetVisibleGroups();
 
         // "+ New Group" button
         if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus))
         {
-            groupEditName = string.Empty;
-            groupEditScope = WaymarkScope.Personal; // Default to personal
-            groupEditIsReadOnly = false; // Default to not read-only
-            showCreateGroupPopup = true;
+            OnCreateGroup?.Invoke();
         }
         if (ImGui.IsItemHovered())
         {
@@ -39,34 +43,27 @@ public partial class MainWindow
 
         foreach (var group in groups)
         {
-            var groupWaymarksQuery = waymarks.Where(w => w.GroupId == group.Id).ToList();
-            var groupWaymarks = FilterWaymarks(groupWaymarksQuery);
+            var groupWaymarks = filteredWaymarks.Where(w => w.GroupId == group.Id).ToList();
 
-            // Recompute count once properly instead of .Count which might enumerate early if not a List
-            var groupWaymarksList = groupWaymarks.ToList();
+            if (groupWaymarks.Count == 0 && filterCurrentZone) continue;
 
-            if (groupWaymarksList.Count == 0 && filterCurrentZone) continue; // Skip empty groups that are not relevant to current zone filter
-
-            // If searching and no waymarks match AND group name doesn't match, hide this group
             if (!string.IsNullOrEmpty(searchFilter))
             {
                 var groupNameMatches = group.Name.Contains(searchFilter, StringComparison.OrdinalIgnoreCase);
-                if (groupWaymarksList.Count == 0 && !groupNameMatches)
+                if (groupWaymarks.Count == 0 && !groupNameMatches)
                     continue;
             }
 
             var identifier = group.Id.ToString();
             using var groupId = ImRaii.PushId(identifier);
 
-            // Group header with collapsing
-            var headerOpen = ImGui.CollapsingHeader($"{group.Name} ({groupWaymarksList.Count})###group_{identifier}", ImGuiTreeNodeFlags.AllowItemOverlap);
+            var headerOpen = ImGui.CollapsingHeader($"{group.Name} ({groupWaymarks.Count})###group_{identifier}", ImGuiTreeNodeFlags.AllowItemOverlap);
 
-            // Right-aligned buttons on the header line
             DrawGroupHeaderButtons(group);
 
             if (headerOpen)
             {
-                if (groupWaymarksList.Count == 0)
+                if (groupWaymarks.Count == 0)
                 {
                     using (ImRaii.PushIndent(10))
                     {
@@ -76,25 +73,24 @@ public partial class MainWindow
                 else
                 {
                     using var tableId = ImRaii.PushId("GroupTable");
-                    DrawWaymarkTable(groupWaymarksList);
+                    tableComponent.Draw(groupWaymarks);
                 }
                 ImGui.Spacing();
             }
         }
 
         // Ungrouped waymarks section
-        var ungroupedWaymarksQuery = waymarks.Where(w => w.GroupId == null).ToList();
-        var ungroupedWaymarksList = FilterWaymarks(ungroupedWaymarksQuery);
+        var ungroupedWaymarks = filteredWaymarks.Where(w => w.GroupId == null).ToList();
 
-        if (!string.IsNullOrEmpty(searchFilter) && ungroupedWaymarksList.Count == 0)
-            return; // Hide ungrouped section when search yields no results
+        if (!string.IsNullOrEmpty(searchFilter) && ungroupedWaymarks.Count == 0)
+            return;
 
-        if (ungroupedWaymarksList.Count > 0 || string.IsNullOrEmpty(searchFilter))
+        if (ungroupedWaymarks.Count > 0 || string.IsNullOrEmpty(searchFilter))
         {
-            var ungroupedOpen = ImGui.CollapsingHeader($"Ungrouped ({ungroupedWaymarksList.Count})###ungrouped", ImGuiTreeNodeFlags.DefaultOpen);
+            var ungroupedOpen = ImGui.CollapsingHeader($"Ungrouped ({ungroupedWaymarks.Count})###ungrouped", ImGuiTreeNodeFlags.DefaultOpen);
             if (ungroupedOpen)
             {
-                if (ungroupedWaymarksList.Count == 0)
+                if (ungroupedWaymarks.Count == 0)
                 {
                     using (ImRaii.PushIndent(10))
                     {
@@ -104,15 +100,17 @@ public partial class MainWindow
                 else
                 {
                     using var tableId = ImRaii.PushId("GroupTableUngrouped");
-                    DrawWaymarkTable(ungroupedWaymarksList);
+                    tableComponent.Draw(ungroupedWaymarks);
                 }
             }
         }
     }
-
     private void DrawGroupHeaderButtons(WaymarkGroup group)
     {
-        // Calculate right-aligned position for buttons
+        var inPvP = gameStateReaderService.IsInPvP;
+        var inCombat = gameStateReaderService.IsInCombat;
+        var waymarksDisabled = gameStateReaderService.DisableWaymarkActions();
+
         var buttonSize = 20.0f * ImGuiHelpers.GlobalScale;
         var spacing = 5.0f;
         var scopeIconSize = 18.0f * ImGuiHelpers.GlobalScale;
@@ -126,7 +124,6 @@ public partial class MainWindow
 
         using (ImRaii.PushFont(Plugin.PluginInterface.UiBuilder.FontIcon))
         {
-            // Move it slightly down to align with icon buttons vertically
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (2 * ImGuiHelpers.GlobalScale));
             ImGui.TextDisabled(groupScopeIcon.ToIconString());
         }
@@ -138,19 +135,14 @@ public partial class MainWindow
             ImGui.SetTooltip(tooltip);
         }
 
-        // Move cursor back up if we shifted it down
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() - (2 * ImGuiHelpers.GlobalScale));
         ImGui.SameLine(0, spacing);
 
-        // Check if this group can be edited by the current user
-        var currentHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+        var currentHash = waymarkStorageService.CurrentCharacterHash;
         var isCreator = group.CreatorHash != null && currentHash != null && group.CreatorHash == currentHash;
 
-        // Owner check for Edit Group
         var canEdit = isCreator;
-        // Delete check: Owner AND not read-only
         var canDelete = isCreator && !group.IsReadOnly;
-        // Read-Only check for Save Current Location
         var canAdd = !group.IsReadOnly || isCreator;
 
         // Quick-save to this group
@@ -160,7 +152,7 @@ public partial class MainWindow
             {
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
                 {
-                    plugin.WaymarkService.SaveCurrentLocation(group, group.Scope);
+                    OnSaveToGroup?.Invoke(group);
                 }
             }
         }
@@ -182,11 +174,7 @@ public partial class MainWindow
             {
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.Edit))
                 {
-                    groupEditName = group.Name;
-                    groupEditScope = group.Scope;
-                    groupEditIsReadOnly = group.IsReadOnly;
-                    editingGroup = group;
-                    showCreateGroupPopup = true;
+                    OnEditGroup?.Invoke(group);
                 }
             }
         }
@@ -206,8 +194,7 @@ public partial class MainWindow
             {
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash))
                 {
-                    groupToDelete = group;
-                    showDeleteGroupConfirmation = true;
+                    OnDeleteGroup?.Invoke(group);
                 }
             }
         }

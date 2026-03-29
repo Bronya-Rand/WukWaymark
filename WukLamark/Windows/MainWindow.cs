@@ -1,136 +1,50 @@
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface;
-using Dalamud.Interface.Components;
-using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
+using WukLamark.Helpers;
 using WukLamark.Models;
 using WukLamark.Services;
 using WukLamark.Utils;
+using WukLamark.Windows.Components;
+using WukLamark.Windows.Sections;
+using WukLamark.Windows.Sections.Modals;
 
 namespace WukLamark.Windows;
 
-/// <summary>
-/// Main window for viewing and managing all saved waymarks.
-/// Supports two view modes: Table View (flat list) and Group View (collapsible groups).
-/// </summary>
-public partial class MainWindow : Window, IDisposable
+public class MainWindow : Window, IDisposable
 {
     private readonly Plugin plugin;
 
-    // ═══════════════════════════════════════════════════════════════
-    // GAME STATE
-    // ═══════════════════════════════════════════════════════════════
-    private bool isLoggedIn => plugin.GameStateReaderService.IsLoggedIn;
-    private bool inPvP => plugin.GameStateReaderService.IsInPvP;
-    private bool inCombat => plugin.GameStateReaderService.IsInCombat;
-    private bool waymarksDisabled => plugin.GameStateReaderService.DisableWaymarkActions();
+    #region Components and Sections
 
-    // ═══════════════════════════════════════════════════════════════
-    // UI STATE
-    // ═══════════════════════════════════════════════════════════════
+    private readonly WaymarkTableComponent waymarkTableComponent;
+    private readonly HeaderSection headerSection;
+    private readonly SearchBarSection searchBarSection;
+    private readonly TableViewSection tableViewSection;
+    private readonly GroupViewSection groupViewSection;
+    private readonly EmptyStateSection emptyStateSection;
 
-    /// <summary>Search filter text for filtering waymarks by name/notes/territory.</summary>
-    private string searchFilter = string.Empty;
+    #endregion
 
-    /// <summary>When true, only show waymarks in the current zone.</summary>
-    private bool filterCurrentZone;
+    #region Modals
 
-    /// <summary>Waymark pending deletion (confirmation pending)</summary>
-    private Waymark? waymarkToDelete;
+    private readonly DeleteWaymarkModal deleteWaymarkModal;
+    private readonly DeleteGroupModal deleteGroupModal;
+    private readonly ImportConflictModal importConflictModal;
+    private readonly GroupEditorModal groupEditorModal;
 
-    /// <summary>Tracks whether the delete confirmation dialog is displayed</summary>
-    private bool showDeleteWaymarkConfirmation;
+    #endregion
 
-    // ═══════════════════════════════════════════════════════════════
-    // WAYMARK EDITING STATE
-    // ═══════════════════════════════════════════════════════════════
+    #region UI States
 
-    /// <summary>Name being edited in the current edit session</summary>
-    private string editingName = string.Empty;
-
-    /// <summary>Color being edited in the current edit session</summary>
-    private Vector4 editingColor = Vector4.One;
-
-    /// <summary>Notes being edited in the current edit session</summary>
-    private string editingNote = string.Empty;
-
-    /// <summary>Shape being edited in the current edit session</summary>
-    private WaymarkShape editingShape = WaymarkShape.Circle;
-
-    /// <summary>Group assignment being edited</summary>
-    private Guid? editingGroupId;
-
-    /// <summary>Visibility radius being edited</summary>
-    private float editingVisibilityRadius;
-
-    /// <summary>Icon ID being edited</summary>
-    private uint? editingIconId = null;
-
-    /// <summary>Search filter for the icon picker dropdown</summary>
-    private string editingIconSearch = string.Empty;
-    private WaymarkScope editingScope = WaymarkScope.Personal;
-
-    /// <summary>
-    /// Whether to make the waymark read-only (only applies to shared waymarks)
-    /// </summary>
-    private bool editingReadOnly = false;
-
-    /// <summary>Whether the icon picker modal is open</summary>
-    private bool showIconPickerModal = false;
-
-    // ═══════════════════════════════════════════════════════════════
-    // GROUP EDITING STATE
-    // ═══════════════════════════════════════════════════════════════
-
-    /// <summary>Name for new/editing group</summary>
-    private string groupEditName = string.Empty;
-
-    /// <summary>Scope being edited for the group</summary>
-    private WaymarkScope groupEditScope = WaymarkScope.Personal;
-
-    /// <summary>Read-only flag being edited for the group</summary>
-    private bool groupEditIsReadOnly = false;
-
-    /// <summary>Whether the create group popup should open</summary>
-    private bool showCreateGroupPopup;
-
-    /// <summary>Whether the group editor modal is currently open</summary>
-    private bool groupEditorOpen;
-
-    /// <summary>Group being edited (null = creating new)</summary>
-    private WaymarkGroup? editingGroup;
-
-    /// <summary>Whether the delete group confirmation dialog is shown</summary>
-    private bool showDeleteGroupConfirmation;
-
-    /// <summary>Group pending deletion</summary>
-    private WaymarkGroup? groupToDelete;
-
-    /// <summary>Whether to keep waymarks when deleting a group</summary>
-    private bool keepWaymarksOnGroupDelete = true;
-
-    // ═══════════════════════════════════════════════════════════════
-    // IMPORT / EXPORT STATE
-    // ═══════════════════════════════════════════════════════════════
-
-    /// <summary>Pending import result (populated after clipboard/file parse, waits for conflict resolution)</summary>
-    private ImportResult? pendingImport;
-
-    /// <summary>Whether the import conflict resolution modal is displayed</summary>
-    private bool showImportConflictModal;
-
-    /// <summary>Per-conflict user decision: true = overwrite, false = skip</summary>
-    private readonly Dictionary<Guid, bool> importConflictChoices = [];
-
-    /// <summary>Feedback message to show after import (success/error string)</summary>
     private string importFeedback = string.Empty;
-
-    /// <summary>Ticks remaining to display import feedback banner</summary>
     private int importFeedbackTicks;
+
+    #endregion
 
     public MainWindow(Plugin plugin)
         : base("WukLamark - Saved Locations##WWMain", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
@@ -142,8 +56,408 @@ public partial class MainWindow : Window, IDisposable
         };
 
         this.plugin = plugin;
+
+        // Initialize modals
+        deleteWaymarkModal = new DeleteWaymarkModal
+        {
+            OnConfirmDelete = waymark =>
+            {
+                plugin.WaymarkService.DeleteWaymark(waymark);
+            },
+        };
+
+        deleteGroupModal = new DeleteGroupModal
+        {
+            OnConfirmDelete = (group, keepWaymarks) =>
+            {
+                if (!keepWaymarks)
+                {
+                    var allWaymarks = plugin.WaymarkStorageService.GetVisibleWaymarks();
+                    var toDelete = allWaymarks.Where(w => w.GroupId == group.Id).ToList();
+
+                    foreach (var w in toDelete)
+                        plugin.WaymarkService.DeleteWaymark(w);
+                }
+                else
+                {
+                    // Move waymarks to unbound
+                    var allWaymarks = plugin.WaymarkStorageService.GetVisibleWaymarks();
+                    var toMove = allWaymarks.Where(w => w.GroupId == group.Id).ToList();
+
+                    foreach (var w in toMove)
+                    {
+                        w.GroupId = null;
+                    }
+                    plugin.WaymarkStorageService.SavePersonalWaymarks();
+                    plugin.WaymarkStorageService.SaveSharedWaymarks();
+                }
+
+                // Remove from correct storage based on scope
+                if (group.Scope == WaymarkScope.Shared)
+                    plugin.WaymarkStorageService.SharedGroups.Remove(group);
+                else
+                    plugin.WaymarkStorageService.PersonalGroups.Remove(group);
+
+                plugin.WaymarkStorageService.SavePersonalWaymarks();
+                plugin.WaymarkStorageService.SaveSharedWaymarks();
+            },
+        };
+
+        importConflictModal = new ImportConflictModal
+        {
+            OnApplyImport = (result, choices, overwriteAll) =>
+            {
+                ApplyImport(result, choices, overwriteAll);
+            },
+        };
+
+        groupEditorModal = new GroupEditorModal
+        {
+            OnSave = (group, isEditing) =>
+            {
+                HandleGroupSave(group, isEditing);
+            },
+        };
+
+        // Initialize components
+        waymarkTableComponent = new WaymarkTableComponent(plugin)
+        {
+            OnDeleteRequested = waymark =>
+            {
+                deleteWaymarkModal.Open(waymark);
+            },
+            OnFlagRequested = waymark =>
+            {
+                MapHelper.FlagMapLocation(waymark.Position, waymark.TerritoryId, waymark.MapId, waymark.Name);
+            },
+            OnExportRequested = waymark =>
+            {
+                WaymarkExportService.ExportToClipboard(waymark);
+                importFeedback = $"Copied '{waymark.Name}' to clipboard!";
+                importFeedbackTicks = 180;
+            },
+            OnSaveRequested = HandleWaymarkSave,
+        };
+
+        // Initialize sections
+        headerSection = new HeaderSection(plugin.Configuration, plugin.GameStateReaderService, plugin.WaymarkStorageService)
+        {
+            OnImport = HandleImportResult,
+            OnSaveLocation = () => plugin.WaymarkService.SaveCurrentLocation(),
+            OnToggleView = () =>
+            {
+                plugin.Configuration.UseGroupView = !plugin.Configuration.UseGroupView;
+                plugin.Configuration.Save();
+            },
+            OnSettingsClicked = () => plugin.ToggleConfigUi(),
+        };
+
+        searchBarSection = new SearchBarSection(plugin.GameStateReaderService, plugin.WaymarkService);
+
+        tableViewSection = new TableViewSection(waymarkTableComponent);
+
+        groupViewSection = new GroupViewSection(plugin.GameStateReaderService, plugin.WaymarkStorageService, waymarkTableComponent)
+        {
+            OnCreateGroup = () =>
+            {
+                groupEditorModal.Open(null);
+            },
+            OnEditGroup = group =>
+            {
+                groupEditorModal.Open(group);
+            },
+            OnDeleteGroup = group =>
+            {
+                deleteGroupModal.Open(group);
+            },
+            OnSaveToGroup = group =>
+            {
+                plugin.WaymarkService.SaveCurrentLocation(group, group.Scope);
+            },
+        };
+
+        emptyStateSection = new EmptyStateSection(plugin.GameStateReaderService)
+        {
+            OnSaveLocation = () => plugin.WaymarkService.SaveCurrentLocation(),
+        };
     }
 
+    #region Event Handlers
+
+    /// <summary>
+    /// Handles saving a waymark after it has been edited in the WaymarkEditPopup.
+    /// </summary>
+    private void HandleWaymarkSave(Waymark waymark, WaymarkEditResult result)
+    {
+        var oldScope = waymark.Scope;
+        waymark.Name = result.Name;
+        waymark.Color = result.Color;
+        waymark.Shape = result.Shape;
+        waymark.Notes = result.Notes;
+        waymark.GroupId = result.GroupId;
+        waymark.VisibilityRadius = result.VisibilityRadius;
+        waymark.IconId = result.IconId;
+        waymark.Scope = result.Scope;
+        waymark.IsReadOnly = result.IsReadOnly;
+
+        if (oldScope != waymark.Scope)
+        {
+            if (waymark.Scope == WaymarkScope.Personal)
+            {
+                plugin.WaymarkStorageService.SharedWaymarks.Remove(waymark);
+                waymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                waymark.IsReadOnly = false;
+                plugin.WaymarkStorageService.PersonalWaymarks.Add(waymark);
+            }
+            else
+            {
+                plugin.WaymarkStorageService.PersonalWaymarks.Remove(waymark);
+                waymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                plugin.WaymarkStorageService.SharedWaymarks.Add(waymark);
+            }
+        }
+
+        plugin.WaymarkStorageService.SavePersonalWaymarks();
+        plugin.WaymarkStorageService.SaveSharedWaymarks();
+    }
+
+    /// <summary>
+    /// Handles saving a group after it has been edited in the GroupEditorModal.
+    /// </summary>
+    private void HandleGroupSave(WaymarkGroup group, bool isEditing)
+    {
+        if (isEditing && group.Id != Guid.Empty)
+        {
+            // Find the existing group
+            var existing = plugin.WaymarkStorageService.PersonalGroups.FirstOrDefault(g => g.Id == group.Id)
+                        ?? plugin.WaymarkStorageService.SharedGroups.FirstOrDefault(g => g.Id == group.Id);
+
+            if (existing != null)
+            {
+                var oldScope = existing.Scope;
+                existing.Name = group.Name;
+                existing.Scope = group.Scope;
+                existing.IsReadOnly = group.IsReadOnly;
+
+                // If scope changed, move between collections
+                if (oldScope != group.Scope)
+                {
+                    if (group.Scope == WaymarkScope.Shared)
+                    {
+                        plugin.WaymarkStorageService.PersonalGroups.Remove(existing);
+                        existing.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                        plugin.WaymarkStorageService.SharedGroups.Add(existing);
+
+                        // Move all child waymarks from Personal to Shared
+                        var childWaymarks = plugin.WaymarkStorageService.PersonalWaymarks.Where(w => w.GroupId == existing.Id).ToList();
+                        foreach (var w in childWaymarks)
+                        {
+                            plugin.WaymarkStorageService.PersonalWaymarks.Remove(w);
+                            w.Scope = WaymarkScope.Shared;
+                            w.IsReadOnly = existing.IsReadOnly;
+                            w.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                            plugin.WaymarkStorageService.SharedWaymarks.Add(w);
+                        }
+                    }
+                    else
+                    {
+                        plugin.WaymarkStorageService.SharedGroups.Remove(existing);
+                        existing.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                        plugin.WaymarkStorageService.PersonalGroups.Add(existing);
+
+                        // Move all child waymarks from Shared to Personal
+                        var childWaymarks = plugin.WaymarkStorageService.SharedWaymarks.Where(w => w.GroupId == existing.Id).ToList();
+                        foreach (var w in childWaymarks)
+                        {
+                            plugin.WaymarkStorageService.SharedWaymarks.Remove(w);
+                            w.Scope = WaymarkScope.Personal;
+                            w.IsReadOnly = false;
+                            w.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                            plugin.WaymarkStorageService.PersonalWaymarks.Add(w);
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Create new group
+            var newGroup = new WaymarkGroup
+            {
+                Id = group.Id == Guid.Empty ? Guid.NewGuid() : group.Id,
+                Name = group.Name,
+                CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash,
+                IsReadOnly = group.IsReadOnly,
+                Scope = group.Scope
+            };
+
+            if (group.Scope == WaymarkScope.Shared)
+                plugin.WaymarkStorageService.SharedGroups.Add(newGroup);
+            else
+                plugin.WaymarkStorageService.PersonalGroups.Add(newGroup);
+        }
+
+        plugin.WaymarkStorageService.SavePersonalWaymarks();
+        plugin.WaymarkStorageService.SaveSharedWaymarks();
+    }
+
+    /// <summary>
+    /// Handles an import result from the HeaderSection.
+    /// </summary>
+    private void HandleImportResult(ImportResult result)
+    {
+        if (!result.Success)
+        {
+            importFeedback = $"Import failed: {result.ErrorMessage}";
+            importFeedbackTicks = 240;
+        }
+        else if (result.Conflicts.Count > 0)
+        {
+            importConflictModal.Open(result);
+        }
+        else
+        {
+            ApplyImport(result, new Dictionary<Guid, bool>(), overwriteAll: false);
+        }
+    }
+
+    /// <summary>
+    /// Applies an import result to the storage service.
+    /// Handles conflict resolution based on user choices.
+    /// </summary>
+    private void ApplyImport(ImportResult result, Dictionary<Guid, bool> importConflictChoices, bool overwriteAll)
+    {
+        if (result.Payload == null) return;
+
+        var groupIdSwaps = new Dictionary<Guid, Guid>();
+        var conflictIds = new HashSet<Guid>(result.Conflicts.Select(c => c.Id));
+        var addedWaymarks = 0;
+        var addedGroups = 0;
+
+        // Apply groups first (waymarks may reference them)
+        foreach (var importedGroup in result.Payload.Groups)
+        {
+            var isSharedGroup = importedGroup.Scope == WaymarkScope.Shared;
+            if (conflictIds.Contains(importedGroup.Id))
+            {
+                var shouldOverwrite = overwriteAll || (importConflictChoices.TryGetValue(importedGroup.Id, out var v) && v);
+                if (shouldOverwrite)
+                {
+                    // Remove entirely from both group collections first to safely overwrite
+                    plugin.WaymarkStorageService.PersonalGroups.RemoveAll(g => g.Id == importedGroup.Id);
+                    plugin.WaymarkStorageService.SharedGroups.RemoveAll(g => g.Id == importedGroup.Id);
+                    importedGroup.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                    if (isSharedGroup)
+                    {
+                        plugin.WaymarkStorageService.SharedGroups.Add(importedGroup);
+                    }
+                    else
+                    {
+                        plugin.WaymarkStorageService.PersonalGroups.Add(importedGroup);
+                    }
+                    addedGroups++;
+                }
+                else
+                {
+                    // User chose NOT to overwrite. Apply specific resolution rules.
+                    var localGroup = plugin.WaymarkStorageService.PersonalGroups.FirstOrDefault(g => g.Id == importedGroup.Id)
+                                  ?? plugin.WaymarkStorageService.SharedGroups.FirstOrDefault(g => g.Id == importedGroup.Id);
+
+                    // Rules 1 & 3: If local group is Shared and Read-Only, generate a new Guid so we don't merge into a locked group.
+                    if (localGroup != null && localGroup.Scope == WaymarkScope.Shared && localGroup.IsReadOnly)
+                    {
+                        var oldId = importedGroup.Id;
+                        importedGroup.Id = Guid.NewGuid();
+                        groupIdSwaps[oldId] = importedGroup.Id;
+
+                        importedGroup.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                        if (isSharedGroup)
+                        {
+                            plugin.WaymarkStorageService.SharedGroups.Add(importedGroup);
+                        }
+                        else
+                        {
+                            plugin.WaymarkStorageService.PersonalGroups.Add(importedGroup);
+                        }
+                        addedGroups++;
+                    }
+                    // Rules 2, 4, 5: Merge into existing. Group is skipped, waymarks will attach to existing local group.
+                }
+            }
+            else
+            {
+                importedGroup.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                if (isSharedGroup)
+                {
+                    plugin.WaymarkStorageService.SharedGroups.Add(importedGroup);
+                }
+                else
+                {
+                    plugin.WaymarkStorageService.PersonalGroups.Add(importedGroup);
+                }
+                addedGroups++;
+            }
+        }
+
+        // Apply waymarks
+        foreach (var importedWaymark in result.Payload.Waymarks)
+        {
+            if (importedWaymark.GroupId.HasValue && groupIdSwaps.TryGetValue(importedWaymark.GroupId.Value, out var newGroupId))
+            {
+                importedWaymark.GroupId = newGroupId;
+                // Since the group's ID changed (Rules 1 & 3), we clone the waymark so it doesn't conflict
+                // and gets safely appended to the new group.
+                importedWaymark.Id = Guid.NewGuid();
+            }
+
+            var isShared = importedWaymark.Scope == WaymarkScope.Shared;
+            if (conflictIds.Contains(importedWaymark.Id))
+            {
+                var shouldOverwrite = overwriteAll || (importConflictChoices.TryGetValue(importedWaymark.Id, out var v) && v);
+                if (shouldOverwrite)
+                {
+                    // Remove entirely from both first to safely overwrite
+                    plugin.WaymarkStorageService.PersonalWaymarks.RemoveAll(w => w.Id == importedWaymark.Id);
+                    plugin.WaymarkStorageService.SharedWaymarks.RemoveAll(w => w.Id == importedWaymark.Id);
+
+                    if (isShared)
+                    {
+                        importedWaymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                        plugin.WaymarkStorageService.SharedWaymarks.Add(importedWaymark);
+                    }
+                    else
+                    {
+                        importedWaymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                        plugin.WaymarkStorageService.PersonalWaymarks.Add(importedWaymark);
+                    }
+                    addedWaymarks++;
+                }
+                // else skip
+            }
+            else
+            {
+                if (isShared)
+                {
+                    importedWaymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                    plugin.WaymarkStorageService.SharedWaymarks.Add(importedWaymark);
+                }
+                else
+                {
+                    importedWaymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                    plugin.WaymarkStorageService.PersonalWaymarks.Add(importedWaymark);
+                }
+                addedWaymarks++;
+            }
+        }
+
+        plugin.WaymarkStorageService.SavePersonalWaymarks();
+        plugin.WaymarkStorageService.SaveSharedWaymarks();
+        importFeedback = $"Imported {addedWaymarks} waymark(s) and {addedGroups} group(s).";
+        importFeedbackTicks = 240;
+        Plugin.Log.Information(importFeedback);
+    }
+
+    #endregion
     public void Dispose()
     {
         GC.SuppressFinalize(this);
@@ -152,8 +466,10 @@ public partial class MainWindow : Window, IDisposable
     public override void Draw()
     {
         // Draw modal dialogs
-        DrawDeleteWaypointModal();
-        DrawImportConflictModal();
+        deleteWaymarkModal.Draw(plugin);
+        deleteGroupModal.Draw(plugin);
+        importConflictModal.Draw();
+        groupEditorModal.Draw(plugin);
 
         // Import feedback banner
         if (importFeedbackTicks > 0)
@@ -163,10 +479,10 @@ public partial class MainWindow : Window, IDisposable
         }
 
         // Header
-        DrawHeader();
+        headerSection.Draw();
 
         // Search bar and filters
-        DrawSearchBar();
+        searchBarSection.Draw();
 
         // Main content area with scrolling
         using var child = ImRaii.Child("WaymarkListChild", Vector2.Zero, true);
@@ -177,209 +493,45 @@ public partial class MainWindow : Window, IDisposable
 
         if (visibleWaymarks.Count == 0)
         {
-            DrawEmptyState();
+            emptyStateSection.Draw();
             return;
         }
 
+        // Filter waymarks using the search bar's state
+        var filteredWaymarks = FilterWaymarks(visibleWaymarks);
+
         // Draw the appropriate view
         if (plugin.Configuration.UseGroupView)
-            DrawGroupView(visibleWaymarks);
+            groupViewSection.Draw(filteredWaymarks, searchBarSection.SearchFilter, searchBarSection.FilterCurrentZone);
         else
-            DrawTableView(visibleWaymarks);
+            tableViewSection.Draw(filteredWaymarks, visibleWaymarks.Count);
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // HEADER
-    // ═══════════════════════════════════════════════════════════════
 
-    private void DrawHeader()
+    #region Search Filtering
+    private List<Waymark> FilterWaymarks(List<Waymark> waymarks)
     {
-        ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.0f, 1.0f), "Custom Waymark Locations");
+        var filtered = waymarks;
 
-        // Position buttons on the right side of the header
-        var buttonWidth = ImGui.GetFrameHeight();
-        var buttonSpacing = 5.0f * ImGuiHelpers.GlobalScale;
-        var totalButtonWidth = (buttonWidth * 4) + (buttonSpacing * 4);
-        ImGui.SameLine(ImGui.GetWindowContentRegionMax().X - totalButtonWidth);
+        // Zone filter
+        if (searchBarSection.FilterCurrentZone)
+        {
+            var currentMapId = Plugin.ClientState.MapId;
+            filtered = filtered.Where(w => w.MapId == currentMapId).ToList();
+        }
 
-        // Import from clipboard
-        using (ImRaii.Disabled(!isLoggedIn))
+        // Text search filter
+        if (!string.IsNullOrEmpty(searchBarSection.SearchFilter))
         {
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.FileImport))
-            {
-                var allKnownWaymarks = plugin.WaymarkStorageService.GetVisibleWaymarks();
-                var allKnownGroups = plugin.WaymarkStorageService.GetVisibleGroups();
+            filtered = filtered.Where(w =>
+                w.Name.Contains(searchBarSection.SearchFilter, StringComparison.OrdinalIgnoreCase) ||
+                w.Notes.Contains(searchBarSection.SearchFilter, StringComparison.OrdinalIgnoreCase) ||
+                LocationHelper.GetTerritoryName(w.TerritoryId).Contains(searchBarSection.SearchFilter, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+        }
 
-                var result = WaymarkExportService.ImportFromClipboard(
-                    allKnownWaymarks,
-                    allKnownGroups);
-
-                if (!result.Success)
-                {
-                    importFeedback = $"Import failed: {result.ErrorMessage}";
-                    importFeedbackTicks = 240;
-                }
-                else if (result.Conflicts.Count > 0)
-                {
-                    // Show conflict resolution modal
-                    pendingImport = result;
-                    importConflictChoices.Clear();
-                    foreach (var c in result.Conflicts)
-                        importConflictChoices[c.Id] = false; // default: skip
-                    showImportConflictModal = true;
-                    ImGui.OpenPopup("Import Conflicts");
-                }
-                else
-                {
-                    // No conflicts - apply directly
-                    ApplyImport(result, overwriteAll: false);
-                }
-            }
-        }
-        if (ImWuk.IsItemHoveredWhenDisabled())
-        {
-            var tooltip = !isLoggedIn ? "Log in to import waymarks!" :
-                          "Import waymarks from clipboard";
-            ImGui.SetTooltip(tooltip);
-        }
-        ImGui.SameLine(0, buttonSpacing);
-
-        // Save Location button (pin icon)
-        using (ImRaii.Disabled(waymarksDisabled))
-        {
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
-            {
-                plugin.WaymarkService.SaveCurrentLocation();
-            }
-        }
-        if (ImWuk.IsItemHoveredWhenDisabled())
-        {
-            var tooltip = !isLoggedIn ? "Log in to save waymarks" :
-                          inPvP ? "Saving waymarks is disabled in PvP zones" :
-                          inCombat ? "Saving waymarks is disabled in combat" :
-                          "Save Current Location as Waymark";
-            ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 1.0f);
-            ImGui.SetTooltip(tooltip);
-        }
-        ImGui.SameLine(0, buttonSpacing);
-
-        // View toggle button
-        var viewIcon = plugin.Configuration.UseGroupView ? FontAwesomeIcon.List : FontAwesomeIcon.FolderOpen;
-        var viewTooltip = plugin.Configuration.UseGroupView ? "Switch to Table View" : "Switch to Group View";
-        if (ImGuiComponents.IconButton(viewIcon))
-        {
-            plugin.Configuration.UseGroupView = !plugin.Configuration.UseGroupView;
-            plugin.Configuration.Save();
-        }
-        if (ImGui.IsItemHovered())
-        {
-            ImGui.SetTooltip(viewTooltip);
-        }
-        ImGui.SameLine(0, buttonSpacing);
-
-        // Settings button (gear icon)
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.Cog))
-        {
-            plugin.ToggleConfigUi();
-        }
-        if (ImGui.IsItemHovered())
-        {
-            ImGui.SetTooltip("Settings");
-        }
+        return filtered;
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // SEARCH BAR & FILTERS
-    // ═══════════════════════════════════════════════════════════════
-
-    private void DrawSearchBar()
-    {
-        // Calculate the width of the elements that will be placed to the right of the search bar
-        var spacing = ImGui.GetStyle().ItemSpacing.X;
-
-        // "Current Zone" checkbox width
-        // A checkbox is composed of the square frame + inner spacing + text width
-        var checkboxTextWidth = ImGui.CalcTextSize("Current Zone").X;
-        var checkboxFramePadded = ImGui.GetFrameHeight() + ImGui.GetStyle().ItemInnerSpacing.X;
-        var checkboxTotalWidth = checkboxFramePadded + checkboxTextWidth;
-
-        var rightElementsWidth = checkboxTotalWidth + spacing;
-
-        // Undo button width
-        if (plugin.WaymarkService.CanUndo)
-        {
-            var undoButtonWidth = ImGui.GetFrameHeight(); // Icon buttons are square based on frame height
-            rightElementsWidth += undoButtonWidth + spacing;
-        }
-
-        // Search input
-        ImGui.SetNextItemWidth(Math.Max(50, ImGui.GetContentRegionAvail().X - rightElementsWidth));
-        ImGui.InputTextWithHint("##Search", "Search waymarks...", ref searchFilter, 200);
-
-        ImGui.SameLine();
-
-        // Zone filter toggle
-        using (ImRaii.Disabled(waymarksDisabled))
-            ImGui.Checkbox("Current Zone", ref filterCurrentZone);
-        if (ImWuk.IsItemHoveredWhenDisabled())
-            ImGui.SetTooltip(!isLoggedIn ? "Log in to filter waymarks!" :
-                             inPvP ? "Filtering waymarks is disabled in PvP zones" :
-                             inCombat ? "Filtering waymarks is disabled in combat" :
-                             "Only show waymarks in the current zone");
-
-        // Undo button (only when deletions exist)
-        if (plugin.WaymarkService.CanUndo)
-        {
-            ImGui.SameLine();
-            using (ImRaii.Disabled(!isLoggedIn))
-            {
-                if (ImGuiComponents.IconButton(FontAwesomeIcon.Undo))
-                {
-                    plugin.WaymarkService.UndoDelete();
-                }
-            }
-            if (ImWuk.IsItemHoveredWhenDisabled())
-            {
-                var tooltip = !isLoggedIn ? "Log in to undo deletions!" :
-                              $"Undo Deleted Waymark ({plugin.WaymarkService.UndoCount})";
-                ImGui.SetTooltip(tooltip);
-            }
-        }
-
-        ImGui.Spacing();
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // EMPTY STATE
-    // ═══════════════════════════════════════════════════════════════
-
-    private void DrawEmptyState()
-    {
-        var coloredText = "No waymarks saved yet. Create one!";
-        if (!isLoggedIn)
-            coloredText = "Log in first to save waymarks!";
-        var coloredTextSize = ImGui.CalcTextSize(coloredText);
-        ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - coloredTextSize.X) / 2);
-        ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), coloredText);
-        if (isLoggedIn)
-        {
-            ImGui.Indent(5);
-            ImGui.Text("Use '/wlmark here' or the");
-            ImGui.SameLine();
-            using (ImRaii.Disabled(waymarksDisabled))
-                if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
-                {
-                    plugin.WaymarkService.SaveCurrentLocation();
-                }
-            if (ImWuk.IsItemHoveredWhenDisabled())
-            {
-                var tooltip = inPvP ? "Saving waymarks is disabled in PvP zones" :
-                              inCombat ? "Saving waymarks is disabled in combat" :
-                              "Save Current Location as Waymark";
-                ImGui.SetTooltip(tooltip);
-            }
-            ImGui.SameLine();
-            ImGui.Text("button above to save your current location as a waymark.");
-        }
-    }
+    #endregion
 }
