@@ -37,19 +37,25 @@ internal class HeaderSection(Configuration configuration, GameStateReaderService
         ImGui.SameLine(ImGui.GetWindowContentRegionMax().X - totalButtonWidth);
 
         // Import from clipboard
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.FileImport))
+        using (ImRaii.Disabled(!isLoggedIn))
         {
-            var allKnownWaymarks = waymarkStorageService.GetVisibleWaymarks();
-            var allKnownGroups = waymarkStorageService.GetVisibleGroups();
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.FileImport))
+            {
+                var allKnownWaymarks = waymarkStorageService.GetVisibleWaymarks();
+                var allKnownGroups = waymarkStorageService.GetVisibleGroups();
 
-            var result = WaymarkExportService.ImportFromClipboard(
-                allKnownWaymarks,
-                allKnownGroups);
+                var result = WaymarkExportService.ImportFromClipboard(
+                    allKnownWaymarks,
+                    allKnownGroups);
 
-            OnImport?.Invoke(result);
+                OnImport?.Invoke(result);
+            }
         }
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Import waymarks from clipboard");
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            var tooltip = !isLoggedIn ? "Log in to import waymarks" : "Import waymarks from clipboard";
+            ImGui.SetTooltip(tooltip);
+        }
 
         ImGui.SameLine(0, buttonSpacing);
 
