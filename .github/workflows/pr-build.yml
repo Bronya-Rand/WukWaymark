@@ -1,4 +1,4 @@
-name: Sample PR Builder for WukWaymark
+name: Sample PR Builder for WukLamark
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ jobs:
     runs-on: windows-2022
 
     env:
-      Solution_Name: WukWaymark
+      Solution_Name: WukLamark
 
     steps:
     - name: Checkout
@@ -32,8 +32,8 @@ jobs:
     - name: Store artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: WukWaymark
-        path: .\WukWaymark\bin\x64\Release\WukWaymark\*
+        name: WukLamark
+        path: .\WukLamark\bin\x64\Release\WukLamark\*
         if-no-files-found: error
         retention-days: 1
 
