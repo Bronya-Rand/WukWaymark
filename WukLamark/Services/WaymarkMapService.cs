@@ -16,8 +16,6 @@ namespace WukLamark.Services
 {
     /// <summary>
     /// Service responsible for calculating Waymark positions on the full Area Map (AreaMap addon).
-    /// Following the Service + Window paradigm: all game state reading and coordinate math
-    /// is done here during Framework.Update; the window only draws the results.
     /// </summary>
     internal class WaymarkMapService : IDisposable
     {
@@ -26,13 +24,12 @@ namespace WukLamark.Services
         private readonly WaymarkWindow window;
         private bool disposed;
 
-        // Pre-calculated waymarks ready for the window to render
         public readonly List<(Vector2 ScreenPos, WaymarkShape Shape, float MarkerSize, uint Color, string? Name, uint? IconId)> WaymarksToRender = [];
 
         // Cached state from Framework.Update for debug / window access
         public Vector2? MapCenterScreenPos { get; private set; }
 
-        // Map clip bounds for the window layer (needed for edge awareness)
+        // Map clip bounds for the window layer
         public float MapMinX { get; private set; }
         public float MapMinY { get; private set; }
         public float MapMaxX { get; private set; }
@@ -125,7 +122,7 @@ namespace WukLamark.Services
             if (sliderComponent == null) return;
 
             var zoomIndex = sliderComponent->Value;
-            var zoneScale = agentMap->CurrentMapSizeFactorFloat;
+            var zoneScale = agentMap->SelectedMapSizeFactorFloat;
 
             // ═══════════════════════════════════════════════════════════════
             // STEP 4: Calculate static map center screen position

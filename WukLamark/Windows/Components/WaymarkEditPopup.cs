@@ -250,7 +250,7 @@ internal class WaymarkEditPopup
 
         ImGui.SameLine();
 
-        if (ImGui.Button("Cancel###EdiitWaymarkCancel"))
+        if (ImGui.Button("Cancel###EditWaymarkCancel"))
         {
             ImGui.CloseCurrentPopup();
         }
@@ -259,8 +259,6 @@ internal class WaymarkEditPopup
 
 /// <summary>
 /// Represents the edited values from a waymark edit session.
-/// Used to transfer state from the popup back to the caller without
-/// directly mutating the waymark inside the component.
 /// </summary>
 public class WaymarkEditResult
 {

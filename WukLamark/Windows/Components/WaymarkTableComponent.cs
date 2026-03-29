@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using WukLamark.Models;
+using WukLamark.Services;
 using WukLamark.Utils;
 
 namespace WukLamark.Windows.Components;
@@ -14,6 +15,7 @@ namespace WukLamark.Windows.Components;
 internal class WaymarkTableComponent
 {
     private readonly Plugin plugin;
+    private readonly GameStateReaderService gameStateReaderService;
     private readonly WaymarkEditPopup editPopup;
 
     #region Callback Actions
@@ -24,16 +26,17 @@ internal class WaymarkTableComponent
 
     #endregion
 
-    public WaymarkTableComponent(Plugin plugin)
+    public WaymarkTableComponent(Plugin plugin, GameStateReaderService gameStateReaderService)
     {
         this.plugin = plugin;
+        this.gameStateReaderService = gameStateReaderService;
         editPopup = new WaymarkEditPopup(plugin)
         {
             OnSave = (waymark, result) => OnSaveRequested?.Invoke(waymark, result)
         };
     }
 
-    public void Draw(List<Waymark> waymarks)
+    public void Draw(List<Waymark> waymarks, WaymarkGroup? parentGroup = null)
     {
         using var waymarkTableMode = ImRaii.Table("WaymarkTable", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.ScrollX | ImGuiTableFlags.Resizable);
         if (!waymarkTableMode) return;
@@ -55,7 +58,7 @@ internal class WaymarkTableComponent
                 DrawNameColumn(waymark);
                 DrawLocationColumn(waymark);
                 DrawCreatedColumn(waymark);
-                DrawActionsColumn(waymark);
+                DrawActionsColumn(waymark, parentGroup);
             }
         }
     }
@@ -111,20 +114,56 @@ internal class WaymarkTableComponent
         ImGui.Text(waymark.CreatedAt.ToString("yyyy-MM-dd HH:mm"));
     }
 
-    private void DrawActionsColumn(Waymark waymark)
+    private void DrawActionsColumn(Waymark waymark, WaymarkGroup? parentGroup)
     {
         ImGui.TableNextColumn();
 
+        var isLoggedIn = gameStateReaderService.IsLoggedIn;
         var currentCharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
-        var isCreator = waymark.CharacterHash != null &&
+        var isWaymarkCreator = waymark.CharacterHash != null &&
                         currentCharacterHash != null &&
                         waymark.CharacterHash == currentCharacterHash;
 
-        var canEdit = (waymark.Scope == WaymarkScope.Shared && (!waymark.IsReadOnly || isCreator)) ||
-                      (waymark.Scope == WaymarkScope.Personal && isCreator);
+        bool canEdit = false;
+        bool canDelete = false;
 
-        var canDelete = (waymark.Scope == WaymarkScope.Shared && !waymark.IsReadOnly) ||
-                        (waymark.Scope == WaymarkScope.Personal && isCreator);
+        if (parentGroup != null)
+        {
+            var isGroupCreator = parentGroup.CreatorHash != null && currentCharacterHash != null && parentGroup.CreatorHash == currentCharacterHash;
+
+            // Only creators of personal groups may edit/delete them
+            if (parentGroup.Scope == WaymarkScope.Personal)
+            {
+                canEdit = isGroupCreator;
+                canDelete = isGroupCreator;
+            }
+            else if (parentGroup.Scope == WaymarkScope.Shared)
+            {
+                // No one can edit/delete a waymark to a shared, read only group.
+                if (parentGroup.IsReadOnly)
+                {
+                    canEdit = false;
+                    canDelete = false;
+                }
+                else
+                {
+                    // Any person can edit/delete any waymarks added to it (even if said waymarks are not made by them)
+                    canEdit = true;
+                    canDelete = true;
+                }
+            }
+        }
+        else
+        {
+            // Only creators of personal waymarks may edit/delete them or
+            // Creators of shared waymarks may delete them if they are not read-only or
+            // Any person can edit waymarks in a shared group if they are not read-only
+            canEdit = (waymark.Scope == WaymarkScope.Shared && (!waymark.IsReadOnly || isWaymarkCreator)) ||
+                      (waymark.Scope == WaymarkScope.Personal && isWaymarkCreator);
+
+            canDelete = (waymark.Scope == WaymarkScope.Shared && !waymark.IsReadOnly) ||
+                        (waymark.Scope == WaymarkScope.Personal && isWaymarkCreator);
+        }
 
         // Edit button
         using (ImRaii.Disabled(!canEdit))
@@ -137,8 +176,10 @@ internal class WaymarkTableComponent
         }
         if (ImWuk.IsItemHoveredWhenDisabled())
         {
-            var tooltip = !canEdit && waymark.Scope == WaymarkScope.Personal ? "Only the creator can edit this waymark." :
-                          !canEdit && waymark.Scope == WaymarkScope.Shared && waymark.IsReadOnly ? "This shared waymark is read-only and cannot be edited." :
+            var tooltip = parentGroup != null && parentGroup.Scope == WaymarkScope.Personal && !canEdit ? "Only the group's creator can edit waymarks in this personal group." :
+                          parentGroup != null && parentGroup.Scope == WaymarkScope.Shared && parentGroup.IsReadOnly ? "This group is read-only and waymarks cannot be edited." :
+                          parentGroup == null && !canEdit && waymark.Scope == WaymarkScope.Personal ? "Only the creator can edit this waymark." :
+                          parentGroup == null && !canEdit && waymark.Scope == WaymarkScope.Shared && waymark.IsReadOnly ? "This shared waymark is read-only and cannot be edited." :
                           "Edit Waymark";
             ImGui.SetTooltip(tooltip);
         }
@@ -148,13 +189,18 @@ internal class WaymarkTableComponent
 
         // Flag button
         ImGui.SameLine();
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.Flag))
+        using (ImRaii.Disabled(!isLoggedIn))
         {
-            OnFlagRequested?.Invoke(waymark);
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.Flag))
+            {
+                OnFlagRequested?.Invoke(waymark);
+            }
         }
-        if (ImGui.IsItemHovered())
+        if (ImWuk.IsItemHoveredWhenDisabled())
         {
-            ImGui.SetTooltip("Flag Location on Map");
+            var tooltip = !isLoggedIn ? "Log in to flag waymarks!" :
+                          "Flag Location on Map";
+            ImGui.SetTooltip(tooltip);
         }
 
         // Export to clipboard button
@@ -179,8 +225,10 @@ internal class WaymarkTableComponent
         }
         if (ImWuk.IsItemHoveredWhenDisabled())
         {
-            var tooltip = !canDelete && waymark.Scope == WaymarkScope.Personal ? "Only the creator can delete this waymark." :
-                !canDelete && waymark.Scope == WaymarkScope.Shared && waymark.IsReadOnly ? "This shared waymark is read-only and cannot be deleted." :
+            var tooltip = parentGroup != null && parentGroup.Scope == WaymarkScope.Personal && !canDelete ? "Only the group's creator can delete waymarks in this personal group." :
+                          parentGroup != null && parentGroup.Scope == WaymarkScope.Shared && parentGroup.IsReadOnly ? "This group is read-only and waymarks cannot be deleted." :
+                          parentGroup == null && !canDelete && waymark.Scope == WaymarkScope.Personal ? "Only the creator can delete this waymark." :
+                          parentGroup == null && !canDelete && waymark.Scope == WaymarkScope.Shared && waymark.IsReadOnly ? "This shared waymark is read-only and cannot be deleted." :
                           "Delete Waymark";
 
             ImGui.SetTooltip(tooltip);

@@ -46,18 +46,33 @@ public class GroupEditorModal
     {
         if (!isOpen) return;
 
-        if (editingGroup != null && editingGroup.IsReadOnly && editingGroup.CreatorHash != plugin.WaymarkStorageService.CurrentCharacterHash)
+        if (editingGroup != null)
         {
-            Plugin.Log.Warning("Attempted to edit a read-only group. Action blocked.");
-            editingGroup = null;
-            isOpen = false;
-            return;
+            var isCreatorBlock = editingGroup.CreatorHash == plugin.WaymarkStorageService.CurrentCharacterHash;
+
+            if (editingGroup.Scope == WaymarkScope.Shared && editingGroup.IsReadOnly && !isCreatorBlock)
+            {
+                Plugin.Log.Warning("Attempted to edit a read-only shared group. Action blocked.");
+                editingGroup = null;
+                isOpen = false;
+                return;
+            }
+
+            if (editingGroup.Scope == WaymarkScope.Personal && !isCreatorBlock)
+            {
+                Plugin.Log.Warning("Attempted to edit someone else's personal group. Action blocked.");
+                editingGroup = null;
+                isOpen = false;
+                return;
+            }
         }
 
         // Validation
         var isCreator = editingGroup != null && editingGroup.CreatorHash == plugin.WaymarkStorageService.CurrentCharacterHash;
-        var canCreateSave = (editingGroup != null && editingGroup.Scope == WaymarkScope.Shared && (!editingGroup.IsReadOnly || isCreator)) ||
-                      (editingGroup != null && editingGroup.Scope == WaymarkScope.Personal && isCreator && !groupEditName.IsNullOrEmpty());
+        var hasName = !groupEditName.IsNullOrEmpty();
+        var canCreateSave = (editingGroup != null && editingGroup.Scope == WaymarkScope.Shared && hasName) ||
+                            (editingGroup != null && editingGroup.Scope == WaymarkScope.Personal && isCreator && hasName) ||
+                            (editingGroup == null && hasName);
 
         var isEditing = editingGroup != null;
         var modalTitle = isEditing ? "Edit Group" : "Create Group";
@@ -73,8 +88,7 @@ public class GroupEditorModal
         {
             ImGui.Text("Group Name:");
             ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
-            using (ImRaii.Disabled(groupEditIsReadOnly))
-                ImGui.InputText("###GroupName", ref groupEditName, 100);
+            ImGui.InputText("###GroupName", ref groupEditName, 100);
 
             ImGui.Spacing();
 
@@ -82,7 +96,7 @@ public class GroupEditorModal
             ImGui.Text("Scope:");
             ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
             var scopeDropPreview = Enum.GetName(groupEditScope) ?? "Unknown";
-            using (ImRaii.Disabled(groupEditIsReadOnly))
+            using (ImRaii.Disabled(editingGroup != null && !isCreator))
             {
                 using (var scopeDrop = ImRaii.Combo("###GroupScope", scopeDropPreview))
                 {
@@ -95,6 +109,13 @@ public class GroupEditorModal
                     }
                 }
             }
+            if (ImWuk.IsItemHoveredWhenDisabled())
+            {
+                var tooltip = editingGroup != null && !isCreator
+                    ? "Only the creator can change the scope of this group."
+                    : "Select the scope of the group. Personal groups are private to you, while Shared groups can be seen by others.";
+                ImGui.SetTooltip(tooltip);
+            }
 
             // Read-only checkbox (only shown for shared groups and only editable by the creator)
             if (groupEditScope == WaymarkScope.Shared)
@@ -106,8 +127,8 @@ public class GroupEditorModal
                 }
                 if (ImWuk.IsItemHoveredWhenDisabled())
                 {
-                    var tooltip = groupEditName.IsNullOrEmpty()
-                        ? "Enter a group name to enable read-only option."
+                    var tooltip = !isCreator ? "Only the creator can toggle read-only for this group."
+                        : groupEditName.IsNullOrEmpty() ? "Enter a group name to toggle read-only."
                         : "When enabled, only you can edit this shared group. Prevents deletion until disabled.";
                     ImGui.SetTooltip(tooltip);
                 }
@@ -117,7 +138,7 @@ public class GroupEditorModal
 
             // Save/Create button
             var buttonLabel = isEditing ? "Save" : "Create";
-            using (ImRaii.Disabled((!canCreateSave)))
+            using (ImRaii.Disabled(!canCreateSave))
                 if (ImGui.Button($"{buttonLabel}###GroupSaveCreateButton"))
                 {
                     if (!string.IsNullOrWhiteSpace(groupEditName))

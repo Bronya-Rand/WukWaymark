@@ -37,26 +37,20 @@ internal class HeaderSection(Configuration configuration, GameStateReaderService
         ImGui.SameLine(ImGui.GetWindowContentRegionMax().X - totalButtonWidth);
 
         // Import from clipboard
-        using (ImRaii.Disabled(!isLoggedIn))
+        if (ImGuiComponents.IconButton(FontAwesomeIcon.FileImport))
         {
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.FileImport))
-            {
-                var allKnownWaymarks = waymarkStorageService.GetVisibleWaymarks();
-                var allKnownGroups = waymarkStorageService.GetVisibleGroups();
+            var allKnownWaymarks = waymarkStorageService.GetVisibleWaymarks();
+            var allKnownGroups = waymarkStorageService.GetVisibleGroups();
 
-                var result = WaymarkExportService.ImportFromClipboard(
-                    allKnownWaymarks,
-                    allKnownGroups);
+            var result = WaymarkExportService.ImportFromClipboard(
+                allKnownWaymarks,
+                allKnownGroups);
 
-                OnImport?.Invoke(result);
-            }
+            OnImport?.Invoke(result);
         }
-        if (ImWuk.IsItemHoveredWhenDisabled())
-        {
-            var tooltip = !isLoggedIn ? "Log in to import waymarks!" :
-                          "Import waymarks from clipboard";
-            ImGui.SetTooltip(tooltip);
-        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Import waymarks from clipboard");
+
         ImGui.SameLine(0, buttonSpacing);
 
         // Save Location button (pin icon)
@@ -73,8 +67,8 @@ internal class HeaderSection(Configuration configuration, GameStateReaderService
                           inPvP ? "Saving waymarks is disabled in PvP zones" :
                           inCombat ? "Saving waymarks is disabled in combat" :
                           "Save Current Location as Waymark";
-            ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 1.0f);
-            ImGui.SetTooltip(tooltip);
+            using (ImRaii.PushStyle(ImGuiStyleVar.Alpha, 1.0f))
+                ImGui.SetTooltip(tooltip);
         }
         ImGui.SameLine(0, buttonSpacing);
 

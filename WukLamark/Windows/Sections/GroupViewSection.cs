@@ -72,8 +72,8 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, W
                 }
                 else
                 {
-                    using var tableId = ImRaii.PushId("GroupTable");
-                    tableComponent.Draw(groupWaymarks);
+                    using var tableId = ImRaii.PushId($"GroupTable_{identifier}");
+                    tableComponent.Draw(groupWaymarks, group);
                 }
                 ImGui.Spacing();
             }
@@ -107,6 +107,7 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, W
     }
     private void DrawGroupHeaderButtons(WaymarkGroup group)
     {
+        var isLoggedIn = gameStateReaderService.IsLoggedIn;
         var inPvP = gameStateReaderService.IsInPvP;
         var inCombat = gameStateReaderService.IsInCombat;
         var waymarksDisabled = gameStateReaderService.DisableWaymarkActions();
@@ -141,9 +142,9 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, W
         var currentHash = waymarkStorageService.CurrentCharacterHash;
         var isCreator = group.CreatorHash != null && currentHash != null && group.CreatorHash == currentHash;
 
-        var canEdit = isCreator;
+        var canEdit = (group.Scope == WaymarkScope.Personal && isCreator) || (group.Scope == WaymarkScope.Shared && !group.IsReadOnly);
         var canDelete = isCreator && !group.IsReadOnly;
-        var canAdd = !group.IsReadOnly || isCreator;
+        var canAdd = !group.IsReadOnly;
 
         // Quick-save to this group
         using (ImRaii.PushId("groupsave"))
@@ -158,9 +159,10 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, W
         }
         if (ImWuk.IsItemHoveredWhenDisabled())
         {
-            var tooltip = inPvP ? "Saving waymarks is disabled in PvP zones" :
+            var tooltip = !isLoggedIn ? "Log in to save waymarks!" :
+                inPvP ? "Saving waymarks is disabled in PvP zones" :
                 inCombat ? "Saving waymarks is disabled in combat" :
-                group.IsReadOnly ? "Group is set to read-only" :
+                group.IsReadOnly ? "Cannot save waymarks to a read-only group" :
                 "Save current location to this group.";
             ImGui.SetTooltip(tooltip);
         }

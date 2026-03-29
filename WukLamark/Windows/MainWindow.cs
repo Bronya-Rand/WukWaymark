@@ -120,7 +120,7 @@ public class MainWindow : Window, IDisposable
         };
 
         // Initialize components
-        waymarkTableComponent = new WaymarkTableComponent(plugin)
+        waymarkTableComponent = new WaymarkTableComponent(plugin, plugin.GameStateReaderService)
         {
             OnDeleteRequested = waymark =>
             {
