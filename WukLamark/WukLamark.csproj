@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/14.0.2">
+  <PropertyGroup>
+    <Version>1.0.2.2</Version>
+    <Author>Bronya Rand</Author>
+    <Name>WukLamark</Name>
+    <AssemblyName>WukLamark</AssemblyName>
+    <Punchline>XIV's map flagging but permanent</Punchline>
+    <Description>Allows players to create and manage persistent custom map markers across Eorzea. Whether it's a favorite GPose spot, a venue you want to revisit, or any interesting location, WukLamark lets you drop a marker that appears seamlessly on both your main map and minimap.</Description>
+    <Tags>utility;ui;other;waymark;marker;flag;wuk;WukLamark</Tags>
+    <PackageProjectUrl>https://github.com/Bronya-Rand/WukLamark</PackageProjectUrl>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+</Project>

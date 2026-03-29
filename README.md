@@ -1,13 +1,13 @@
-# WukWaymark
+# WukLamark
 A Final Fantasy XIV plugin for making custom waymarks around Eorzea.
 
 | Table View | Group View |
 | :---: | :---: |
-| ![WukWaymark Main Window](./.github/assets/MainWindowWithMarkersTable.png) | ![WukWaymark Group View](./.github/assets/MainWindowWithMarkersGroup.png) |
+| ![WukLamark Main Window](./.github/assets/MainWindowWithMarkersTable.png) | ![WukLamark Group View](./.github/assets/MainWindowWithMarkersGroup.png) |
 
-## What is WukWaymark?
+## What is WukLamark?
 
-WukWaymark is a plugin that allows players to create and manage custom waymarks around Eorzea. Whether it's that one spot you use often for GPosing, a venue you frequented once but decided to go again or simply anything that you find interesting, WukWaymark will allow you to create a custom waymark for it and make it appear on both the main map and the minimap itself! Think of it as `<flag>` but permanent.
+WukLamark is a plugin that allows players to create and manage custom waymarks around Eorzea. Whether it's that one spot you use often for GPosing, a venue you frequented once but decided to go again or simply anything that you find interesting, WukLamark will allow you to create a custom waymark for it and make it appear on both the main map and the minimap itself! Think of it as `<flag>` but permanent.
 
 ## Features
 - Create and manage custom waymarks
@@ -25,7 +25,7 @@ WukWaymark is a plugin that allows players to create and manage custom waymarks 
 
 ### Creating a Waymark
 
-To create a waymark, you can use the `/wwmark here` command in chat or open the WukWaymark window and click the `Create Waymark` button.
+To create a waymark, you can use the `/wlmark here` command in chat or open the WukLamark window and click the `Create Waymark` button.
 
 | Command | Window Button |
 | --- | --- |
@@ -33,26 +33,25 @@ To create a waymark, you can use the `/wwmark here` command in chat or open the 
 
 ### Editing a Waymark
 
-To edit a waymark, open the WukWaymark window and click the `Edit Waymark` button.
+To edit a waymark, open the WukLamark window and click the `Edit Waymark` button.
 
 ![Edit Waymark](./.github/assets/WindowEditMarker.png)
 
-You can change the name of the waymark, the icon of it, what group its in, add a note, who can see it and more!
-> At the moment, `Color` is only applicable to No Icon Waymarks. 
+> `Color` and `Shape` are only applicable to No Icon waymarks. Waymark Scope is only applicable to waymarks that are not in a group. Waymarks in a group will inherit the scope of the group. 
 
 ### Deleting a Waymark
 
-To delete a waymark, open the WukWaymark window and click the `Delete Waymark` button.
+To delete a waymark, open the WukLamark window and click the `Delete Waymark` button.
 
 ![Delete Waymark](./.github/assets/WindowDeleteMarker.png)
 
-### Sharing a Waymark to Others Using WukWaymark
+### Sharing a Waymark to Others Using WukLamark
 
-To share a waymark with others, open the WukWaymark window and click the `Copy to Clipboard` button.
+To share a waymark with others, open the WukLamark window and click the `Copy to Clipboard` button.
 
 ![Share Waymark](./.github/assets/WindowShareWaymark.png)
 
-To import a waymark from someone else, open the WukWaymark window and click the `Import Waymarks from Clipboard` button.
+To import a waymark from someone else, open the WukLamark window and click the `Import Waymarks from Clipboard` button.
 
 ![Import Waymark](./.github/assets/WindowImportWaymark.png)
 
@@ -79,7 +78,7 @@ A group is a collection of waymarks. To create a group, switch to the Group View
 ## Editing a Group
 
 To edit a group, click the pencil icon on the right-side.
-> This ability is grayed-out for Shared groups set to read-only (only editable by the owner of the group).
+> This ability is grayed-out for Shared groups set to read-only (only editable by the owner of the group). Non-owners can only edit the name of Shared groups for non-read-only groups.
 
 ![Group Edit](./.github/assets/GroupEdit.png)
 
