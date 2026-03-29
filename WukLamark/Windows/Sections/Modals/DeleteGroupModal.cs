@@ -18,7 +18,7 @@ public class DeleteGroupModal
     public void Open(WaymarkGroup group)
     {
         groupToDelete = group;
-        keepWaymarks = false;
+        keepWaymarks = true;
         isOpen = true;
     }
 
