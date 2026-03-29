@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using WukLamark.Helpers;
+using System.Text.Json;
 using WukLamark.Models;
 
 namespace WukLamark.Services;
@@ -13,16 +13,21 @@ namespace WukLamark.Services;
 /// Service responsible for managing waymark persistence across characters.
 /// 
 /// Architecture:
-/// - Personal waymarks/groups are stored in obfuscated character-specific JSON files
-/// - Shared waymarks/groups are stored in an obfuscated shared JSON file accessible to all characters
+/// - Personal waymarks/groups are stored in character-specific JSON files
+/// - Shared waymarks/groups are stored in a shared JSON file accessible to all characters
 /// - The CharacterHash is a truncated SHA-256 of the character's content ID — no raw IDs stored
-/// - All data is obfuscated using XOR cipher to prevent casual viewing
 /// </summary>
 public class WaymarkStorageService
 {
     private readonly string pluginConfigDir;
     private readonly string sharedWaymarksPath;
     private string? personalWaymarksPath;
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        IncludeFields = true
+    };
 
     /// <summary>
     /// Hashed identifier for the currently logged-in character.
@@ -149,7 +154,6 @@ public class WaymarkStorageService
 
     /// <summary>
     /// Loads shared waymarks and groups into memory from the shared JSON file.
-    /// Uses obfuscation for privacy.
     /// </summary>
     public void LoadSharedWaymarks()
     {
@@ -163,8 +167,8 @@ public class WaymarkStorageService
 
         try
         {
-            var obfuscatedData = File.ReadAllText(sharedWaymarksPath);
-            var data = ObfuscationHelper.Deobfuscate<PlayerWaymarksData>(obfuscatedData);
+            var json = File.ReadAllText(sharedWaymarksPath);
+            var data = JsonSerializer.Deserialize<PlayerWaymarksData>(json, JsonOptions);
 
             if (data != null)
             {
@@ -189,7 +193,6 @@ public class WaymarkStorageService
 
     /// <summary>
     /// Saves the in-memory shared waymarks and groups out to the JSON file.
-    /// Uses obfuscation for privacy.
     /// </summary>
     public void SaveSharedWaymarks()
     {
@@ -201,8 +204,8 @@ public class WaymarkStorageService
                 Groups = SharedGroups
             };
 
-            var obfuscatedData = ObfuscationHelper.Obfuscate(data);
-            File.WriteAllText(sharedWaymarksPath, obfuscatedData);
+            var json = JsonSerializer.Serialize(data, JsonOptions);
+            File.WriteAllText(sharedWaymarksPath, json);
             InvalidateCache();
         }
         catch (Exception ex)
@@ -224,7 +227,6 @@ public class WaymarkStorageService
 
     /// <summary>
     /// Loads personal waymarks and groups for the current character.
-    /// Uses obfuscation for privacy.
     /// </summary>
     public void LoadPersonalWaymarks()
     {
@@ -238,8 +240,8 @@ public class WaymarkStorageService
 
         try
         {
-            var obfuscatedData = File.ReadAllText(personalWaymarksPath);
-            var data = ObfuscationHelper.Deobfuscate<PlayerWaymarksData>(obfuscatedData);
+            var json = File.ReadAllText(personalWaymarksPath);
+            var data = JsonSerializer.Deserialize<PlayerWaymarksData>(json, JsonOptions);
 
             if (data != null)
             {
@@ -264,7 +266,6 @@ public class WaymarkStorageService
 
     /// <summary>
     /// Saves the in-memory personal waymarks and groups for the current character.
-    /// Uses obfuscation for privacy.
     /// </summary>
     public void SavePersonalWaymarks()
     {
@@ -282,8 +283,8 @@ public class WaymarkStorageService
                 Groups = PersonalGroups
             };
 
-            var obfuscatedData = ObfuscationHelper.Obfuscate(data);
-            File.WriteAllText(personalWaymarksPath, obfuscatedData);
+            var json = JsonSerializer.Serialize(data, JsonOptions);
+            File.WriteAllText(personalWaymarksPath, json);
             InvalidateCache();
         }
         catch (Exception ex)
