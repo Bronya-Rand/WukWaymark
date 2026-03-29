@@ -107,7 +107,7 @@ internal class WaymarkEditPopup
                 {
                     canOpenEdit = !waymark.IsReadOnly || isWaymarkCreator;
                     if (!canOpenEdit)
-                        cannotEditReason = $"'{waymark.Name}' is read-only and only the creator can edit it.";
+                        cannotEditReason = $"'{waymark.Name}' is read-only and cannot be edited by non-creators";
                 }
             }
         }
@@ -139,7 +139,7 @@ internal class WaymarkEditPopup
         var canEditReadOnly = selectedScope == WaymarkScope.Shared && isWaymarkCreator && !editingName.IsNullOrEmpty();
 
         var canSave = !editingName.IsNullOrEmpty();
-        if (effectiveScope == WaymarkScope.Shared && waymark.IsReadOnly && editingReadOnly)
+        if (selectedScope == WaymarkScope.Shared && waymark.IsReadOnly && editingReadOnly)
         {
             canSave = isWaymarkCreator && editingReadOnly != waymark.IsReadOnly;
         }
@@ -282,7 +282,7 @@ internal class WaymarkEditPopup
                 var tooltip = !isWaymarkCreator ?
                     "Only the creator can set this waymark to read-only." :
                     editingName.IsNullOrEmpty() ? "Waymarks must have a name before they can be set to read-only." :
-                    "When enabled, only the creator can edit this shared waymark and deletion is blocked.";
+                    "When enabled, all fields are locked and waymark deletion is blocked. Only the creator can disable read-only.";
                 ImGui.SetTooltip(tooltip);
             }
         }
