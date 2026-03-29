@@ -100,8 +100,9 @@ internal class WaymarkEditPopup
             {
                 if (parentGroup.IsReadOnly)
                 {
-                    canOpenEdit = false;
-                    cannotEditReason = "This group is read-only and waymarks cannot be edited.";
+                    canOpenEdit = isWaymarkCreator;
+                    if (!canOpenEdit)
+                        cannotEditReason = "This group is read-only and only the waymark creator can edit it.";
                 }
                 else
                 {
@@ -133,7 +134,8 @@ internal class WaymarkEditPopup
             return;
         }
 
-        var isSharedReadOnly = selectedScope == WaymarkScope.Shared && editingReadOnly;
+        var inheritedReadOnly = isGrouped && parentGroup!.Scope == WaymarkScope.Shared && parentGroup.IsReadOnly;
+        var isSharedReadOnly = selectedScope == WaymarkScope.Shared && (editingReadOnly || inheritedReadOnly);
         var canEditGeneralFields = !isSharedReadOnly;
         var canEditScope = !isGrouped && isWaymarkCreator && !editingReadOnly;
         var canEditReadOnly = selectedScope == WaymarkScope.Shared && isWaymarkCreator && !editingName.IsNullOrEmpty();

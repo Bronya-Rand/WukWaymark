@@ -69,6 +69,7 @@ public class GroupEditorModal
 
         // Validation
         var isCreator = editingGroup != null && editingGroup.CreatorHash == plugin.WaymarkStorageService.CurrentCharacterHash;
+        var isEditingSharedReadOnly = editingGroup != null && editingGroup.Scope == WaymarkScope.Shared && editingGroup.IsReadOnly;
         var hasName = !groupEditName.IsNullOrEmpty();
         var canCreateSave = (editingGroup != null && editingGroup.Scope == WaymarkScope.Shared && hasName) ||
                             (editingGroup != null && editingGroup.Scope == WaymarkScope.Personal && isCreator && hasName) ||
@@ -88,7 +89,12 @@ public class GroupEditorModal
         {
             ImGui.Text("Group Name:");
             ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
-            ImGui.InputText("###GroupName", ref groupEditName, 100);
+            using (ImRaii.Disabled(isEditingSharedReadOnly))
+                ImGui.InputText("###GroupName", ref groupEditName, 100);
+            if (ImWuk.IsItemHoveredWhenDisabled())
+            {
+                ImGui.SetTooltip("Shared read-only groups can only toggle read-only before editing other fields.");
+            }
 
             ImGui.Spacing();
 
@@ -96,7 +102,7 @@ public class GroupEditorModal
             ImGui.Text("Scope:");
             ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
             var scopeDropPreview = Enum.GetName(groupEditScope) ?? "Unknown";
-            using (ImRaii.Disabled(editingGroup != null && !isCreator))
+            using (ImRaii.Disabled((editingGroup != null && !isCreator) || isEditingSharedReadOnly))
             {
                 using (var scopeDrop = ImRaii.Combo("###GroupScope", scopeDropPreview))
                 {
@@ -111,14 +117,16 @@ public class GroupEditorModal
             }
             if (ImWuk.IsItemHoveredWhenDisabled())
             {
-                var tooltip = editingGroup != null && !isCreator
+                var tooltip = isEditingSharedReadOnly
+                    ? "Disable read-only before changing the scope of this group."
+                    : editingGroup != null && !isCreator
                     ? "Only the creator can change the scope of this group."
                     : "Select the scope of the group. Personal groups are private to you, while Shared groups can be seen by others.";
                 ImGui.SetTooltip(tooltip);
             }
 
-            // Read-only checkbox (only shown for shared groups and only editable by the creator)
-            if (groupEditScope == WaymarkScope.Shared)
+            // Read-only checkbox (only shown in edit mode for shared groups and only editable by the creator)
+            if (groupEditScope == WaymarkScope.Shared && editingGroup != null)
             {
                 ImGui.Spacing();
                 using (ImRaii.Disabled(groupEditName.IsNullOrEmpty() || (editingGroup != null && !isCreator)))
@@ -133,6 +141,8 @@ public class GroupEditorModal
                     ImGui.SetTooltip(tooltip);
                 }
             }
+            else
+                groupEditIsReadOnly = false;
 
             ImGui.Spacing();
 

@@ -142,9 +142,9 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, W
         var currentHash = waymarkStorageService.CurrentCharacterHash;
         var isCreator = group.CreatorHash != null && currentHash != null && group.CreatorHash == currentHash;
 
-        var canEdit = (group.Scope == WaymarkScope.Personal && isCreator) || (group.Scope == WaymarkScope.Shared && !group.IsReadOnly);
+        var canEdit = (group.Scope == WaymarkScope.Personal && isCreator) || (group.Scope == WaymarkScope.Shared && (isCreator || !group.IsReadOnly));
         var canDelete = isCreator && !group.IsReadOnly;
-        var canAdd = !group.IsReadOnly;
+        var canAdd = (group.Scope == WaymarkScope.Personal && isCreator) || (group.Scope == WaymarkScope.Shared && !group.IsReadOnly);
 
         // Quick-save to this group
         using (ImRaii.PushId("groupsave"))
@@ -152,17 +152,15 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, W
             using (ImRaii.Disabled(!canAdd || waymarksDisabled))
             {
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
-                {
                     OnSaveToGroup?.Invoke(group);
-                }
             }
         }
         if (ImWuk.IsItemHoveredWhenDisabled())
         {
             var tooltip = !isLoggedIn ? "Log in to save waymarks!" :
-                inPvP ? "Saving waymarks is disabled in PvP zones" :
-                inCombat ? "Saving waymarks is disabled in combat" :
-                group.IsReadOnly ? "Cannot save waymarks to a read-only group" :
+                inPvP ? "Saving waymarks is disabled in PvP zones." :
+                inCombat ? "Saving waymarks is disabled in combat." :
+                group.IsReadOnly ? "Cannot save waymarks to a read-only group." :
                 "Save current location to this group.";
             ImGui.SetTooltip(tooltip);
         }
@@ -172,17 +170,16 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, W
         // Edit group
         using (ImRaii.PushId("groupedit"))
         {
-            using (ImRaii.Disabled(!canEdit))
+            using (ImRaii.Disabled(!canEdit || !isLoggedIn))
             {
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.Edit))
-                {
                     OnEditGroup?.Invoke(group);
-                }
             }
         }
         if (ImWuk.IsItemHoveredWhenDisabled())
         {
-            var tooltip = group.IsReadOnly && !isCreator ? "Only the group's creator can edit this group" :
+            var tooltip = !isLoggedIn ? "Log in to manage this group!" :
+                group.IsReadOnly && !isCreator ? "Only the group's creator can edit this group." :
                 "Edit group properties";
             ImGui.SetTooltip(tooltip);
         }
@@ -192,18 +189,17 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, W
         // Delete group
         using (ImRaii.PushId("groupdelete"))
         {
-            using (ImRaii.Disabled(!canDelete))
+            using (ImRaii.Disabled(!canDelete || !isLoggedIn))
             {
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash))
-                {
                     OnDeleteGroup?.Invoke(group);
-                }
             }
         }
         if (ImWuk.IsItemHoveredWhenDisabled())
         {
-            var tooltip = group.IsReadOnly && isCreator ? "Cannot delete a read-only group" :
-                !isCreator ? "Only the group's creator can delete this group" :
+            var tooltip = !isLoggedIn ? "Log in to manage this group!" :
+                group.IsReadOnly && isCreator ? "Cannot delete a read-only group." :
+                !isCreator ? "Only the group's creator can delete this group." :
                 "Delete Group";
             ImGui.SetTooltip(tooltip);
         }

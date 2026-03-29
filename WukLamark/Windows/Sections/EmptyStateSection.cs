@@ -30,7 +30,7 @@ internal class EmptyStateSection(GameStateReaderService gameStateReaderService)
         ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), coloredText);
         if (isLoggedIn)
         {
-            ImGui.Indent(5);
+            ImGui.Indent(10);
             ImGui.Text("Use '/wlmark here' or the");
             ImGui.SameLine();
             using (ImRaii.Disabled(waymarksDisabled))

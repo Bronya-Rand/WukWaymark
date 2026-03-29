@@ -160,10 +160,10 @@ internal class WaymarkTableComponent
             }
             else if (parentGroup.Scope == WaymarkScope.Shared)
             {
-                // No one can edit/delete waymarks in a shared read-only group.
+                // Shared read-only groups: only waymark creators can open edit to disable read-only.
                 if (parentGroup.IsReadOnly)
                 {
-                    canEdit = false;
+                    canEdit = isWaymarkCreator;
                     canDelete = false;
                 }
                 else
@@ -197,7 +197,7 @@ internal class WaymarkTableComponent
         if (ImWuk.IsItemHoveredWhenDisabled())
         {
             var tooltip = parentGroup != null && parentGroup.Scope == WaymarkScope.Personal && !canEdit ? "Only the group's creator can edit waymarks in this personal group." :
-                          parentGroup != null && parentGroup.Scope == WaymarkScope.Shared && parentGroup.IsReadOnly ? "This group is read-only and waymarks cannot be edited." :
+                          parentGroup != null && parentGroup.Scope == WaymarkScope.Shared && parentGroup.IsReadOnly ? "This group is read-only. Only the waymark creator can edit it." :
                           parentGroup != null && parentGroup.Scope == WaymarkScope.Shared && waymark.IsReadOnly && !canEdit ? "This shared waymark is read-only and only the creator can edit it." :
                           parentGroup == null && !canEdit && waymark.Scope == WaymarkScope.Personal ? "Only the creator can edit this waymark." :
                           parentGroup == null && !canEdit && waymark.Scope == WaymarkScope.Shared && waymark.IsReadOnly ? "This shared waymark is read-only and cannot be edited." :
