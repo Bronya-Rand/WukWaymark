@@ -37,8 +37,7 @@ To edit a waymark, open the WukLamark window and click the `Edit Waymark` button
 
 ![Edit Waymark](./.github/assets/WindowEditMarker.png)
 
-You can change the name of the waymark, the icon of it, what group its in, add a note, who can see it and more!
-> At the moment, `Color` is only applicable to No Icon Waymarks. 
+> `Color` and `Shape` are only applicable to No Icon waymarks. Waymark Scope is only applicable to waymarks that are not in a group. Waymarks in a group will inherit the scope of the group. 
 
 ### Deleting a Waymark
 
@@ -79,7 +78,7 @@ A group is a collection of waymarks. To create a group, switch to the Group View
 ## Editing a Group
 
 To edit a group, click the pencil icon on the right-side.
-> This ability is grayed-out for Shared groups set to read-only (only editable by the owner of the group).
+> This ability is grayed-out for Shared groups set to read-only (only editable by the owner of the group). Non-owners can only edit the name of Shared groups for non-read-only groups.
 
 ![Group Edit](./.github/assets/GroupEdit.png)
 
