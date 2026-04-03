@@ -1,9 +1,9 @@
 # WukLamark
 A Final Fantasy XIV plugin for making custom map markers around Eorzea.
 
-| Table View | Group View |
+<!-- | Table View | Group View |
 | :---: | :---: |
-| ![WukLamark Main Window](./.github/assets/MainWindowWithMarkersTable.png) | ![WukLamark Group View](./.github/assets/MainWindowWithMarkersGroup.png) |
+| ![WukLamark Main Window](./.github/assets/MainWindowWithMarkersTable.png) | ![WukLamark Group View](./.github/assets/MainWindowWithMarkersGroup.png) | -->
 
 ## What is WukLamark?
 
@@ -68,12 +68,12 @@ A group is a collection of map markers. To create a group, switch to the Group V
 **New Map Markers**
 | Command | Window Button |
 | --- | --- |
-| ![Group Map Marker Create](./.github/assets/GroupMapMarkerCreate.png) | ![Group Map Marker Create](./.github/assets/GroupMapMarkerCreateGUI.png) 
+| ![Group Map Marker Create](./.github/assets/GroupWaymarkCreate.png) | ![Group Map Marker Create](./.github/assets/GroupWaymarkCreateGUI.png) 
 |
 
 **Existing Map Markers**
 
-![Group Map Marker Existing](./.github/assets/GroupMapMarkerExistingGUI.png)
+![Group Map Marker Existing](./.github/assets/GroupWaymarkExistingGUI.png)
 
 ## Editing a Group
 
@@ -93,31 +93,31 @@ To delete a group, click the trash icon on the right-side.
 
 ![Configuration](./.github/assets/ConfigWindow.png)
 
-### Enable Map Marker Display on Map
+### Enable Marker Display on Map
 > This option allows you to enable or disable the display of map markers on the main map.
 
-### Enable Map Marker Display on Minimap
+### Enable Marker Display on Minimap
 > This option allows you to enable or disable the display of map markers on the minimap.
 
 ### Marker Size
 > This option allows you to change the size of the map markers on the map and minimap. (Only applicable to No Icon map markers)
 
-### Fade Map Markers on Minimap Edge
+### Fade Markers on Minimap Edge
 > This option toggles the fade effect map markers apply to themselves when at the edge of the minimap.
 
-### Fade Map Markers on Map Edge
+### Fade Markers on Map Edge
 > This option toggles the fade effect map markers apply to themselves when at the edge of the map.
 
 ### Edge Fade Opacity
 > This option allows you to change the opacity of the fade effect map markers apply to themselves when at the edge of the map or minimap.
 
-### Default Shape for New Map Markers
+### Default Shape for New Markers
 > This option allows you to change the default shape for new map markers. (Only applicable to No Icon map markers)
 
 ### Show Tooltips on Hover
 > This option allows you to enable or disable the display of tooltips on hovering over a map marker (mostly for the name of the map marker).
 
-### Erase All Created Map Markers
+### Erase All Created Markers
 > This option allows you to clear all map markers created by you from the map and minimap.  
 
 ## Building from Source
