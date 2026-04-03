@@ -347,7 +347,7 @@ internal class MarkerEditPopup
                     VisibilityRadius = editingVisibilityRadius,
                     IconId = editingIconId,
                     Scope = isGrouped ? parentGroup!.Scope : editingScope,
-                    IsReadOnly = selectedScope == MarkerScope.Shared ? editingReadOnly : false,
+                    IsReadOnly = selectedScope == MarkerScope.Shared && editingReadOnly,
                 };
                 OnSave?.Invoke(marker, result);
                 ImGui.CloseCurrentPopup();
