@@ -7,7 +7,7 @@ A Final Fantasy XIV plugin for making custom map markers around Eorzea.
 
 ## What is WukLamark?
 
-WukLamark is a plugin that allows players to create and manage custom map markers around Eorzea. Whether it's that one spot you use often for GPosing, a venue you frequented once but decided to go again or simply anything that you find interesting, WukLamark will allow you to create a custom map markers for it and make it appear on both the main map and the minimap itself! Think of it as `<flag>` but permanent.
+WukLamark is a plugin that allows players to create and manage custom map markers around Eorzea. Whether it's that one spot you use often for GPosing, a venue you frequented once but decided to go again or simply anything that you find interesting, WukLamark will allow you to create a custom map marker for it and make it appear on both the main map and the minimap itself! Think of it as `<flag>` but permanent.
 
 ## Features
 - Create and manage custom map markers

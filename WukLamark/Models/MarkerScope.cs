@@ -1,7 +1,7 @@
 namespace WukLamark.Models;
 
 /// <summary>
-/// Defines the persistence scope for a waymark.
+/// Defines the persistence scope for a map marker.
 /// </summary>
 public enum MarkerScope
 {
