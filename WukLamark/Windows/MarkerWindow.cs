@@ -6,16 +6,16 @@ using WukLamark.Services;
 namespace WukLamark.Windows
 {
     /// <summary>
-    /// Renders custom waymark markers on the full Area Map (AreaMap addon).
+    /// Renders custom markers on the full Area Map (AreaMap addon).
     /// This is a thin rendering layer — all coordinate calculations are done
-    /// in <see cref="WaymarkMapService"/> during Framework.Update.
+    /// in <see cref="MarkerMapService"/> during Framework.Update.
     /// </summary>
-    public unsafe class WaymarkWindow : IDisposable
+    public unsafe class MarkerWindow : IDisposable
     {
-        private readonly WaymarkMapService service;
+        private readonly MarkerMapService service;
         private readonly Plugin plugin;
 
-        internal WaymarkWindow(WaymarkMapService service, Plugin plugin)
+        internal MarkerWindow(MarkerMapService service, Plugin plugin)
         {
             this.service = service;
             this.plugin = plugin;
@@ -24,7 +24,7 @@ namespace WukLamark.Windows
 
         /// <summary>
         /// Main rendering method called every frame by UiBuilder.Draw.
-        /// Iterates the pre-calculated waymark list from the service and renders them.
+        /// Iterates the pre-calculated marker list from the service and renders them.
         /// </summary>
         private void Draw()
         {
@@ -38,26 +38,26 @@ namespace WukLamark.Windows
 
             var drawList = ImGui.GetBackgroundDrawList();
             var mousePos = ImGui.GetMousePos();
-            string? hoveredWaymarkName = null;
+            string? hoveredMarkerName = null;
 
-            // Iterate through pre-calculated waymarks from the Service
-            foreach (var (position, shape, size, colorU32, name, iconId) in service.WaymarksToRender)
+            // Iterate through pre-calculated markers from the Service
+            foreach (var (position, shape, size, colorU32, name, iconId) in service.MarkersToRender)
             {
-                WaymarkRenderer.RenderWaymark(drawList, position, shape, size, colorU32, iconId);
+                MarkerRenderer.RenderMarker(drawList, position, shape, size, colorU32, iconId);
 
                 // Display tooltip if enabled and mouse is hovering within marker bounds
                 if (plugin.Configuration.ShowWaymarkTooltips &&
                     !string.IsNullOrEmpty(name) &&
                     Vector2.Distance(mousePos, position) <= size + 2.0f)
                 {
-                    hoveredWaymarkName = name;
+                    hoveredMarkerName = name;
                 }
             }
 
-            // Display tooltip for hovered waymark
-            if (hoveredWaymarkName != null)
+            // Display tooltip for hovered marker
+            if (hoveredMarkerName != null)
             {
-                ImGui.SetTooltip(hoveredWaymarkName);
+                ImGui.SetTooltip(hoveredMarkerName);
             }
         }
 

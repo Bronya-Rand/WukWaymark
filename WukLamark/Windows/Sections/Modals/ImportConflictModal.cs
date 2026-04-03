@@ -45,7 +45,7 @@ public class ImportConflictModal
             foreach (var conflict in pendingImport.Conflicts)
             {
                 var overwrite = importConflictChoices.TryGetValue(conflict.Id, out var v) && v;
-                var label = conflict.IsGroup ? $" {conflict.Name} (Group)" : $" {conflict.Name} (Waymark)";
+                var label = conflict.IsGroup ? $" {conflict.Name} (Group)" : $" {conflict.Name} (Marker)";
                 if (ImGui.Checkbox($"Overwrite: {label}###import_{conflict.Id}", ref overwrite))
                     importConflictChoices[conflict.Id] = overwrite;
             }

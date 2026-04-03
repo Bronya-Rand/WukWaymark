@@ -15,22 +15,22 @@ using WukLamark.Windows;
 namespace WukLamark.Services
 {
     /// <summary>
-    /// Service responsible for calculating Waymark positions on the Minimap.
+    /// Service responsible for calculating marker positions on the Minimap.
     /// Following the Service + Window paradigm to decouple logic and rendering.
     /// </summary>
-    internal class WaymarkMinimapService : IDisposable
+    internal class MarkerMinimapService : IDisposable
     {
         private readonly Plugin plugin;
         private readonly Configuration configuration;
-        private readonly WaymarkMinimapWindow window;
+        private readonly MarkerMinimapWindow window;
         private readonly WindowSystem windowSystem;
         private bool disposed;
 
-        // Publicly accessible list mapping Waymarks to their PreDraw evaluated locations
-        public List<(Vector2 Position, WaymarkShape Shape, float Size, Vector4 Color, string? Name, uint? IconId)> WaymarksToRender { get; } = [];
+        // Publicly accessible list mapping markers to their PreDraw evaluated locations
+        public List<(Vector2 Position, MarkerShape Shape, float Size, Vector4 Color, string? Name, uint? IconId)> MarkersToRender { get; } = [];
 
         // Player data gathered during Framework.Update
-        private readonly List<(Vector3 WorldPos, WaymarkShape Shape, Vector4 Color, string? Name, uint? IconId, float VisibilityRadius)> waymarksToRender = [];
+        private readonly List<(Vector3 WorldPos, MarkerShape Shape, Vector4 Color, string? Name, uint? IconId, float VisibilityRadius)> markersToRenderCache = [];
 
         // Minimap state cached per frame
         private float minimapRadius;
@@ -51,12 +51,12 @@ namespace WukLamark.Services
         private float sinRotation;
         private float cosRotation;
 
-        public WaymarkMinimapService(Plugin plugin)
+        public MarkerMinimapService(Plugin plugin)
         {
             this.plugin = plugin;
             configuration = plugin.Configuration;
             windowSystem = plugin.WindowSystem;
-            window = new WaymarkMinimapWindow(this, plugin);
+            window = new MarkerMinimapWindow(this, plugin);
 
             // Register the window directly with the passed in system to centralize tracking
             windowSystem.AddWindow(window);
@@ -71,7 +71,8 @@ namespace WukLamark.Services
         /// <param name="framework">The framework instance.</param>
         private unsafe void OnFrameworkUpdate(IFramework framework)
         {
-            waymarksToRender.Clear();
+            // Clear cached render lists
+            markersToRenderCache.Clear();
             window.IsEnabled = configuration.WaymarksMinimapEnabled;
 
             if (!Plugin.ClientState.IsLoggedIn) return;
@@ -140,40 +141,40 @@ namespace WukLamark.Services
             var mapSize = new Vector2(naviMapSize * naviScale, naviMapSize * naviScale);
             minimapRadius = mapSize.X * 0.315f;
 
-            // Cache waymarks to render
-            foreach (var waymark in plugin.WaymarkStorageService.GetVisibleWaymarks())
+            // Cache markers to render
+            foreach (var marker in plugin.MarkerStorageService.GetVisibleMarkers())
             {
                 // Minimap early culling
-                if (waymark.WorldId != currentWorldId)
+                if (marker.WorldId != currentWorldId)
                     continue; // Wrong world
-                if (waymark.MapId != agentMap->CurrentMapId)
+                if (marker.MapId != agentMap->CurrentMapId)
                     continue; // Wrong map
-                if (waymark.WardId != -1 && waymark.WardId != wardId)
+                if (marker.WardId != -1 && marker.WardId != wardId)
                     continue; // Wrong ward (for housing areas)
 
                 // Visibility radius check using squared distance (avoids sqrt)
-                if (configuration.FadeWaymarkOnMinimapEdge && waymark.VisibilityRadius > 0)
+                if (configuration.FadeWaymarkOnMinimapEdge && marker.VisibilityRadius > 0)
                 {
-                    var distSquared = Vector3.DistanceSquared(localPlayer.Position, waymark.Position);
-                    var radiusSquared = waymark.VisibilityRadius * waymark.VisibilityRadius;
+                    var distSquared = Vector3.DistanceSquared(localPlayer.Position, marker.Position);
+                    var radiusSquared = marker.VisibilityRadius * marker.VisibilityRadius;
                     if (distSquared > radiusSquared)
                         continue;
                 }
 
                 // Store world position - will convert to screen coords in PreDraw
-                waymarksToRender.Add((waymark.Position, waymark.Shape, waymark.Color, waymark.Name, waymark.IconId, waymark.VisibilityRadius));
+                markersToRenderCache.Add((marker.Position, marker.Shape, marker.Color, marker.Name, marker.IconId, marker.VisibilityRadius));
             }
         }
 
         /// <summary>
-        /// Prepares the waymarks for rendering by converting their world positions to screen coordinates.
+        /// Prepares the markers for rendering by converting their world positions to screen coordinates.
         /// </summary>
         /// <param name="windowPos">The position of the window.</param>
         internal unsafe void PrepareRender(Vector2 windowPos)
         {
-            WaymarksToRender.Clear();
+            MarkersToRender.Clear();
 
-            if (waymarksToRender.Count == 0)
+            if (markersToRenderCache.Count == 0)
                 return;
 
             // Use cached naviMap position instead of re-querying GetAddonByName
@@ -187,8 +188,8 @@ namespace WukLamark.Services
 
             mapCenterScreenPos.Y -= 5f * globalScale;
 
-            // Pass pre-computed cos/sin to avoid recomputing per waymark
-            foreach (var (worldPos, shape, color, name, iconId, visibilityRadius) in waymarksToRender)
+            // Pass pre-computed cos/sin to avoid recomputing per marker
+            foreach (var (worldPos, shape, color, name, iconId, visibilityRadius) in markersToRenderCache)
             {
                 var circlePos = CalculateCirclePosition(worldPos, cosRotation, sinRotation);
                 var markerSize = configuration.WaymarkMarkerSize * globalScale;
@@ -235,51 +236,51 @@ namespace WukLamark.Services
                     fadedColor.W *= Math.Clamp(edgeFade, 0.4f, 1.0f);
                 }
 
-                WaymarksToRender.Add((circlePos, shape, markerSize, fadedColor, name, iconId));
+                MarkersToRender.Add((circlePos, shape, markerSize, fadedColor, name, iconId));
             }
         }
 
         #region Coordinate Transformation
 
         /// <summary>
-        /// Calculates the screen position of a waymark relative to the minimap center.
+        /// Calculates the screen position of a marker relative to the minimap center.
         /// </summary>
-        /// <param name="waymarkPosition">The world position of the waymark.</param>
+        /// <param name="markerPosition">The world position of the marker.</param>
         /// <param name="cosTheta">The cosine of the rotation angle.</param>
         /// <param name="sinTheta">The sine of the rotation angle.</param>
-        /// <returns>The screen position of the waymark, or null if it is outside the minimap bounds.</returns>
-        private Vector2 CalculateCirclePosition(Vector3 waymarkPosition, float cosTheta, float sinTheta)
+        /// <returns>The screen position of the marker, or null if it is outside the minimap bounds.</returns>
+        private Vector2 CalculateCirclePosition(Vector3 markerPosition, float cosTheta, float sinTheta)
         {
             var relativeOffset = new Vector2(
-                playerWorldPos.X - waymarkPosition.X,
-                playerWorldPos.Y - waymarkPosition.Z
+                playerWorldPos.X - markerPosition.X,
+                playerWorldPos.Y - markerPosition.Z
             );
 
             relativeOffset *= zoneScale;
             relativeOffset *= naviScale;
             relativeOffset *= zoom;
 
-            var waymarkScreenPos = mapCenterScreenPos - relativeOffset;
+            var markerScreenPos = mapCenterScreenPos - relativeOffset;
 
             if (!isLocked)
             {
-                var dx = waymarkScreenPos.X - mapCenterScreenPos.X;
-                var dy = waymarkScreenPos.Y - mapCenterScreenPos.Y;
-                waymarkScreenPos = new Vector2(
+                var dx = markerScreenPos.X - mapCenterScreenPos.X;
+                var dy = markerScreenPos.Y - mapCenterScreenPos.Y;
+                markerScreenPos = new Vector2(
                     (cosTheta * dx) - (sinTheta * dy) + mapCenterScreenPos.X,
                     (sinTheta * dx) + (cosTheta * dy) + mapCenterScreenPos.Y
                 );
             }
 
-            var distance = Vector2.Distance(mapCenterScreenPos, waymarkScreenPos);
+            var distance = Vector2.Distance(mapCenterScreenPos, markerScreenPos);
             if (distance > minimapRadius)
             {
-                var originToObject = waymarkScreenPos - mapCenterScreenPos;
+                var originToObject = markerScreenPos - mapCenterScreenPos;
                 originToObject *= minimapRadius / distance;
-                waymarkScreenPos = mapCenterScreenPos + originToObject;
+                markerScreenPos = mapCenterScreenPos + originToObject;
             }
 
-            return waymarkScreenPos;
+            return markerScreenPos;
         }
 
         /// <summary>
@@ -302,7 +303,7 @@ namespace WukLamark.Services
                 return;
 
             Plugin.Framework.Update -= OnFrameworkUpdate;
-            Plugin.Log.Information("WaymarkMinimapService disposed.");
+            Plugin.Log.Information("MarkerMinimapService disposed.");
             // Window removal happens from Plugin.Dispose
             disposed = true;
         }

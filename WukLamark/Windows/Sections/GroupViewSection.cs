@@ -14,20 +14,20 @@ using WukLamark.Windows.Components;
 
 namespace WukLamark.Windows.Sections;
 
-internal class GroupViewSection(GameStateReaderService gameStateReaderService, WaymarkStorageService waymarkStorageService, WaymarkTableComponent tableComponent)
+internal class GroupViewSection(GameStateReaderService gameStateReaderService, MarkerStorageService markerStorageService, MarkerTableComponent tableComponent)
 {
     private readonly GameStateReaderService gameStateReaderService = gameStateReaderService;
-    private readonly WaymarkStorageService waymarkStorageService = waymarkStorageService;
-    private readonly WaymarkTableComponent tableComponent = tableComponent;
+    private readonly MarkerStorageService markerStorageService = markerStorageService;
+    private readonly MarkerTableComponent tableComponent = tableComponent;
 
     public Action? OnCreateGroup { get; set; }
-    public Action<WaymarkGroup>? OnEditGroup { get; set; }
-    public Action<WaymarkGroup>? OnDeleteGroup { get; set; }
-    public Action<WaymarkGroup>? OnSaveToGroup { get; set; }
+    public Action<MarkerGroup>? OnEditGroup { get; set; }
+    public Action<MarkerGroup>? OnDeleteGroup { get; set; }
+    public Action<MarkerGroup>? OnSaveToGroup { get; set; }
 
-    public void Draw(List<Waymark> filteredWaymarks, string searchFilter, bool filterCurrentZone)
+    public void Draw(List<Marker> filteredMarkers, string searchFilter, bool filterCurrentZone)
     {
-        var groups = waymarkStorageService.GetVisibleGroups();
+        var groups = markerStorageService.GetVisibleGroups();
 
         // "+ New Group" button
         if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus))
@@ -43,74 +43,74 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, W
 
         foreach (var group in groups)
         {
-            var groupWaymarks = filteredWaymarks.Where(w => w.GroupId == group.Id).ToList();
+            var groupMarkers = filteredMarkers.Where(m => m.GroupId == group.Id).ToList();
 
-            if (groupWaymarks.Count == 0 && filterCurrentZone) continue;
+            if (groupMarkers.Count == 0 && filterCurrentZone) continue;
 
             if (!string.IsNullOrEmpty(searchFilter))
             {
                 var groupNameMatches = group.Name.Contains(searchFilter, StringComparison.OrdinalIgnoreCase);
-                if (groupWaymarks.Count == 0 && !groupNameMatches)
+                if (groupMarkers.Count == 0 && !groupNameMatches)
                     continue;
             }
 
             var identifier = group.Id.ToString();
             using var groupId = ImRaii.PushId(identifier);
 
-            var headerOpen = ImGui.CollapsingHeader($"{group.Name} ({groupWaymarks.Count})###group_{identifier}", ImGuiTreeNodeFlags.AllowItemOverlap);
+            var headerOpen = ImGui.CollapsingHeader($"{group.Name} ({groupMarkers.Count})###group_{identifier}", ImGuiTreeNodeFlags.AllowItemOverlap);
 
             DrawGroupHeaderButtons(group);
 
             if (headerOpen)
             {
-                if (groupWaymarks.Count == 0)
+                if (groupMarkers.Count == 0)
                 {
                     using (ImRaii.PushIndent(10))
                     {
-                        ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "No waymarks in this group.");
+                        ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "No markers in this group.");
                     }
                 }
                 else
                 {
                     using var tableId = ImRaii.PushId($"GroupTable_{identifier}");
-                    tableComponent.Draw(groupWaymarks, group);
+                    tableComponent.Draw(groupMarkers, group);
                 }
                 ImGui.Spacing();
             }
         }
 
-        // Ungrouped waymarks section
-        var ungroupedWaymarks = filteredWaymarks.Where(w => w.GroupId == null).ToList();
+        // Ungrouped markers section
+        var ungroupedMarkers = filteredMarkers.Where(m => m.GroupId == null).ToList();
 
-        if (!string.IsNullOrEmpty(searchFilter) && ungroupedWaymarks.Count == 0)
+        if (!string.IsNullOrEmpty(searchFilter) && ungroupedMarkers.Count == 0)
             return;
 
-        if (ungroupedWaymarks.Count > 0 || string.IsNullOrEmpty(searchFilter))
+        if (ungroupedMarkers.Count > 0 || string.IsNullOrEmpty(searchFilter))
         {
-            var ungroupedOpen = ImGui.CollapsingHeader($"Ungrouped ({ungroupedWaymarks.Count})###ungrouped", ImGuiTreeNodeFlags.DefaultOpen);
+            var ungroupedOpen = ImGui.CollapsingHeader($"Ungrouped ({ungroupedMarkers.Count})###ungrouped", ImGuiTreeNodeFlags.DefaultOpen);
             if (ungroupedOpen)
             {
-                if (ungroupedWaymarks.Count == 0)
+                if (ungroupedMarkers.Count == 0)
                 {
                     using (ImRaii.PushIndent(10))
                     {
-                        ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "No ungrouped waymarks.");
+                        ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "No ungrouped markers.");
                     }
                 }
                 else
                 {
                     using var tableId = ImRaii.PushId("GroupTableUngrouped");
-                    tableComponent.Draw(ungroupedWaymarks);
+                    tableComponent.Draw(ungroupedMarkers);
                 }
             }
         }
     }
-    private void DrawGroupHeaderButtons(WaymarkGroup group)
+    private void DrawGroupHeaderButtons(MarkerGroup group)
     {
         var isLoggedIn = gameStateReaderService.IsLoggedIn;
         var inPvP = gameStateReaderService.IsInPvP;
         var inCombat = gameStateReaderService.IsInCombat;
-        var waymarksDisabled = gameStateReaderService.DisableWaymarkActions();
+        var markersDisabled = gameStateReaderService.DisableMarkerActions();
 
         var buttonSize = 20.0f * ImGuiHelpers.GlobalScale;
         var spacing = 5.0f;
@@ -120,7 +120,7 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, W
         ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalWidth + ImGui.GetCursorPosX());
 
         var groupScopeIcon = FontAwesomeIcon.EyeSlash;
-        if (group.Scope == WaymarkScope.Shared)
+        if (group.Scope == MarkerScope.Shared)
             groupScopeIcon = group.IsReadOnly ? FontAwesomeIcon.Lock : FontAwesomeIcon.Users;
 
         using (ImRaii.PushFont(UiBuilder.IconFont))
@@ -130,7 +130,7 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, W
         }
         if (ImGui.IsItemHovered())
         {
-            var tooltip = group.Scope == WaymarkScope.Personal ? "Personal Group" :
+            var tooltip = group.Scope == MarkerScope.Personal ? "Personal Group" :
                 group.IsReadOnly ? "Shared Group (Read-Only)" :
                 "Shared Group";
             ImGui.SetTooltip(tooltip);
@@ -139,17 +139,17 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, W
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() - (2 * ImGuiHelpers.GlobalScale));
         ImGui.SameLine(0, spacing);
 
-        var currentHash = waymarkStorageService.CurrentCharacterHash;
+        var currentHash = markerStorageService.CurrentCharacterHash;
         var isCreator = group.CreatorHash != null && currentHash != null && group.CreatorHash == currentHash;
 
-        var canEdit = (group.Scope == WaymarkScope.Personal && isCreator) || (group.Scope == WaymarkScope.Shared && (isCreator || !group.IsReadOnly));
+        var canEdit = (group.Scope == MarkerScope.Personal && isCreator) || (group.Scope == MarkerScope.Shared && (isCreator || !group.IsReadOnly));
         var canDelete = isCreator && !group.IsReadOnly;
-        var canAdd = (group.Scope == WaymarkScope.Personal && isCreator) || (group.Scope == WaymarkScope.Shared && !group.IsReadOnly);
+        var canAdd = (group.Scope == MarkerScope.Personal && isCreator) || (group.Scope == MarkerScope.Shared && !group.IsReadOnly);
 
         // Quick-save to this group
         using (ImRaii.PushId("groupsave"))
         {
-            using (ImRaii.Disabled(!canAdd || waymarksDisabled))
+            using (ImRaii.Disabled(!canAdd || markersDisabled))
             {
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
                     OnSaveToGroup?.Invoke(group);
@@ -157,10 +157,10 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, W
         }
         if (ImWuk.IsItemHoveredWhenDisabled())
         {
-            var tooltip = !isLoggedIn ? "Log in to save waymarks!" :
-                inPvP ? "Saving waymarks is disabled in PvP zones." :
-                inCombat ? "Saving waymarks is disabled in combat." :
-                group.IsReadOnly ? "Cannot save waymarks to a read-only group." :
+            var tooltip = !isLoggedIn ? "Log in to save markers!" :
+                inPvP ? "Saving markers is disabled in PvP zones." :
+                inCombat ? "Saving markers is disabled in combat." :
+                group.IsReadOnly ? "Cannot save markers to a read-only group." :
                 "Save current location to this group.";
             ImGui.SetTooltip(tooltip);
         }

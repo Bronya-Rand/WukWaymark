@@ -7,18 +7,18 @@ namespace WukLamark.Windows.Sections;
 
 internal class TableViewSection
 {
-    private readonly WaymarkTableComponent tableComponent;
+    private readonly MarkerTableComponent tableComponent;
 
-    public TableViewSection(WaymarkTableComponent tableComponent)
+    public TableViewSection(MarkerTableComponent tableComponent)
     {
         this.tableComponent = tableComponent;
     }
 
-    public void Draw(List<Waymark> filteredWaymarks, int totalCount)
+    public void Draw(List<Marker> filteredMarkers, int totalCount)
     {
-        ImGui.Text($"Showing {filteredWaymarks.Count} of {totalCount} waymarks");
+        ImGui.Text($"Showing {filteredMarkers.Count} of {totalCount} markers");
         ImGui.Spacing();
 
-        tableComponent.Draw(filteredWaymarks);
+        tableComponent.Draw(filteredMarkers);
     }
 }

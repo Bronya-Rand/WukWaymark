@@ -8,7 +8,7 @@ namespace WukLamark.Models
     /// - Customizable size (globally via Configuration.WaymarkMarkerSize)
     /// - Per-waymark custom color
     /// </summary>
-    public enum WaymarkShape
+    public enum MarkerShape
     {
         /// <summary>Classic circular marker - round filled circle with outline</summary>
         Circle,

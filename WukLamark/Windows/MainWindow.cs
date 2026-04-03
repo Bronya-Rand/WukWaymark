@@ -21,7 +21,7 @@ public class MainWindow : Window, IDisposable
 
     #region Components and Sections
 
-    private readonly WaymarkTableComponent waymarkTableComponent;
+    private readonly MarkerTableComponent markerTableComponent;
     private readonly HeaderSection headerSection;
     private readonly SearchBarSection searchBarSection;
     private readonly TableViewSection tableViewSection;
@@ -32,7 +32,7 @@ public class MainWindow : Window, IDisposable
 
     #region Modals
 
-    private readonly DeleteWaymarkModal deleteWaymarkModal;
+    private readonly DeleteMarkerModal deleteMarkerModal;
     private readonly DeleteGroupModal deleteGroupModal;
     private readonly ImportConflictModal importConflictModal;
     private readonly GroupEditorModal groupEditorModal;
@@ -58,48 +58,48 @@ public class MainWindow : Window, IDisposable
         this.plugin = plugin;
 
         // Initialize modals
-        deleteWaymarkModal = new DeleteWaymarkModal
+        deleteMarkerModal = new DeleteMarkerModal
         {
-            OnConfirmDelete = waymark =>
+            OnConfirmDelete = marker =>
             {
-                plugin.WaymarkService.DeleteWaymark(waymark);
+                plugin.MarkerService.DeleteMarker(marker);
             },
         };
 
         deleteGroupModal = new DeleteGroupModal
         {
-            OnConfirmDelete = (group, keepWaymarks) =>
+            OnConfirmDelete = (group, keepMarkers) =>
             {
-                if (!keepWaymarks)
+                if (!keepMarkers)
                 {
-                    var allWaymarks = plugin.WaymarkStorageService.GetVisibleWaymarks();
-                    var toDelete = allWaymarks.Where(w => w.GroupId == group.Id).ToList();
+                    var allMarkers = plugin.MarkerStorageService.GetVisibleMarkers();
+                    var toDelete = allMarkers.Where(w => w.GroupId == group.Id).ToList();
 
                     foreach (var w in toDelete)
-                        plugin.WaymarkService.DeleteWaymark(w);
+                        plugin.MarkerService.DeleteMarker(w);
                 }
                 else
                 {
-                    // Move waymarks to unbound
-                    var allWaymarks = plugin.WaymarkStorageService.GetVisibleWaymarks();
-                    var toMove = allWaymarks.Where(w => w.GroupId == group.Id).ToList();
+                    // Move markers to unbound
+                    var allMarkers = plugin.MarkerStorageService.GetVisibleMarkers();
+                    var toMove = allMarkers.Where(w => w.GroupId == group.Id).ToList();
 
                     foreach (var w in toMove)
                     {
                         w.GroupId = null;
                     }
-                    plugin.WaymarkStorageService.SavePersonalWaymarks();
-                    plugin.WaymarkStorageService.SaveSharedWaymarks();
+                    plugin.MarkerStorageService.SavePersonalMarkers();
+                    plugin.MarkerStorageService.SaveSharedMarkers();
                 }
 
                 // Remove from correct storage based on scope
-                if (group.Scope == WaymarkScope.Shared)
-                    plugin.WaymarkStorageService.SharedGroups.Remove(group);
+                if (group.Scope == MarkerScope.Shared)
+                    plugin.MarkerStorageService.SharedGroups.Remove(group);
                 else
-                    plugin.WaymarkStorageService.PersonalGroups.Remove(group);
+                    plugin.MarkerStorageService.PersonalGroups.Remove(group);
 
-                plugin.WaymarkStorageService.SavePersonalWaymarks();
-                plugin.WaymarkStorageService.SaveSharedWaymarks();
+                plugin.MarkerStorageService.SavePersonalMarkers();
+                plugin.MarkerStorageService.SaveSharedMarkers();
             },
         };
 
@@ -120,30 +120,30 @@ public class MainWindow : Window, IDisposable
         };
 
         // Initialize components
-        waymarkTableComponent = new WaymarkTableComponent(plugin, plugin.GameStateReaderService)
+        markerTableComponent = new MarkerTableComponent(plugin, plugin.GameStateReaderService)
         {
-            OnDeleteRequested = waymark =>
+            OnDeleteRequested = marker =>
             {
-                deleteWaymarkModal.Open(waymark);
+                deleteMarkerModal.Open(marker);
             },
-            OnFlagRequested = waymark =>
+            OnFlagRequested = marker =>
             {
-                MapHelper.FlagMapLocation(waymark.Position, waymark.TerritoryId, waymark.MapId, waymark.Name);
+                MapHelper.FlagMapLocation(marker.Position, marker.TerritoryId, marker.MapId, marker.Name);
             },
-            OnExportRequested = waymark =>
+            OnExportRequested = marker =>
             {
-                WaymarkExportService.ExportToClipboard(waymark);
-                importFeedback = $"Copied '{waymark.Name}' to clipboard!";
+                MarkerExportService.ExportToClipboard(marker);
+                importFeedback = $"Copied '{marker.Name}' to clipboard!";
                 importFeedbackTicks = 180;
             },
-            OnSaveRequested = HandleWaymarkSave,
+            OnSaveRequested = HandleMarkerSave,
         };
 
         // Initialize sections
-        headerSection = new HeaderSection(plugin.Configuration, plugin.GameStateReaderService, plugin.WaymarkStorageService)
+        headerSection = new HeaderSection(plugin.Configuration, plugin.GameStateReaderService, plugin.MarkerStorageService)
         {
             OnImport = HandleImportResult,
-            OnSaveLocation = () => plugin.WaymarkService.SaveCurrentLocation(),
+            OnSaveLocation = () => plugin.MarkerService.SaveCurrentLocation(),
             OnToggleView = () =>
             {
                 plugin.Configuration.UseGroupView = !plugin.Configuration.UseGroupView;
@@ -152,11 +152,11 @@ public class MainWindow : Window, IDisposable
             OnSettingsClicked = () => plugin.ToggleConfigUi(),
         };
 
-        searchBarSection = new SearchBarSection(plugin.GameStateReaderService, plugin.WaymarkService);
+        searchBarSection = new SearchBarSection(plugin.GameStateReaderService, plugin.MarkerService);
 
-        tableViewSection = new TableViewSection(waymarkTableComponent);
+        tableViewSection = new TableViewSection(markerTableComponent);
 
-        groupViewSection = new GroupViewSection(plugin.GameStateReaderService, plugin.WaymarkStorageService, waymarkTableComponent)
+        groupViewSection = new GroupViewSection(plugin.GameStateReaderService, plugin.MarkerStorageService, markerTableComponent)
         {
             OnCreateGroup = () =>
             {
@@ -172,65 +172,65 @@ public class MainWindow : Window, IDisposable
             },
             OnSaveToGroup = group =>
             {
-                plugin.WaymarkService.SaveCurrentLocation(group, group.Scope);
+                plugin.MarkerService.SaveCurrentLocation(group, group.Scope);
             },
         };
 
         emptyStateSection = new EmptyStateSection(plugin.GameStateReaderService)
         {
-            OnSaveLocation = () => plugin.WaymarkService.SaveCurrentLocation(),
+            OnSaveLocation = () => plugin.MarkerService.SaveCurrentLocation(),
         };
     }
 
     #region Event Handlers
 
     /// <summary>
-    /// Handles saving a waymark after it has been edited in the WaymarkEditPopup.
+    /// Handles saving a marker after it has been edited in the MarkerEditPopup.
     /// </summary>
-    private void HandleWaymarkSave(Waymark waymark, WaymarkEditResult result)
+    private void HandleMarkerSave(Marker marker, MarkerEditResult result)
     {
-        var oldScope = waymark.Scope;
-        waymark.Name = result.Name;
-        waymark.Color = result.Color;
-        waymark.Shape = result.Shape;
-        waymark.Notes = result.Notes;
-        waymark.GroupId = result.GroupId;
-        waymark.VisibilityRadius = result.VisibilityRadius;
-        waymark.IconId = result.IconId;
-        waymark.Scope = result.Scope;
-        waymark.IsReadOnly = result.IsReadOnly;
+        var oldScope = marker.Scope;
+        marker.Name = result.Name;
+        marker.Color = result.Color;
+        marker.Shape = result.Shape;
+        marker.Notes = result.Notes;
+        marker.GroupId = result.GroupId;
+        marker.VisibilityRadius = result.VisibilityRadius;
+        marker.IconId = result.IconId;
+        marker.Scope = result.Scope;
+        marker.IsReadOnly = result.IsReadOnly;
 
-        if (oldScope != waymark.Scope)
+        if (oldScope != marker.Scope)
         {
-            if (waymark.Scope == WaymarkScope.Personal)
+            if (marker.Scope == MarkerScope.Personal)
             {
-                plugin.WaymarkStorageService.SharedWaymarks.Remove(waymark);
-                waymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
-                waymark.IsReadOnly = false;
-                plugin.WaymarkStorageService.PersonalWaymarks.Add(waymark);
+                plugin.MarkerStorageService.SharedMarkers.Remove(marker);
+                marker.CharacterHash = plugin.MarkerStorageService.CurrentCharacterHash;
+                marker.IsReadOnly = false;
+                plugin.MarkerStorageService.PersonalMarkers.Add(marker);
             }
             else
             {
-                plugin.WaymarkStorageService.PersonalWaymarks.Remove(waymark);
-                waymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
-                plugin.WaymarkStorageService.SharedWaymarks.Add(waymark);
+                plugin.MarkerStorageService.PersonalMarkers.Remove(marker);
+                marker.CharacterHash = plugin.MarkerStorageService.CurrentCharacterHash;
+                plugin.MarkerStorageService.SharedMarkers.Add(marker);
             }
         }
 
-        plugin.WaymarkStorageService.SavePersonalWaymarks();
-        plugin.WaymarkStorageService.SaveSharedWaymarks();
+        plugin.MarkerStorageService.SavePersonalMarkers();
+        plugin.MarkerStorageService.SaveSharedMarkers();
     }
 
     /// <summary>
     /// Handles saving a group after it has been edited in the GroupEditorModal.
     /// </summary>
-    private void HandleGroupSave(WaymarkGroup group, bool isEditing)
+    private void HandleGroupSave(MarkerGroup group, bool isEditing)
     {
         if (isEditing && group.Id != Guid.Empty)
         {
             // Find the existing group
-            var existing = plugin.WaymarkStorageService.PersonalGroups.FirstOrDefault(g => g.Id == group.Id)
-                        ?? plugin.WaymarkStorageService.SharedGroups.FirstOrDefault(g => g.Id == group.Id);
+            var existing = plugin.MarkerStorageService.PersonalGroups.FirstOrDefault(g => g.Id == group.Id)
+                        ?? plugin.MarkerStorageService.SharedGroups.FirstOrDefault(g => g.Id == group.Id);
 
             if (existing != null)
             {
@@ -242,38 +242,38 @@ public class MainWindow : Window, IDisposable
                 // If scope changed, move between collections
                 if (oldScope != group.Scope)
                 {
-                    if (group.Scope == WaymarkScope.Shared)
+                    if (group.Scope == MarkerScope.Shared)
                     {
-                        plugin.WaymarkStorageService.PersonalGroups.Remove(existing);
-                        existing.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
-                        plugin.WaymarkStorageService.SharedGroups.Add(existing);
+                        plugin.MarkerStorageService.PersonalGroups.Remove(existing);
+                        existing.CreatorHash = plugin.MarkerStorageService.CurrentCharacterHash;
+                        plugin.MarkerStorageService.SharedGroups.Add(existing);
 
-                        // Move all child waymarks from Personal to Shared
-                        var childWaymarks = plugin.WaymarkStorageService.PersonalWaymarks.Where(w => w.GroupId == existing.Id).ToList();
-                        foreach (var w in childWaymarks)
+                        // Move all child markers from Personal to Shared
+                        var childMarkers = plugin.MarkerStorageService.PersonalMarkers.Where(m => m.GroupId == existing.Id).ToList();
+                        foreach (var m in childMarkers)
                         {
-                            plugin.WaymarkStorageService.PersonalWaymarks.Remove(w);
-                            w.Scope = WaymarkScope.Shared;
-                            w.IsReadOnly = existing.IsReadOnly;
-                            w.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
-                            plugin.WaymarkStorageService.SharedWaymarks.Add(w);
+                            plugin.MarkerStorageService.PersonalMarkers.Remove(m);
+                            m.Scope = MarkerScope.Shared;
+                            m.IsReadOnly = existing.IsReadOnly;
+                            m.CharacterHash = plugin.MarkerStorageService.CurrentCharacterHash;
+                            plugin.MarkerStorageService.SharedMarkers.Add(m);
                         }
                     }
                     else
                     {
-                        plugin.WaymarkStorageService.SharedGroups.Remove(existing);
-                        existing.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
-                        plugin.WaymarkStorageService.PersonalGroups.Add(existing);
+                        plugin.MarkerStorageService.SharedGroups.Remove(existing);
+                        existing.CreatorHash = plugin.MarkerStorageService.CurrentCharacterHash;
+                        plugin.MarkerStorageService.PersonalGroups.Add(existing);
 
-                        // Move all child waymarks from Shared to Personal
-                        var childWaymarks = plugin.WaymarkStorageService.SharedWaymarks.Where(w => w.GroupId == existing.Id).ToList();
-                        foreach (var w in childWaymarks)
+                        // Move all child markers from Shared to Personal
+                        var childMarkers = plugin.MarkerStorageService.SharedMarkers.Where(m => m.GroupId == existing.Id).ToList();
+                        foreach (var m in childMarkers)
                         {
-                            plugin.WaymarkStorageService.SharedWaymarks.Remove(w);
-                            w.Scope = WaymarkScope.Personal;
-                            w.IsReadOnly = false;
-                            w.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
-                            plugin.WaymarkStorageService.PersonalWaymarks.Add(w);
+                            plugin.MarkerStorageService.SharedMarkers.Remove(m);
+                            m.Scope = MarkerScope.Personal;
+                            m.IsReadOnly = false;
+                            m.CharacterHash = plugin.MarkerStorageService.CurrentCharacterHash;
+                            plugin.MarkerStorageService.PersonalMarkers.Add(m);
                         }
                     }
                 }
@@ -282,23 +282,23 @@ public class MainWindow : Window, IDisposable
         else
         {
             // Create new group
-            var newGroup = new WaymarkGroup
+            var newGroup = new MarkerGroup
             {
                 Id = group.Id == Guid.Empty ? Guid.NewGuid() : group.Id,
                 Name = group.Name,
-                CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash,
+                CreatorHash = plugin.MarkerStorageService.CurrentCharacterHash,
                 IsReadOnly = group.IsReadOnly,
                 Scope = group.Scope
             };
 
-            if (group.Scope == WaymarkScope.Shared)
-                plugin.WaymarkStorageService.SharedGroups.Add(newGroup);
+            if (group.Scope == MarkerScope.Shared)
+                plugin.MarkerStorageService.SharedGroups.Add(newGroup);
             else
-                plugin.WaymarkStorageService.PersonalGroups.Add(newGroup);
+                plugin.MarkerStorageService.PersonalGroups.Add(newGroup);
         }
 
-        plugin.WaymarkStorageService.SavePersonalWaymarks();
-        plugin.WaymarkStorageService.SaveSharedWaymarks();
+        plugin.MarkerStorageService.SavePersonalMarkers();
+        plugin.MarkerStorageService.SaveSharedMarkers();
     }
 
     /// <summary>
@@ -331,106 +331,106 @@ public class MainWindow : Window, IDisposable
 
         var groupIdSwaps = new Dictionary<Guid, Guid>();
         var conflictIds = new HashSet<Guid>(result.Conflicts.Select(c => c.Id));
-        var addedWaymarks = 0;
+        var addedMarkers = 0;
         var addedGroups = 0;
 
-        // Apply groups first (waymarks may reference them)
+        // Apply groups first (markers may reference them)
         foreach (var importedGroup in result.Payload.Groups)
         {
-            var isSharedGroup = importedGroup.Scope == WaymarkScope.Shared;
+            var isSharedGroup = importedGroup.Scope == MarkerScope.Shared;
             if (conflictIds.Contains(importedGroup.Id))
             {
                 var shouldOverwrite = overwriteAll || (importConflictChoices.TryGetValue(importedGroup.Id, out var v) && v);
                 if (shouldOverwrite)
                 {
                     // Remove entirely from both group collections first to safely overwrite
-                    plugin.WaymarkStorageService.PersonalGroups.RemoveAll(g => g.Id == importedGroup.Id);
-                    plugin.WaymarkStorageService.SharedGroups.RemoveAll(g => g.Id == importedGroup.Id);
-                    importedGroup.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                    plugin.MarkerStorageService.PersonalGroups.RemoveAll(g => g.Id == importedGroup.Id);
+                    plugin.MarkerStorageService.SharedGroups.RemoveAll(g => g.Id == importedGroup.Id);
+                    importedGroup.CreatorHash = plugin.MarkerStorageService.CurrentCharacterHash;
                     if (isSharedGroup)
                     {
-                        plugin.WaymarkStorageService.SharedGroups.Add(importedGroup);
+                        plugin.MarkerStorageService.SharedGroups.Add(importedGroup);
                     }
                     else
                     {
-                        plugin.WaymarkStorageService.PersonalGroups.Add(importedGroup);
+                        plugin.MarkerStorageService.PersonalGroups.Add(importedGroup);
                     }
                     addedGroups++;
                 }
                 else
                 {
                     // User chose NOT to overwrite. Apply specific resolution rules.
-                    var localGroup = plugin.WaymarkStorageService.PersonalGroups.FirstOrDefault(g => g.Id == importedGroup.Id)
-                                  ?? plugin.WaymarkStorageService.SharedGroups.FirstOrDefault(g => g.Id == importedGroup.Id);
+                    var localGroup = plugin.MarkerStorageService.PersonalGroups.FirstOrDefault(g => g.Id == importedGroup.Id)
+                                  ?? plugin.MarkerStorageService.SharedGroups.FirstOrDefault(g => g.Id == importedGroup.Id);
 
                     // Rules 1 & 3: If local group is Shared and Read-Only, generate a new Guid so we don't merge into a locked group.
-                    if (localGroup != null && localGroup.Scope == WaymarkScope.Shared && localGroup.IsReadOnly)
+                    if (localGroup != null && localGroup.Scope == MarkerScope.Shared && localGroup.IsReadOnly)
                     {
                         var oldId = importedGroup.Id;
                         importedGroup.Id = Guid.NewGuid();
                         groupIdSwaps[oldId] = importedGroup.Id;
 
-                        importedGroup.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                        importedGroup.CreatorHash = plugin.MarkerStorageService.CurrentCharacterHash;
                         if (isSharedGroup)
                         {
-                            plugin.WaymarkStorageService.SharedGroups.Add(importedGroup);
+                            plugin.MarkerStorageService.SharedGroups.Add(importedGroup);
                         }
                         else
                         {
-                            plugin.WaymarkStorageService.PersonalGroups.Add(importedGroup);
+                            plugin.MarkerStorageService.PersonalGroups.Add(importedGroup);
                         }
                         addedGroups++;
                     }
-                    // Rules 2, 4, 5: Merge into existing. Group is skipped, waymarks will attach to existing local group.
+                    // Rules 2, 4, 5: Merge into existing. Group is skipped, markers will attach to existing local group.
                 }
             }
             else
             {
-                importedGroup.CreatorHash = plugin.WaymarkStorageService.CurrentCharacterHash;
+                importedGroup.CreatorHash = plugin.MarkerStorageService.CurrentCharacterHash;
                 if (isSharedGroup)
                 {
-                    plugin.WaymarkStorageService.SharedGroups.Add(importedGroup);
+                    plugin.MarkerStorageService.SharedGroups.Add(importedGroup);
                 }
                 else
                 {
-                    plugin.WaymarkStorageService.PersonalGroups.Add(importedGroup);
+                    plugin.MarkerStorageService.PersonalGroups.Add(importedGroup);
                 }
                 addedGroups++;
             }
         }
 
-        // Apply waymarks
-        foreach (var importedWaymark in result.Payload.Waymarks)
+        // Apply imported markers
+        foreach (var importedMarker in result.Payload.Waymarks)
         {
-            if (importedWaymark.GroupId.HasValue && groupIdSwaps.TryGetValue(importedWaymark.GroupId.Value, out var newGroupId))
+            if (importedMarker.GroupId.HasValue && groupIdSwaps.TryGetValue(importedMarker.GroupId.Value, out var newGroupId))
             {
-                importedWaymark.GroupId = newGroupId;
-                // Since the group's ID changed (Rules 1 & 3), we clone the waymark so it doesn't conflict
+                importedMarker.GroupId = newGroupId;
+                // Since the group's ID changed (Rules 1 & 3), we clone the marker so it doesn't conflict
                 // and gets safely appended to the new group.
-                importedWaymark.Id = Guid.NewGuid();
+                importedMarker.Id = Guid.NewGuid();
             }
 
-            var isShared = importedWaymark.Scope == WaymarkScope.Shared;
-            if (conflictIds.Contains(importedWaymark.Id))
+            var isShared = importedMarker.Scope == MarkerScope.Shared;
+            if (conflictIds.Contains(importedMarker.Id))
             {
-                var shouldOverwrite = overwriteAll || (importConflictChoices.TryGetValue(importedWaymark.Id, out var v) && v);
+                var shouldOverwrite = overwriteAll || (importConflictChoices.TryGetValue(importedMarker.Id, out var v) && v);
                 if (shouldOverwrite)
                 {
                     // Remove entirely from both first to safely overwrite
-                    plugin.WaymarkStorageService.PersonalWaymarks.RemoveAll(w => w.Id == importedWaymark.Id);
-                    plugin.WaymarkStorageService.SharedWaymarks.RemoveAll(w => w.Id == importedWaymark.Id);
+                    plugin.MarkerStorageService.PersonalMarkers.RemoveAll(w => w.Id == importedMarker.Id);
+                    plugin.MarkerStorageService.SharedMarkers.RemoveAll(w => w.Id == importedMarker.Id);
 
                     if (isShared)
                     {
-                        importedWaymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
-                        plugin.WaymarkStorageService.SharedWaymarks.Add(importedWaymark);
+                        importedMarker.CharacterHash = plugin.MarkerStorageService.CurrentCharacterHash;
+                        plugin.MarkerStorageService.SharedMarkers.Add(importedMarker);
                     }
                     else
                     {
-                        importedWaymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
-                        plugin.WaymarkStorageService.PersonalWaymarks.Add(importedWaymark);
+                        importedMarker.CharacterHash = plugin.MarkerStorageService.CurrentCharacterHash;
+                        plugin.MarkerStorageService.PersonalMarkers.Add(importedMarker);
                     }
-                    addedWaymarks++;
+                    addedMarkers++;
                 }
                 // else skip
             }
@@ -438,21 +438,21 @@ public class MainWindow : Window, IDisposable
             {
                 if (isShared)
                 {
-                    importedWaymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
-                    plugin.WaymarkStorageService.SharedWaymarks.Add(importedWaymark);
+                    importedMarker.CharacterHash = plugin.MarkerStorageService.CurrentCharacterHash;
+                    plugin.MarkerStorageService.SharedMarkers.Add(importedMarker);
                 }
                 else
                 {
-                    importedWaymark.CharacterHash = plugin.WaymarkStorageService.CurrentCharacterHash;
-                    plugin.WaymarkStorageService.PersonalWaymarks.Add(importedWaymark);
+                    importedMarker.CharacterHash = plugin.MarkerStorageService.CurrentCharacterHash;
+                    plugin.MarkerStorageService.PersonalMarkers.Add(importedMarker);
                 }
-                addedWaymarks++;
+                addedMarkers++;
             }
         }
 
-        plugin.WaymarkStorageService.SavePersonalWaymarks();
-        plugin.WaymarkStorageService.SaveSharedWaymarks();
-        importFeedback = $"Imported {addedWaymarks} waymark(s) and {addedGroups} group(s).";
+        plugin.MarkerStorageService.SavePersonalMarkers();
+        plugin.MarkerStorageService.SaveSharedMarkers();
+        importFeedback = $"Imported {addedMarkers} marker(s) and {addedGroups} group(s).";
         importFeedbackTicks = 240;
         Plugin.Log.Information(importFeedback);
     }
@@ -466,7 +466,7 @@ public class MainWindow : Window, IDisposable
     public override void Draw()
     {
         // Draw modal dialogs
-        deleteWaymarkModal.Draw(plugin);
+        deleteMarkerModal.Draw(plugin);
         deleteGroupModal.Draw(plugin);
         importConflictModal.Draw();
         groupEditorModal.Draw(plugin);
@@ -485,33 +485,33 @@ public class MainWindow : Window, IDisposable
         searchBarSection.Draw();
 
         // Main content area with scrolling
-        using var child = ImRaii.Child("WaymarkListChild", Vector2.Zero, true);
+        using var child = ImRaii.Child("MarkerListChild", Vector2.Zero, true);
 
-        var visibleWaymarks = plugin.WaymarkStorageService.GetVisibleWaymarks();
+        var visibleMarkers = plugin.MarkerStorageService.GetVisibleMarkers();
 
         if (!child.Success) return;
 
-        if (visibleWaymarks.Count == 0)
+        if (visibleMarkers.Count == 0)
         {
             emptyStateSection.Draw();
             return;
         }
 
-        // Filter waymarks using the search bar's state
-        var filteredWaymarks = FilterWaymarks(visibleWaymarks);
+        // Filter markers using the search bar's state
+        var filteredMarkers = FilterMarkers(visibleMarkers);
 
         // Draw the appropriate view
         if (plugin.Configuration.UseGroupView)
-            groupViewSection.Draw(filteredWaymarks, searchBarSection.SearchFilter, searchBarSection.FilterCurrentZone);
+            groupViewSection.Draw(filteredMarkers, searchBarSection.SearchFilter, searchBarSection.FilterCurrentZone);
         else
-            tableViewSection.Draw(filteredWaymarks, visibleWaymarks.Count);
+            tableViewSection.Draw(filteredMarkers, visibleMarkers.Count);
     }
 
 
     #region Search Filtering
-    private List<Waymark> FilterWaymarks(List<Waymark> waymarks)
+    private List<Marker> FilterMarkers(List<Marker> markers)
     {
-        var filtered = waymarks;
+        var filtered = markers;
 
         // Zone filter
         if (searchBarSection.FilterCurrentZone)

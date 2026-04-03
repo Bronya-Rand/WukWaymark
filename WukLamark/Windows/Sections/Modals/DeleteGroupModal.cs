@@ -10,15 +10,15 @@ namespace WukLamark.Windows.Sections.Modals;
 public class DeleteGroupModal
 {
     private bool isOpen = false;
-    private WaymarkGroup? groupToDelete = null;
-    private bool keepWaymarks = false;
+    private MarkerGroup? groupToDelete = null;
+    private bool keepMarkers = false;
 
-    public Action<WaymarkGroup, bool>? OnConfirmDelete { get; set; }
+    public Action<MarkerGroup, bool>? OnConfirmDelete { get; set; }
 
-    public void Open(WaymarkGroup group)
+    public void Open(MarkerGroup group)
     {
         groupToDelete = group;
-        keepWaymarks = true;
+        keepMarkers = true;
         isOpen = true;
     }
 
@@ -28,8 +28,8 @@ public class DeleteGroupModal
 
         // Validation
         var isCreator = groupToDelete.CreatorHash != null &&
-                        plugin.WaymarkStorageService.CurrentCharacterHash != null &&
-                        groupToDelete.CreatorHash == plugin.WaymarkStorageService.CurrentCharacterHash;
+                        plugin.MarkerStorageService.CurrentCharacterHash != null &&
+                        groupToDelete.CreatorHash == plugin.MarkerStorageService.CurrentCharacterHash;
 
         if (groupToDelete.IsReadOnly || !isCreator)
         {
@@ -47,13 +47,13 @@ public class DeleteGroupModal
         using var deleteGroupModal = ImRaii.PopupModal("Delete Group?##WWDeleteGroupModal", ref isOpen, ImGuiWindowFlags.AlwaysAutoResize);
         if (deleteGroupModal)
         {
-            var allWaymarks = plugin.WaymarkStorageService.GetVisibleWaymarks();
-            var waymarksInGroup = allWaymarks.Where(w => w.GroupId == groupToDelete.Id).Count();
+            var allMarkers = plugin.MarkerStorageService.GetVisibleMarkers();
+            var markersInGroup = allMarkers.Where(w => w.GroupId == groupToDelete.Id).Count();
             ImGui.Text($"Are you sure you want to delete the group '{groupToDelete.Name}'?");
-            if (waymarksInGroup > 0)
+            if (markersInGroup > 0)
             {
-                ImGui.Text($"This group contains {waymarksInGroup} waymark(s).");
-                ImGui.Checkbox("Keep waymarks (move to Ungrouped)", ref keepWaymarks);
+                ImGui.Text($"This group contains {markersInGroup} marker(s).");
+                ImGui.Checkbox("Keep markers (move to Ungrouped)", ref keepMarkers);
             }
 
             ImGui.Spacing();
@@ -72,7 +72,7 @@ public class DeleteGroupModal
 
             if (ImGui.Button("Delete", new Vector2(buttonWidth, 0)))
             {
-                OnConfirmDelete?.Invoke(groupToDelete, keepWaymarks);
+                OnConfirmDelete?.Invoke(groupToDelete, keepMarkers);
                 isOpen = false;
                 groupToDelete = null;
                 ImGui.CloseCurrentPopup();

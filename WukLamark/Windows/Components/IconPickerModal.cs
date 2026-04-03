@@ -13,8 +13,9 @@ namespace WukLamark.Windows.Components;
 
 internal class IconPickerModal(Plugin plugin)
 {
-    private static readonly (string Id, string Name)[] IconCategories =
+    private static readonly (string? Id, string Name)[] IconCategories =
     [
+        (null, "All Icons"),
         ("Map", "Map Symbols"), ("Quest", "Quest Markers"), ("Item", "Items"), ("Action", "Actions"), ("Status", "Status Effects"),
         ("Macro", "Macros"), ("Emote", "Emotes"), ("Perform", "Performance"), ("General", "General"),
         ("Main", "Main Commands"), ("Extra", "Extra")
@@ -32,7 +33,7 @@ internal class IconPickerModal(Plugin plugin)
         searchFilter = string.Empty;
     }
 
-    public void Draw(string waymarkName, string identifier)
+    public void Draw(string markerName, string identifier)
     {
         if (!isOpen) return;
 
@@ -40,7 +41,7 @@ internal class IconPickerModal(Plugin plugin)
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
         ImGui.SetNextWindowSize(new Vector2(600, 500), ImGuiCond.FirstUseEver);
 
-        using var iconPickerModal = ImRaii.PopupModal($"Icon Picker ({waymarkName})###{identifier}", ref isOpen, ImGuiWindowFlags.NoSavedSettings);
+        using var iconPickerModal = ImRaii.PopupModal($"Marker Icon Picker ({markerName})###{identifier}", ref isOpen, ImGuiWindowFlags.NoSavedSettings);
         if (!iconPickerModal) return;
 
         if (!plugin.IconBrowserService.IsLoaded)
@@ -78,17 +79,22 @@ internal class IconPickerModal(Plugin plugin)
         }
     }
 
-    public void OpenPopup(string waymarkName, string identifier)
+    public void OpenPopup(string markerName, string identifier)
     {
         Open();
-        ImGui.OpenPopup($"Icon Picker ({waymarkName})###{identifier}");
+        ImGui.OpenPopup($"Marker Icon Picker ({markerName})###{identifier}");
     }
 
-    private void DrawIconGrid(IEnumerable<IconInfo> allIcons, string category, string searchStr)
+    private void DrawIconGrid(IEnumerable<IconInfo> allIcons, string? category, string searchStr)
     {
         var searchLower = searchStr.ToLowerInvariant();
-        var query = allIcons
-            .Where(i => i.Source == category)
+        var icons = allIcons;
+
+        if (category != null)
+            icons = icons
+            .Where(i => i.Source == category);
+
+        var query = icons
             .Where(i => string.IsNullOrEmpty(searchLower) ||
                         i.Name.ToLowerInvariant().Contains(searchLower) ||
                         i.IconId.ToString().Contains(searchLower));

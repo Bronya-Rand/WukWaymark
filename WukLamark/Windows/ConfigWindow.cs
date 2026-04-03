@@ -9,7 +9,7 @@ using WukLamark.Models;
 namespace WukLamark.Windows;
 
 /// <summary>
-/// Configuration window for customizing waymark display behavior and managing data.
+/// Configuration window for customizing marker display behavior and managing data.
 /// </summary>
 public class ConfigWindow : Window, IDisposable
 {
@@ -37,23 +37,23 @@ public class ConfigWindow : Window, IDisposable
 
     public override void Draw()
     {
-        ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.0f, 1.0f), "Waymark Display Settings");
+        ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.0f, 1.0f), "Map Marker Display Settings");
         ImGui.Separator();
         ImGui.Spacing();
 
-        // Enable/Disable waymark map display
-        var waymarksMapEnabled = configuration.WaymarksMapEnabled;
-        if (ImGui.Checkbox("Enable Waymark Display on Map", ref waymarksMapEnabled))
+        // Enable/Disable marker map display
+        var markersMapEnabled = configuration.WaymarksMapEnabled;
+        if (ImGui.Checkbox("Enable Marker Display on Map", ref markersMapEnabled))
         {
-            configuration.WaymarksMapEnabled = waymarksMapEnabled;
+            configuration.WaymarksMapEnabled = markersMapEnabled;
             configuration.Save();
         }
 
-        // Enable/Disable waymark minimap display
-        var waymarksMinimapEnabled = configuration.WaymarksMinimapEnabled;
-        if (ImGui.Checkbox("Enable Waymark Display on Minimap", ref waymarksMinimapEnabled))
+        // Enable/Disable marker minimap display
+        var markersMinimapEnabled = configuration.WaymarksMinimapEnabled;
+        if (ImGui.Checkbox("Enable Marker Display on Minimap", ref markersMinimapEnabled))
         {
-            configuration.WaymarksMinimapEnabled = waymarksMinimapEnabled;
+            configuration.WaymarksMinimapEnabled = markersMinimapEnabled;
             configuration.Save();
         }
 
@@ -73,7 +73,7 @@ public class ConfigWindow : Window, IDisposable
 
         // Minimap edge fading
         var fadeOnMinimapEdge = configuration.FadeWaymarkOnMinimapEdge;
-        if (ImGui.Checkbox("Fade Waymarks on Minimap Edge", ref fadeOnMinimapEdge))
+        if (ImGui.Checkbox("Fade Markers on Minimap Edge", ref fadeOnMinimapEdge))
         {
             configuration.FadeWaymarkOnMinimapEdge = fadeOnMinimapEdge;
             configuration.Save();
@@ -81,7 +81,7 @@ public class ConfigWindow : Window, IDisposable
 
         // Map edge fading
         var fadeOnMapEdge = configuration.FadeWaymarkOnMapEdge;
-        if (ImGui.Checkbox("Fade Waymarks on Map Edge", ref fadeOnMapEdge))
+        if (ImGui.Checkbox("Fade Markers on Map Edge", ref fadeOnMapEdge))
         {
             configuration.FadeWaymarkOnMapEdge = fadeOnMapEdge;
             configuration.Save();
@@ -101,12 +101,12 @@ public class ConfigWindow : Window, IDisposable
 
         ImGui.Spacing();
 
-        ImGui.Text("Default Shape for New Waymarks:");
+        ImGui.Text("Default Shape for New Markers:");
         ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
         var shapeIndex = (int)configuration.DefaultWaymarkShape;
         if (ImGui.Combo("##DefaultShape", ref shapeIndex, "Circle\0Square\0Triangle\0Diamond\0Star\0", 5))
         {
-            configuration.DefaultWaymarkShape = (WaymarkShape)shapeIndex;
+            configuration.DefaultWaymarkShape = (MarkerShape)shapeIndex;
             configuration.Save();
         }
 
@@ -127,30 +127,30 @@ public class ConfigWindow : Window, IDisposable
         ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), "Data Management");
         ImGui.Spacing();
 
-        // Clear all waymarks button with confirmation
-        if (ImGui.Button("Erase All Created Waymarks"))
+        // Clear all markers button with confirmation
+        if (ImGui.Button("Erase All Created Markers"))
         {
             showClearConfirmation = true;
-            ImGui.OpenPopup("Erase All Created Waymarks##WWClearConfirmation");
+            ImGui.OpenPopup("Erase All Created Markers##WWClearConfirmation");
         }
 
         // Confirmation popup
-        using var eraseWaymarksModal = ImRaii.PopupModal("Erase All Created Waymarks##WWClearConfirmation", ref showClearConfirmation, ImGuiWindowFlags.AlwaysAutoResize);
-        if (eraseWaymarksModal)
+        using var eraseMarkersModal = ImRaii.PopupModal("Erase All Created Markers##WWClearConfirmation", ref showClearConfirmation, ImGuiWindowFlags.AlwaysAutoResize);
+        if (eraseMarkersModal)
         {
-            var totalWaymarks = plugin.WaymarkStorageService.PersonalWaymarks.Count +
-                               plugin.WaymarkStorageService.GetSharedCreatedWaymarksCount();
-            ImGui.Text($"Are you sure you want to delete all {totalWaymarks} waymarks?");
+            var totalMarkers = plugin.MarkerStorageService.PersonalMarkers.Count +
+                               plugin.MarkerStorageService.GetSharedCreatedMarkersCount();
+            ImGui.Text($"Are you sure you want to delete all {totalMarkers} markers?");
             ImGui.Text("This action cannot be undone!");
             ImGui.Spacing();
 
             if (ImGui.Button("Yes, Delete All", new Vector2(150, 0)))
             {
-                plugin.WaymarkStorageService.PersonalWaymarks.Clear();
-                plugin.WaymarkStorageService.EraseCreatedSharedWaymarks();
-                plugin.WaymarkStorageService.SavePersonalWaymarks();
-                plugin.WaymarkStorageService.SaveSharedWaymarks();
-                Plugin.ChatGui.Print("[WukLamark] All waymarks have been deleted.");
+                plugin.MarkerStorageService.PersonalMarkers.Clear();
+                plugin.MarkerStorageService.EraseCreatedSharedMarkers();
+                plugin.MarkerStorageService.SavePersonalMarkers();
+                plugin.MarkerStorageService.SaveSharedMarkers();
+                Plugin.ChatGui.Print("[WukLamark] All markers have been deleted.");
                 ImGui.CloseCurrentPopup();
             }
 

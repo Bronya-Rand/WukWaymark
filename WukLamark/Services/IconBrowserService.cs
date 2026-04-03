@@ -69,7 +69,6 @@ namespace WukLamark.Services
                     uniqueIcons[iconId] = new IconInfo { IconId = iconId, Name = $"Macro Icon {iconId}", Source = "Macro" };
                 }
 
-                // TODO: Add sheets for Performance, General, Main Commands and Extras icons
                 var items = dataManager.GetExcelSheet<Item>()!;
                 AddIcons(items, i => i.Icon, i => i.Name.ToString(), "Item");
 

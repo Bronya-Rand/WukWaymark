@@ -7,7 +7,7 @@ namespace WukLamark.Models;
 /// Groups are primarily name-based, with an optional game icon for sidebar display.
 /// </summary>
 [Serializable]
-public class WaymarkGroup
+public class MarkerGroup
 {
     /// <summary>Unique identifier for this group.</summary>
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -22,7 +22,7 @@ public class WaymarkGroup
     public uint? IconId { get; set; }
 
     /// <summary>Persistence scope for this group and its waymarks.</summary>
-    public WaymarkScope Scope { get; set; } = WaymarkScope.Personal;
+    public MarkerScope Scope { get; set; } = MarkerScope.Personal;
 
     /// <summary>Timestamp when this group was created.</summary>
     public DateTime CreatedAt { get; set; } = DateTime.Now;

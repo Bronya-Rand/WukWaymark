@@ -8,44 +8,44 @@ using WukLamark.Utils;
 namespace WukLamark.Services;
 
 /// <summary>
-/// Service class containing business logic for waymark operations.
-/// Handles waymark creation, deletion, undo, and persistence.
+/// Service class containing business logic for marker operations.
+/// Handles marker creation, deletion, undo, and persistence.
 /// </summary>
-public class WaymarkService(Configuration configuration, WaymarkStorageService storageService)
+public class MarkerService(Configuration configuration, MarkerStorageService storageService)
 {
     private readonly Configuration configuration = configuration;
-    private readonly WaymarkStorageService storageService = storageService;
+    private readonly MarkerStorageService storageService = storageService;
 
     /// <summary>
-    /// Undo buffer for recently deleted waymarks.
+    /// Undo buffer for recently deleted markers.
     /// </summary>
-    private readonly LinkedList<Waymark> deletedWaymarks = new();
+    private readonly LinkedList<Marker> deletedMarkers = new();
 
     /// <summary>Maximum number of deletions to remember for undo.</summary>
     private const int MaxUndoHistory = 10;
 
     /// <summary>Whether there are any deletions that can be undone.</summary>
-    public bool CanUndo => deletedWaymarks.Count > 0;
+    public bool CanUndo => deletedMarkers.Count > 0;
 
     /// <summary>Number of deletions available for undo.</summary>
-    public int UndoCount => deletedWaymarks.Count;
+    public int UndoCount => deletedMarkers.Count;
 
     /// <summary>
-    /// Saves the player's current location as a new waymark.
+    /// Saves the player's current location as a new map marker.
     /// 
     /// This method:
     /// 1. Validates the player is logged in
     /// 2. Retrieves current location (position, territory, map, world)
-    /// 3. Creates a waymark with auto-generated name and color
-    /// 4. Persists the waymark to configuration
+    /// 3. Creates a marker with auto-generated name and color
+    /// 4. Persists the marker to storage
     /// 5. Provides user feedback via chat message
     /// 
     /// Validation errors are reported to the player via error messages.
     /// </summary>
-    /// <param name="group">Optional group to assign the waymark to.</param>
-    /// <param name="scope">The scope of the waymark (Personal or Shared).</param>
-    /// <returns>The created waymark if successful, null if validation failed</returns>
-    public unsafe Waymark? SaveCurrentLocation(WaymarkGroup? group = null, WaymarkScope scope = WaymarkScope.Personal)
+    /// <param name="group">Optional group to assign the marker to.</param>
+    /// <param name="scope">The scope of the marker (Personal or Shared).</param>
+    /// <returns>The created marker if successful, null if validation failed</returns>
+    public unsafe Marker? SaveCurrentLocation(MarkerGroup? group = null, MarkerScope scope = MarkerScope.Personal)
     {
         // Verify player is logged in
         if (!Plugin.ClientState.IsLoggedIn) return null;
@@ -78,7 +78,7 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
             return null;
         }
 
-        // Get current world ID (used to differentiate waymarks across data centers)
+        // Get current world ID (used to differentiate markers across data centers)
         var currentWorldId = player.CurrentWorld.RowId;
         if (currentWorldId == 0)
         {
@@ -86,16 +86,16 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
             return null;
         }
 
-        // Create a new waymark with current location data
-        var totalCount = storageService.PersonalWaymarks.Count + storageService.SharedWaymarks.Count;
-        var waymark = new Waymark
+        // Create a new marker with current location data
+        var totalCount = storageService.PersonalMarkers.Count + storageService.SharedMarkers.Count;
+        var marker = new Marker
         {
             Position = player.Position,
             TerritoryId = territoryId,
             MapId = mapId,
             WorldId = currentWorldId,
             WardId = wardId,
-            Name = $"Waymark {totalCount + 1}",
+            Name = $"Marker {totalCount + 1}",
             Color = Colors.GetNextColor(totalCount),
             Shape = configuration.DefaultWaymarkShape,
             CreatedAt = DateTime.Now,
@@ -106,99 +106,99 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
         };
 
         // Persist to correct storage based on scope
-        if (scope == WaymarkScope.Shared)
+        if (scope == MarkerScope.Shared)
         {
-            storageService.SharedWaymarks.Add(waymark);
-            storageService.SaveSharedWaymarks();
+            storageService.SharedMarkers.Add(marker);
+            storageService.SaveSharedMarkers();
         }
         else
         {
-            storageService.PersonalWaymarks.Add(waymark);
-            storageService.SavePersonalWaymarks();
+            storageService.PersonalMarkers.Add(marker);
+            storageService.SavePersonalMarkers();
         }
 
         // Provide user feedback
         if (group != null)
         {
-            Plugin.ChatGui.Print($"[WukLamark] Saved waymark '{waymark.Name}' at current location in group '{group.Name}'.");
+            Plugin.ChatGui.Print($"[WukLamark] Saved marker '{marker.Name}' at current location in group '{group.Name}'.");
         }
         else
         {
-            Plugin.ChatGui.Print($"[WukLamark] Saved waymark '{waymark.Name}' at current location.");
+            Plugin.ChatGui.Print($"[WukLamark] Saved marker '{marker.Name}' at current location.");
         }
-        Plugin.Log.Information($"Saved waymark: {waymark.Name} at {waymark.Position} (Territory: {territoryId}, Map: {mapId}, Scope: {scope})");
+        Plugin.Log.Information($"Saved marker: {marker.Name} at {marker.Position} (Territory: {territoryId}, Map: {mapId}, Scope: {scope})");
 
-        return waymark;
+        return marker;
     }
 
     /// <summary>
-    /// Deletes a waymark, pushing it onto the undo stack first.
+    /// Deletes a map marker, pushing it onto the undo stack first.
     /// </summary>
-    /// <param name="waymark">The waymark to delete.</param>
-    public void DeleteWaymark(Waymark waymark)
+    /// <param name="marker">The marker to delete.</param>
+    public void DeleteMarker(Marker marker)
     {
         // Validate permissions before allowing deletion
-        if (waymark.IsReadOnly)
+        if (marker.IsReadOnly)
         {
-            Plugin.ChatGui.PrintError($"[WukLamark] Waymark '{waymark.Name}' is read-only and cannot be deleted.");
+            Plugin.ChatGui.PrintError($"[WukLamark] Marker '{marker.Name}' is read-only and cannot be deleted.");
             return;
         }
-        if (waymark.Scope == WaymarkScope.Personal && waymark.CharacterHash != storageService.CurrentCharacterHash)
+        if (marker.Scope == MarkerScope.Personal && marker.CharacterHash != storageService.CurrentCharacterHash)
         {
-            Plugin.ChatGui.PrintError($"[WukLamark] You do not have permission to delete waymark '{waymark.Name}'.");
+            Plugin.ChatGui.PrintError($"[WukLamark] You do not have permission to delete marker '{marker.Name}'.");
             return;
         }
 
         // Push to undo buffer (LIFO - most recent at front)
-        if (deletedWaymarks.Count >= MaxUndoHistory)
+        if (deletedMarkers.Count >= MaxUndoHistory)
         {
             // Remove oldest entry (at end)
-            deletedWaymarks.RemoveLast();
+            deletedMarkers.RemoveLast();
         }
 
         // Add newest entry at front
-        deletedWaymarks.AddFirst(waymark);
+        deletedMarkers.AddFirst(marker);
 
         // Remove from whichever storage contains it
-        var removedFromPersonal = storageService.PersonalWaymarks.Remove(waymark);
-        var removedFromShared = storageService.SharedWaymarks.Remove(waymark);
+        var removedFromPersonal = storageService.PersonalMarkers.Remove(marker);
+        var removedFromShared = storageService.SharedMarkers.Remove(marker);
 
         if (removedFromPersonal)
-            storageService.SavePersonalWaymarks();
+            storageService.SavePersonalMarkers();
         if (removedFromShared)
-            storageService.SaveSharedWaymarks();
+            storageService.SaveSharedMarkers();
 
-        Plugin.Log.Information($"Deleted waymark: {waymark.Name} (undo available)");
+        Plugin.Log.Information($"Deleted marker: {marker.Name} (undo available)");
     }
 
     /// <summary>
-    /// Undoes the most recent waymark deletion, restoring the waymark.
+    /// Undoes the most recent map marker deletion, restoring the map marker.
     /// </summary>
-    /// <returns>The restored waymark, or null if nothing to undo.</returns>
-    public Waymark? UndoDelete()
+    /// <returns>The restored map marker, or null if nothing to undo.</returns>
+    public Marker? UndoDelete()
     {
         if (!CanUndo)
             return null;
 
         // Remove from front (most recent)
-        var waymark = deletedWaymarks.First!.Value;
-        deletedWaymarks.RemoveFirst();
+        var marker = deletedMarkers.First!.Value;
+        deletedMarkers.RemoveFirst();
 
-        if (waymark.Scope == WaymarkScope.Shared)
+        if (marker.Scope == MarkerScope.Shared)
         {
-            storageService.SharedWaymarks.Add(waymark);
-            storageService.SaveSharedWaymarks();
+            storageService.SharedMarkers.Add(marker);
+            storageService.SaveSharedMarkers();
         }
         else
         {
-            storageService.PersonalWaymarks.Add(waymark);
-            storageService.SavePersonalWaymarks();
+            storageService.PersonalMarkers.Add(marker);
+            storageService.SavePersonalMarkers();
         }
 
-        Plugin.ChatGui.Print($"[WukLamark] Restored waymark '{waymark.Name}'.");
-        Plugin.Log.Information($"Undo delete: restored waymark '{waymark.Name}' (Scope: {waymark.Scope})");
+        Plugin.ChatGui.Print($"[WukLamark] Restored map marker '{marker.Name}'.");
+        Plugin.Log.Information($"Undo delete: restored map marker '{marker.Name}' (Scope: {marker.Scope})");
 
-        return waymark;
+        return marker;
     }
 
     /// <summary>
@@ -206,7 +206,7 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
     /// </summary>
     /// <param name="name">The group name to search for.</param>
     /// <returns>The matching group, or null if not found.</returns>
-    public WaymarkGroup? FindGroupByName(string name)
+    public MarkerGroup? FindGroupByName(string name)
     {
         var allGroups = storageService.GetVisibleGroups();
         foreach (var group in allGroups)
@@ -218,11 +218,11 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
     }
 
     /// <summary>
-    /// Checks if the current user has permission to add a waymark to the specified group.
+    /// Checks if the current user has permission to add a map marker to the specified group.
     /// </summary>
-    public bool CanAddWaymarkToGroup(WaymarkGroup group)
+    public bool CanAddMarkerToGroup(MarkerGroup group)
     {
-        if (group.Scope == WaymarkScope.Personal) return true;
+        if (group.Scope == MarkerScope.Personal) return true;
         if (!group.IsReadOnly) return true;
 
         var currentHash = storageService.CurrentCharacterHash;
@@ -244,7 +244,7 @@ public class WaymarkService(Configuration configuration, WaymarkStorageService s
         foreach (var group in allGroups)
         {
             var isCreator = group.CreatorHash != null && storageService.CurrentCharacterHash != null && group.CreatorHash == storageService.CurrentCharacterHash;
-            var canEdit = group.Scope == WaymarkScope.Personal || !group.IsReadOnly || isCreator;
+            var canEdit = group.Scope == MarkerScope.Personal || !group.IsReadOnly || isCreator;
 
             if (canEdit)
                 output.AppendLine($"- {group.Name}");
