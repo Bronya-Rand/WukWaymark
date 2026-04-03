@@ -25,12 +25,22 @@ internal class IconPickerModal(Plugin plugin)
     private string searchFilter = string.Empty;
     private bool isOpen;
 
+    // Caches
+    private bool cacheInitialized = false;
+    private string cachedSearchStr = string.Empty;
+    private string? cachedCategory = null;
+    private List<IconInfo> cachedIcons = [];
+    private bool cachedTruncatedIcons;
+
     public Action<uint?>? OnIconSelected { get; set; }
 
     public void Open()
     {
         isOpen = true;
         searchFilter = string.Empty;
+        cacheInitialized = false;
+        cachedIcons = [];
+        cachedTruncatedIcons = false;
     }
 
     public void Draw(string markerName, string identifier)
@@ -88,29 +98,43 @@ internal class IconPickerModal(Plugin plugin)
     private void DrawIconGrid(IEnumerable<IconInfo> allIcons, string? category, string searchStr)
     {
         var searchLower = searchStr.ToLowerInvariant();
-        var icons = allIcons;
 
-        if (category != null)
-            icons = icons
-            .Where(i => i.Source == category);
+        if (!cacheInitialized || searchLower != cachedSearchStr || category != cachedCategory)
+        {
+            // Invalidate caches
+            if (searchLower != cachedSearchStr)
+                cachedSearchStr = searchLower;
+            if (category != cachedCategory)
+                cachedCategory = category;
 
-        var query = icons
-            .Where(i => string.IsNullOrEmpty(searchLower) ||
-                        i.Name.ToLowerInvariant().Contains(searchLower) ||
-                        i.IconId.ToString().Contains(searchLower));
+            var icons = allIcons;
 
-        var totalCount = query.Count();
-        var filteredIcons = query.Take(200).ToList();
+            if (category != null)
+                icons = icons
+                .Where(i => i.Source == category);
 
-        if (filteredIcons.Count == 0)
+            var query = icons
+                .Where(i => string.IsNullOrEmpty(searchLower) ||
+                            i.Name.Contains(searchLower, StringComparison.InvariantCultureIgnoreCase) ||
+                            i.IconId.ToString().Contains(searchLower));
+
+            var snapshot = query.Take(201).ToList();
+            cachedTruncatedIcons = snapshot.Count > 200;
+            cachedIcons = snapshot.Take(200).ToList();
+
+            if (!cacheInitialized)
+                cacheInitialized = true;
+        }
+
+        if (cachedIcons.Count == 0)
         {
             ImGui.TextDisabled("No matching icons found.");
             return;
         }
 
-        if (totalCount > 200)
+        if (cachedTruncatedIcons)
         {
-            ImGui.TextColored(new Vector4(1f, 0.8f, 0.2f, 1f), $"Showing 200 of {totalCount} icons. Please refine your search.");
+            ImGui.TextColored(new Vector4(1f, 0.8f, 0.2f, 1f), $"Truncated results to 200 icons. Please refine your search.");
             ImGui.Spacing();
         }
 
@@ -125,7 +149,7 @@ internal class IconPickerModal(Plugin plugin)
         using var iconTable = ImRaii.Table($"IconTable_{category}", columns);
         if (!iconTable) return;
 
-        foreach (var icon in filteredIcons)
+        foreach (var icon in cachedIcons)
         {
             ImGui.TableNextColumn();
 
