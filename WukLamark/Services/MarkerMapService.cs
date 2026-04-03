@@ -15,16 +15,16 @@ using WukLamark.Windows;
 namespace WukLamark.Services
 {
     /// <summary>
-    /// Service responsible for calculating Waymark positions on the full Area Map (AreaMap addon).
+    /// Service responsible for calculating marker positions on the full Area Map (AreaMap addon).
     /// </summary>
-    internal class WaymarkMapService : IDisposable
+    internal class MarkerMapService : IDisposable
     {
         private readonly Plugin plugin;
         private readonly Configuration configuration;
-        private readonly WaymarkWindow window;
+        private readonly MarkerWindow window;
         private bool disposed;
 
-        public readonly List<(Vector2 ScreenPos, WaymarkShape Shape, float MarkerSize, uint Color, string? Name, uint? IconId)> WaymarksToRender = [];
+        public readonly List<(Vector2 ScreenPos, MarkerShape Shape, float MarkerSize, uint Color, string? Name, uint? IconId)> MarkersToRender = [];
 
         // Cached state from Framework.Update for debug / window access
         public Vector2? MapCenterScreenPos { get; private set; }
@@ -35,11 +35,11 @@ namespace WukLamark.Services
         public float MapMaxX { get; private set; }
         public float MapMaxY { get; private set; }
 
-        public WaymarkMapService(Plugin plugin)
+        public MarkerMapService(Plugin plugin)
         {
             this.plugin = plugin;
             configuration = plugin.Configuration;
-            window = new WaymarkWindow(this, plugin);
+            window = new MarkerWindow(this, plugin);
             Plugin.Framework.Update += OnFrameworkUpdate;
         }
 
@@ -56,12 +56,12 @@ namespace WukLamark.Services
         }
 
         /// <summary>
-        /// Called every frame to gather game state and pre-calculate waymark screen positions.
+        /// Called every frame to gather game state and pre-calculate marker screen positions.
         /// All coordinate math happens here so the window is a thin rendering layer.
         /// </summary>
         private unsafe void OnFrameworkUpdate(IFramework framework)
         {
-            WaymarksToRender.Clear();
+            MarkersToRender.Clear();
             MapCenterScreenPos = null;
 
             if (!Plugin.ClientState.IsLoggedIn) return;
@@ -190,48 +190,48 @@ namespace WukLamark.Services
             MapMaxY = MapMinY + (clipNode->Height * clipNode->ScaleY * areaMap->Scale);
 
             // ═══════════════════════════════════════════════════════════════
-            // STEP 6: Process and pre-calculate waymark screen positions
+            // STEP 6: Process and pre-calculate marker screen positions
             // ═══════════════════════════════════════════════════════════════
 
-            var multiplierForWaymarks = GetMultiplier(zoomIndex, areaMap->Scale);
+            var multiplierForMarkers = GetMultiplier(zoomIndex, areaMap->Scale);
             var mapCenterWorldPos = Vector3.Zero;
             var currentMapId = agentMap->SelectedMapId;
 
-            foreach (var waymark in plugin.WaymarkStorageService.GetVisibleWaymarks())
+            foreach (var marker in plugin.MarkerStorageService.GetVisibleMarkers())
             {
                 // Early culling
-                if (waymark.WorldId != currentWorldId)
+                if (marker.WorldId != currentWorldId)
                     continue; // Wrong world
-                if (waymark.MapId != currentMapId)
+                if (marker.MapId != currentMapId)
                     continue; // Wrong map
-                if (waymark.WardId != -1 && waymark.WardId != wardId)
+                if (marker.WardId != -1 && marker.WardId != wardId)
                     continue; // Wrong ward (for housing areas)
 
                 // Visibility radius check
-                if (configuration.FadeWaymarkOnMapEdge && waymark.VisibilityRadius > 0)
+                if (configuration.FadeWaymarkOnMapEdge && marker.VisibilityRadius > 0)
                 {
-                    var distSquared = Vector3.DistanceSquared(player.Position, waymark.Position);
-                    var radiusSquared = waymark.VisibilityRadius * waymark.VisibilityRadius;
+                    var distSquared = Vector3.DistanceSquared(player.Position, marker.Position);
+                    var radiusSquared = marker.VisibilityRadius * marker.VisibilityRadius;
 
                     if (distSquared > radiusSquared)
                         continue; // Beyond visibility radius — don't render
                 }
 
-                var deltaWorldX = waymark.Position.X - mapCenterWorldPos.X;
-                var deltaWorldY = waymark.Position.Z - mapCenterWorldPos.Z;
+                var deltaWorldX = marker.Position.X - mapCenterWorldPos.X;
+                var deltaWorldY = marker.Position.Z - mapCenterWorldPos.Z;
 
-                var waymarkScreenX = mapCenterScreenPos.X + (deltaWorldX * zoneScale * multiplierForWaymarks);
-                var waymarkScreenY = mapCenterScreenPos.Y + (deltaWorldY * zoneScale * multiplierForWaymarks);
+                var markerScreenX = mapCenterScreenPos.X + (deltaWorldX * zoneScale * multiplierForMarkers);
+                var markerScreenY = mapCenterScreenPos.Y + (deltaWorldY * zoneScale * multiplierForMarkers);
 
                 // Edge clamping via ray-to-rectangle intersection
-                var outOfBoundsX = waymarkScreenX < MapMinX || waymarkScreenX > MapMaxX;
-                var outOfBoundsY = waymarkScreenY < MapMinY || waymarkScreenY > MapMaxY;
+                var outOfBoundsX = markerScreenX < MapMinX || markerScreenX > MapMaxX;
+                var outOfBoundsY = markerScreenY < MapMinY || markerScreenY > MapMaxY;
                 var isClamped = false;
 
                 if (outOfBoundsX || outOfBoundsY)
                 {
-                    var rayDirX = waymarkScreenX - mapCenterScreenPos.X;
-                    var rayDirY = waymarkScreenY - mapCenterScreenPos.Y;
+                    var rayDirX = markerScreenX - mapCenterScreenPos.X;
+                    var rayDirY = markerScreenY - mapCenterScreenPos.Y;
 
                     var tPointX = float.MaxValue;
                     if (rayDirX > 0)
@@ -249,23 +249,23 @@ namespace WukLamark.Services
 
                     if (tIntersect < 1.0f)
                     {
-                        waymarkScreenX = mapCenterScreenPos.X + (rayDirX * tIntersect);
-                        waymarkScreenY = mapCenterScreenPos.Y + (rayDirY * tIntersect);
+                        markerScreenX = mapCenterScreenPos.X + (rayDirX * tIntersect);
+                        markerScreenY = mapCenterScreenPos.Y + (rayDirY * tIntersect);
                         isClamped = true;
                     }
                 }
 
                 // Final safety clamp
-                waymarkScreenX = Math.Clamp(waymarkScreenX, MapMinX, MapMaxX);
-                waymarkScreenY = Math.Clamp(waymarkScreenY, MapMinY, MapMaxY);
-                if (waymarkScreenX <= MapMinX || waymarkScreenX >= MapMaxX || waymarkScreenY <= MapMinY || waymarkScreenY >= MapMaxY)
+                markerScreenX = Math.Clamp(markerScreenX, MapMinX, MapMaxX);
+                markerScreenY = Math.Clamp(markerScreenY, MapMinY, MapMaxY);
+                if (markerScreenX <= MapMinX || markerScreenX >= MapMaxX || markerScreenY <= MapMinY || markerScreenY >= MapMaxY)
                     isClamped = true;
 
-                var colorU32 = ImGui.ColorConvertFloat4ToU32(waymark.Color);
+                var colorU32 = ImGui.ColorConvertFloat4ToU32(marker.Color);
                 var markerSize = configuration.WaymarkMarkerSize * ImGuiHelpers.GlobalScale;
-                if (waymark.IconId != null)
+                if (marker.IconId != null)
                 {
-                    var iconSize = plugin.IconBrowserService.GetIconSize(waymark.IconId.Value);
+                    var iconSize = plugin.IconBrowserService.GetIconSize(marker.IconId.Value);
                     var deSize = 6.0f / areaMap->Scale * ImGuiHelpers.GlobalScale;
                     if (iconSize.HasValue)
                     {
@@ -280,16 +280,16 @@ namespace WukLamark.Services
 
                 // Apply visibility radius fade (last 20% of radius)
                 var targetAlpha = 1.0f;
-                if (configuration.FadeWaymarkOnMapEdge && waymark.VisibilityRadius > 0)
+                if (configuration.FadeWaymarkOnMapEdge && marker.VisibilityRadius > 0)
                 {
-                    var distSquared = Vector3.DistanceSquared(player.Position, waymark.Position);
-                    var fadeStart = waymark.VisibilityRadius * 0.8f;
+                    var distSquared = Vector3.DistanceSquared(player.Position, marker.Position);
+                    var fadeStart = marker.VisibilityRadius * 0.8f;
                     var fadeStartSquared = fadeStart * fadeStart;
 
                     if (distSquared > fadeStartSquared)
                     {
                         var dist = MathF.Sqrt(distSquared); // Only apply when fading
-                        targetAlpha = 1.0f - ((dist - fadeStart) / (waymark.VisibilityRadius - fadeStart));
+                        targetAlpha = 1.0f - ((dist - fadeStart) / (marker.VisibilityRadius - fadeStart));
                     }
                 }
 
@@ -307,7 +307,7 @@ namespace WukLamark.Services
                     colorU32 = (colorU32 & 0x00FFFFFF) | (a << 24);
                 }
 
-                WaymarksToRender.Add((new Vector2(waymarkScreenX, waymarkScreenY), waymark.Shape, markerSize, colorU32, waymark.Name, waymark.IconId));
+                MarkersToRender.Add((new Vector2(markerScreenX, markerScreenY), marker.Shape, markerSize, colorU32, marker.Name, marker.IconId));
             }
         }
 

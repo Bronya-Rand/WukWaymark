@@ -5,20 +5,15 @@ using WukLamark.Windows.Components;
 
 namespace WukLamark.Windows.Sections;
 
-internal class TableViewSection
+internal class TableViewSection(MarkerTableComponent tableComponent)
 {
-    private readonly WaymarkTableComponent tableComponent;
+    private readonly MarkerTableComponent tableComponent = tableComponent;
 
-    public TableViewSection(WaymarkTableComponent tableComponent)
+    public void Draw(List<Marker> filteredMarkers, int totalCount)
     {
-        this.tableComponent = tableComponent;
-    }
-
-    public void Draw(List<Waymark> filteredWaymarks, int totalCount)
-    {
-        ImGui.Text($"Showing {filteredWaymarks.Count} of {totalCount} waymarks");
+        ImGui.Text($"Showing {filteredMarkers.Count} of {totalCount} markers");
         ImGui.Spacing();
 
-        tableComponent.Draw(filteredWaymarks);
+        tableComponent.Draw(filteredMarkers);
     }
 }

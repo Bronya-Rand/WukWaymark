@@ -4,76 +4,76 @@ using System.Numerics;
 namespace WukLamark.Models;
 
 /// <summary>
-/// Represents a custom waymark location saved by the player.
+/// Represents a custom map marker location saved by the player.
 /// </summary>
 [Serializable]
-public class Waymark
+public class Marker
 {
     /// <summary>
-    /// Unique identifier for this waymark.
+    /// Unique identifier for this marker.
     /// </summary>
     public Guid Id { get; set; } = Guid.NewGuid();
 
     /// <summary>
-    /// User-defined name for this waymark.
+    /// User-defined name for this marker.
     /// </summary>
     public string Name { get; set; } = "Unnamed Location";
 
     /// <summary>
-    /// World position where the waymark was created (X, Y, Z coordinates).
+    /// World position where the marker was created (X, Y, Z coordinates).
     /// </summary>
     public Vector3 Position { get; set; }
 
     /// <summary>
-    /// Territory ID where this waymark is located.
+    /// Territory ID where this marker is located.
     /// </summary>
     public ushort TerritoryId { get; set; }
 
     /// <summary>
-    /// Ward ID for this waymark location. (Only relevant for residential areas)
+    /// Ward ID for this marker location. (Only relevant for residential areas)
     /// </summary>
     public sbyte WardId { get; set; }
 
     /// <summary>
-    /// Map ID for this waymark location.
+    /// Map ID for this marker location.
     /// </summary>
     public uint MapId { get; set; }
 
     /// <summary>
-    /// World ID for this waymark location.
+    /// World ID for this marker location.
     /// </summary>
-    /// <remarks>Used to differentiate waymarks between different worlds.</remarks>
+    /// <remarks>Used to differentiate markers between different worlds.</remarks>
     public uint WorldId { get; set; }
 
     /// <summary>
-    /// Custom color for this waymark marker (RGBA).
+    /// Custom color for this marker (RGBA).
     /// </summary>
     public Vector4 Color { get; set; } = new Vector4(1.0f, 0.8f, 0.0f, 1.0f); // Gold/yellow default
 
     /// <summary>
-    /// Timestamp when this waymark was created.
+    /// Timestamp when this marker was created.
     /// </summary>
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 
     /// <summary>
-    /// Optional notes or description for this waymark.
+    /// Optional notes or description for this marker.
     /// </summary>
     public string Notes { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the geometric shape used to represent the waymark.
+    /// Gets or sets the geometric shape used to represent the marker.
     /// </summary>
-    /// <remarks>The selected shape determines how the waymark is visually displayed in the user interface or
+    /// <remarks>The selected shape determines how the marker is visually displayed in the user interface or
     /// on a map. When <see cref="IconId"/> is set, the icon takes precedence over the shape.</remarks>
-    public WaymarkShape Shape { get; set; } = WaymarkShape.Circle;
+    public MarkerShape Shape { get; set; } = MarkerShape.Circle;
 
     /// <summary>
-    /// Group this waymark belongs to. Null means ungrouped.
+    /// Group this marker belongs to. Null means ungrouped.
     /// </summary>
     public Guid? GroupId { get; set; }
 
     /// <summary>
-    /// Game icon ID for rendering this waymark. Loaded via ITextureProvider.
+    /// Game icon ID for rendering this marker. Loaded via ITextureProvider.
     /// When null, the <see cref="Shape"/> and <see cref="Color"/> are used for rendering instead.
     /// </summary>
     /// <remarks>
@@ -85,25 +85,25 @@ public class Waymark
     /// <summary>
     /// Persistence scope — Personal (character-specific) or Shared (all characters on this install).
     /// </summary>
-    public WaymarkScope Scope { get; set; } = WaymarkScope.Personal;
+    public MarkerScope Scope { get; set; } = MarkerScope.Personal;
 
     /// <summary>
-    /// Truncated SHA-256 hash of the character's content ID who created this waymark.
-    /// Used for personal waymark scoping without storing raw content IDs.
-    /// For shared waymarks, this tracks the creator for read-only enforcement.
-    /// Only relevant when <see cref="Scope"/> is <see cref="WaymarkScope.Personal"/> or when IsReadOnly is true.
+    /// Truncated SHA-256 hash of the character's content ID who created this marker.
+    /// Used for personal marker scoping without storing raw content IDs.
+    /// For shared markers, this tracks the creator for read-only enforcement.
+    /// Only relevant when <see cref="Scope"/> is <see cref="MarkerScope.Personal"/> or when IsReadOnly is true.
     /// </summary>
     public string? CharacterHash { get; set; }
 
     /// <summary>
-    /// Maximum distance (in yalms) at which this waymark is visible on the map/minimap.
-    /// A value of 0 means the waymark is always visible regardless of distance.
+    /// Maximum distance (in yalms) at which this marker is visible on the map/minimap.
+    /// A value of 0 means the marker is always visible regardless of distance.
     /// </summary>
     public float VisibilityRadius { get; set; } = 0f;
 
     /// <summary>
-    /// Determines if this shared waymark can only be modified by its creator.
-    /// When true, only the character whose hash matches CharacterHash can edit/delete this waymark.
+    /// Determines if this shared marker can only be modified by its creator.
+    /// When true, only the character whose hash matches CharacterHash can edit/delete this marker.
     /// </summary>
     public bool IsReadOnly { get; set; } = false;
 }

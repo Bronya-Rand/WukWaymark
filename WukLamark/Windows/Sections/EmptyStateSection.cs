@@ -19,11 +19,11 @@ internal class EmptyStateSection(GameStateReaderService gameStateReaderService)
         var isLoggedIn = gameStateReaderService.IsLoggedIn;
         var inPvP = gameStateReaderService.IsInPvP;
         var inCombat = gameStateReaderService.IsInCombat;
-        var waymarksDisabled = gameStateReaderService.DisableWaymarkActions();
+        var markersDisabled = gameStateReaderService.DisableMarkerActions();
 
-        var coloredText = "No waymarks saved yet. Create one!";
+        var coloredText = "No markers saved yet. Create one!";
         if (!isLoggedIn)
-            coloredText = "Log in first to save waymarks!";
+            coloredText = "Log in first to save markers!";
 
         var coloredTextSize = ImGui.CalcTextSize(coloredText);
         ImGui.SetCursorPosX((ImGui.GetWindowContentRegionMax().X - coloredTextSize.X) / 2);
@@ -33,20 +33,20 @@ internal class EmptyStateSection(GameStateReaderService gameStateReaderService)
             ImGui.Indent(10);
             ImGui.Text("Use '/wlmark here' or the");
             ImGui.SameLine();
-            using (ImRaii.Disabled(waymarksDisabled))
+            using (ImRaii.Disabled(markersDisabled))
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
                 {
                     OnSaveLocation?.Invoke();
                 }
             if (ImWuk.IsItemHoveredWhenDisabled())
             {
-                var tooltip = inPvP ? "Saving waymarks is disabled in PvP zones" :
-                              inCombat ? "Saving waymarks is disabled in combat" :
-                              "Save Current Location as Waymark";
+                var tooltip = inPvP ? "Saving markers is disabled in PvP zones" :
+                              inCombat ? "Saving markers is disabled in combat" :
+                              "Save Current Location as Marker";
                 ImGui.SetTooltip(tooltip);
             }
             ImGui.SameLine();
-            ImGui.Text("button above to save your current location as a waymark.");
+            ImGui.Text("button above to save your current location as a marker.");
         }
     }
 }

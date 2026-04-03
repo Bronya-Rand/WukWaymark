@@ -14,16 +14,16 @@ public class GroupEditorModal
     #region Fields
 
     private bool isOpen = false;
-    private WaymarkGroup? editingGroup = null;
+    private MarkerGroup? editingGroup = null;
     private string groupEditName = "";
-    private WaymarkScope groupEditScope = WaymarkScope.Personal;
+    private MarkerScope groupEditScope = MarkerScope.Personal;
     private bool groupEditIsReadOnly = false;
 
     #endregion
 
-    public Action<WaymarkGroup, bool>? OnSave { get; set; }
+    public Action<MarkerGroup, bool>? OnSave { get; set; }
 
-    public void Open(WaymarkGroup? existingGroup)
+    public void Open(MarkerGroup? existingGroup)
     {
         if (existingGroup != null)
         {
@@ -36,7 +36,7 @@ public class GroupEditorModal
         {
             editingGroup = null;
             groupEditName = "";
-            groupEditScope = WaymarkScope.Personal;
+            groupEditScope = MarkerScope.Personal;
             groupEditIsReadOnly = false;
         }
         isOpen = true;
@@ -48,9 +48,9 @@ public class GroupEditorModal
 
         if (editingGroup != null)
         {
-            var isCreatorBlock = editingGroup.CreatorHash == plugin.WaymarkStorageService.CurrentCharacterHash;
+            var isCreatorBlock = editingGroup.CreatorHash == plugin.MarkerStorageService.CurrentCharacterHash;
 
-            if (editingGroup.Scope == WaymarkScope.Shared && editingGroup.IsReadOnly && !isCreatorBlock)
+            if (editingGroup.Scope == MarkerScope.Shared && editingGroup.IsReadOnly && !isCreatorBlock)
             {
                 Plugin.Log.Warning("Attempted to edit a read-only shared group. Action blocked.");
                 editingGroup = null;
@@ -58,7 +58,7 @@ public class GroupEditorModal
                 return;
             }
 
-            if (editingGroup.Scope == WaymarkScope.Personal && !isCreatorBlock)
+            if (editingGroup.Scope == MarkerScope.Personal && !isCreatorBlock)
             {
                 Plugin.Log.Warning("Attempted to edit someone else's personal group. Action blocked.");
                 editingGroup = null;
@@ -68,11 +68,11 @@ public class GroupEditorModal
         }
 
         // Validation
-        var isCreator = editingGroup != null && editingGroup.CreatorHash == plugin.WaymarkStorageService.CurrentCharacterHash;
-        var isEditingSharedReadOnly = editingGroup != null && editingGroup.Scope == WaymarkScope.Shared && editingGroup.IsReadOnly;
+        var isCreator = editingGroup != null && editingGroup.CreatorHash == plugin.MarkerStorageService.CurrentCharacterHash;
+        var isEditingSharedReadOnly = editingGroup != null && editingGroup.Scope == MarkerScope.Shared && editingGroup.IsReadOnly;
         var hasName = !groupEditName.IsNullOrEmpty();
-        var canCreateSave = (editingGroup != null && editingGroup.Scope == WaymarkScope.Shared && hasName) ||
-                            (editingGroup != null && editingGroup.Scope == WaymarkScope.Personal && isCreator && hasName) ||
+        var canCreateSave = (editingGroup != null && editingGroup.Scope == MarkerScope.Shared && hasName) ||
+                            (editingGroup != null && editingGroup.Scope == MarkerScope.Personal && isCreator && hasName) ||
                             (editingGroup == null && hasName);
 
         var isEditing = editingGroup != null;
@@ -108,10 +108,10 @@ public class GroupEditorModal
                 {
                     if (scopeDrop.Success)
                     {
-                        if (ImGui.Selectable(WaymarkScope.Personal.ToString(), groupEditScope == WaymarkScope.Personal))
-                            groupEditScope = WaymarkScope.Personal;
-                        if (ImGui.Selectable(WaymarkScope.Shared.ToString(), groupEditScope == WaymarkScope.Shared))
-                            groupEditScope = WaymarkScope.Shared;
+                        if (ImGui.Selectable(MarkerScope.Personal.ToString(), groupEditScope == MarkerScope.Personal))
+                            groupEditScope = MarkerScope.Personal;
+                        if (ImGui.Selectable(MarkerScope.Shared.ToString(), groupEditScope == MarkerScope.Shared))
+                            groupEditScope = MarkerScope.Shared;
                     }
                 }
             }
@@ -126,7 +126,7 @@ public class GroupEditorModal
             }
 
             // Read-only checkbox (only shown in edit mode for shared groups and only editable by the creator)
-            if (groupEditScope == WaymarkScope.Shared && editingGroup != null)
+            if (groupEditScope == MarkerScope.Shared && editingGroup != null)
             {
                 ImGui.Spacing();
                 using (ImRaii.Disabled(groupEditName.IsNullOrEmpty() || (editingGroup != null && !isCreator)))
@@ -153,12 +153,12 @@ public class GroupEditorModal
                 {
                     if (!string.IsNullOrWhiteSpace(groupEditName))
                     {
-                        OnSave?.Invoke(new WaymarkGroup
+                        OnSave?.Invoke(new MarkerGroup
                         {
                             Id = editingGroup?.Id ?? Guid.NewGuid(),
                             Name = groupEditName,
-                            CreatorHash = editingGroup?.CreatorHash ?? plugin.WaymarkStorageService.CurrentCharacterHash,
-                            IsReadOnly = groupEditScope == WaymarkScope.Shared && groupEditIsReadOnly,
+                            CreatorHash = editingGroup?.CreatorHash ?? plugin.MarkerStorageService.CurrentCharacterHash,
+                            IsReadOnly = groupEditScope == MarkerScope.Shared && groupEditIsReadOnly,
                             Scope = groupEditScope
                         }, isEditing);
                         editingGroup = null;

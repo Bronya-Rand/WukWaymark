@@ -1,14 +1,14 @@
 namespace WukLamark.Models
 {
     /// <summary>
-    /// Enumeration of available marker shapes for displaying waymarks on the map.
+    /// Enumeration of available marker shapes for displaying map markers on the map.
     /// 
     /// Each shape has a distinct visual appearance and is rendered with:
     /// - Black outline for visibility against various backgrounds
     /// - Customizable size (globally via Configuration.WaymarkMarkerSize)
-    /// - Per-waymark custom color
+    /// - Per-map marker custom color
     /// </summary>
-    public enum WaymarkShape
+    public enum MarkerShape
     {
         /// <summary>Classic circular marker - round filled circle with outline</summary>
         Circle,

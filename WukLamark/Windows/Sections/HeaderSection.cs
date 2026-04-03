@@ -10,11 +10,11 @@ using WukLamark.Utils;
 
 namespace WukLamark.Windows.Sections;
 
-internal class HeaderSection(Configuration configuration, GameStateReaderService gameStateReaderService, WaymarkStorageService waymarkStorageService)
+internal class HeaderSection(Configuration configuration, GameStateReaderService gameStateReaderService, MarkerStorageService markerStorageService)
 {
     private readonly Configuration configuration = configuration;
     private readonly GameStateReaderService gameStateReaderService = gameStateReaderService;
-    private readonly WaymarkStorageService waymarkStorageService = waymarkStorageService;
+    private readonly MarkerStorageService markerStorageService = markerStorageService;
 
     public Action<ImportResult>? OnImport { get; set; }
     public Action? OnSaveLocation { get; set; }
@@ -26,9 +26,9 @@ internal class HeaderSection(Configuration configuration, GameStateReaderService
         var isLoggedIn = gameStateReaderService.IsLoggedIn;
         var inPvP = gameStateReaderService.IsInPvP;
         var inCombat = gameStateReaderService.IsInCombat;
-        var waymarksDisabled = gameStateReaderService.DisableWaymarkActions();
+        var markersDisabled = gameStateReaderService.DisableMarkerActions();
 
-        ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.0f, 1.0f), "Custom Waymark Locations");
+        ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.0f, 1.0f), "Custom Marker Locations");
 
         // Position buttons on the right side of the header
         var buttonWidth = ImGui.GetFrameHeight();
@@ -41,11 +41,11 @@ internal class HeaderSection(Configuration configuration, GameStateReaderService
         {
             if (ImGuiComponents.IconButton(FontAwesomeIcon.FileImport))
             {
-                var allKnownWaymarks = waymarkStorageService.GetVisibleWaymarks();
-                var allKnownGroups = waymarkStorageService.GetVisibleGroups();
+                var allKnownMarkers = markerStorageService.GetVisibleMarkers();
+                var allKnownGroups = markerStorageService.GetVisibleGroups();
 
-                var result = WaymarkExportService.ImportFromClipboard(
-                    allKnownWaymarks,
+                var result = MarkerExportService.ImportFromClipboard(
+                    allKnownMarkers,
                     allKnownGroups);
 
                 OnImport?.Invoke(result);
@@ -53,14 +53,14 @@ internal class HeaderSection(Configuration configuration, GameStateReaderService
         }
         if (ImWuk.IsItemHoveredWhenDisabled())
         {
-            var tooltip = !isLoggedIn ? "Log in to import waymarks" : "Import waymarks from clipboard";
+            var tooltip = !isLoggedIn ? "Log in to import markers" : "Import markers from clipboard";
             ImGui.SetTooltip(tooltip);
         }
 
         ImGui.SameLine(0, buttonSpacing);
 
         // Save Location button (pin icon)
-        using (ImRaii.Disabled(waymarksDisabled))
+        using (ImRaii.Disabled(markersDisabled))
         {
             if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
             {
@@ -69,10 +69,10 @@ internal class HeaderSection(Configuration configuration, GameStateReaderService
         }
         if (ImWuk.IsItemHoveredWhenDisabled())
         {
-            var tooltip = !isLoggedIn ? "Log in to save waymarks" :
-                          inPvP ? "Saving waymarks is disabled in PvP zones" :
-                          inCombat ? "Saving waymarks is disabled in combat" :
-                          "Save Current Location as Waymark";
+            var tooltip = !isLoggedIn ? "Log in to save markers" :
+                          inPvP ? "Saving markers is disabled in PvP zones" :
+                          inCombat ? "Saving markers is disabled in combat" :
+                          "Save Current Location as Marker";
             using (ImRaii.PushStyle(ImGuiStyleVar.Alpha, 1.0f))
                 ImGui.SetTooltip(tooltip);
         }

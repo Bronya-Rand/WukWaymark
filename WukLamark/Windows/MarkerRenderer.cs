@@ -7,15 +7,12 @@ using WukLamark.Models;
 
 namespace WukLamark.Windows
 {
-    /// <summary>
-    /// Static utility class responsible for rendering waymark shapes on ImGui draw lists.
-    /// </summary>
-    public static class WaymarkRenderer
+    public static class MarkerRenderer
     {
         /// <summary>
-        /// Renders a single waymark marker using the ImGui draw list.
+        /// Renders a single map marker marker using the ImGui draw list.
         /// 
-        /// Handles all shape rendering logic based on the specified WaymarkShape enum value.
+        /// Handles all shape rendering logic based on the specified MarkerShape enum value.
         /// Each shape is rendered with a black outline for visibility against map backgrounds,
         /// with the interior filled using the provided color.
         /// </summary>
@@ -24,7 +21,7 @@ namespace WukLamark.Windows
         /// <param name="shape">The shape to render (Circle, Square, Triangle, Diamond, or Star)</param>
         /// <param name="markerSize">The radius/size of the marker in pixels. Typical range: 4-20px</param>
         /// <param name="colorU32">The fill color in ImGui 32-bit RGBA format (generated via ImGui.ColorConvertFloat4ToU32)</param>
-        public static void RenderWaymarkShape(ImDrawListPtr drawList, Vector2 position, WaymarkShape shape, float markerSize, uint colorU32)
+        public static void RenderMarkerShape(ImDrawListPtr drawList, Vector2 position, MarkerShape shape, float markerSize, uint colorU32)
         {
             // Extract alpha from the fill color so outline fades with the shape
             var alpha = (colorU32 >> 24) & 0xFF;
@@ -33,12 +30,12 @@ namespace WukLamark.Windows
 
             switch (shape)
             {
-                case WaymarkShape.Circle:
+                case MarkerShape.Circle:
                     drawList.AddCircleFilled(position, markerSize + outlineThickness, outlineColor);
                     drawList.AddCircleFilled(position, markerSize, colorU32);
                     break;
 
-                case WaymarkShape.Square:
+                case MarkerShape.Square:
                     var squareHalf = markerSize * 0.866f; // Approximate circle inscribed square
                     drawList.AddRectFilled(position - new Vector2(squareHalf + outlineThickness, squareHalf + outlineThickness),
                                           position + new Vector2(squareHalf + outlineThickness, squareHalf + outlineThickness), outlineColor);
@@ -46,7 +43,7 @@ namespace WukLamark.Windows
                                           position + new Vector2(squareHalf, squareHalf), colorU32);
                     break;
 
-                case WaymarkShape.Diamond:
+                case MarkerShape.Diamond:
                     var diamondSize = markerSize * 1.15f;
                     var dOutSize = diamondSize + outlineThickness;
 
@@ -67,7 +64,7 @@ namespace WukLamark.Windows
                     drawList.AddTriangleFilled(d1, d3, d4, colorU32);
                     break;
 
-                case WaymarkShape.Triangle:
+                case MarkerShape.Triangle:
                     var sqrt3_2 = 0.866025f;
                     var outSize = markerSize + 1.0f + outlineThickness;
 
@@ -85,14 +82,14 @@ namespace WukLamark.Windows
                     drawList.AddTriangleFilled(t1, t2, t3, colorU32);
                     break;
 
-                case WaymarkShape.Star:
+                case MarkerShape.Star:
                     RenderStarShape(drawList, position, markerSize, colorU32, outlineColor, outlineThickness);
                     break;
             }
         }
 
         /// <summary>
-        /// Helper to render a star-shaped waymark.
+        /// Helper to render a star-shaped map marker.
         /// </summary>
         public static void RenderStarShape(ImDrawListPtr drawList, Vector2 center, float radius, uint colorU32, uint outlineColor, float outlineThickness)
         {
@@ -130,14 +127,14 @@ namespace WukLamark.Windows
         }
 
         /// <summary>
-        /// Renders a waymark using a game texture icon via ITextureProvider.
+        /// Renders a marker using a game texture icon via ITextureProvider.
         /// The icon is drawn centered at the specified position.
         /// </summary>
         /// <param name="drawList">The ImGui draw list to render to</param>
         /// <param name="position">Screen-space center position for the icon</param>
         /// <param name="iconId">The game icon ID to load via ITextureProvider</param>
         /// <param name="markerSize">Half-size of the icon in pixels (icon will be 1.5x this value)</param>
-        public static void RenderWaymarkIcon(ImDrawListPtr drawList, Vector2 position, uint iconId, float markerSize, uint tintColor = uint.MaxValue)
+        public static void RenderMarkerIcon(ImDrawListPtr drawList, Vector2 position, uint iconId, float markerSize, uint tintColor = uint.MaxValue)
         {
             IDalamudTextureWrap? iconTex;
             try
@@ -159,8 +156,8 @@ namespace WukLamark.Windows
         }
 
         /// <summary>
-        /// Renders a waymark using either an icon (if IconId is set) or a shape fallback.
-        /// This is the primary entry point for rendering waymarks.
+        /// Renders a marker using either an icon (if IconId is set) or a shape fallback.
+        /// This is the primary entry point for rendering markers.
         /// </summary>
         /// <param name="drawList">The ImGui draw list to render to</param>
         /// <param name="position">Screen-space center position</param>
@@ -168,17 +165,17 @@ namespace WukLamark.Windows
         /// <param name="markerSize">Marker size in pixels</param>
         /// <param name="colorU32">Fill color for shape rendering</param>
         /// <param name="iconId">Optional game icon ID; if set, renders icon instead of shape</param>
-        public static void RenderWaymark(ImDrawListPtr drawList, Vector2 position, WaymarkShape shape, float markerSize, uint colorU32, uint? iconId)
+        public static void RenderMarker(ImDrawListPtr drawList, Vector2 position, MarkerShape shape, float markerSize, uint colorU32, uint? iconId)
         {
             if (iconId.HasValue && iconId.Value != 0)
             {
                 // Pass the fill color as tint so icon respects alpha fade
                 var tint = 0x00FFFFFFu | (colorU32 & 0xFF000000u); // white RGB + alpha from colorU32
-                RenderWaymarkIcon(drawList, position, iconId.Value, markerSize, tint);
+                RenderMarkerIcon(drawList, position, iconId.Value, markerSize, tint);
             }
             else
             {
-                RenderWaymarkShape(drawList, position, shape, markerSize, colorU32);
+                RenderMarkerShape(drawList, position, shape, markerSize, colorU32);
             }
         }
     }

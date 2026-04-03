@@ -7,22 +7,22 @@ using WukLamark.Services;
 namespace WukLamark.Windows
 {
     /// <summary>
-    /// Renders custom waymark markers on the UI Minimap (_NaviMap addon).
+    /// Renders custom markers on the UI Minimap (_NaviMap addon).
     /// 
-    /// This window overlays waymark markers on the small corner minimap that appears
-    /// during gameplay, allowing players to see waymark locations without opening the full map.
+    /// This window overlays markers on the small corner minimap that appears
+    /// during gameplay, allowing players to see marker locations without opening the full map.
     /// </summary>
-    internal class WaymarkMinimapWindow : Window
+    internal class MarkerMinimapWindow : Window
     {
-        private readonly WaymarkMinimapService service;
+        private readonly MarkerMinimapService service;
         private readonly Plugin plugin;
 
         internal bool IsEnabled { get; set; }
 
-        public WaymarkMinimapWindow(WaymarkMinimapService minimapService, Plugin waymark) : base("WaymarkMinimapWindow###WaymarkMinimap")
+        public MarkerMinimapWindow(MarkerMinimapService minimapService, Plugin plugin) : base("MarkerMinimapWindow###MarkerMinimap")
         {
             service = minimapService;
-            plugin = waymark;
+            this.plugin = plugin;
 
             // Configure as transparent, non-interactive overlay
             Flags |= ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoBackground
@@ -50,25 +50,25 @@ namespace WukLamark.Windows
             var drawList = ImGui.GetWindowDrawList();
 
             var mousePos = ImGui.GetMousePos();
-            string? hoveredWaymarkName = null;
+            string? hoveredMarkerName = null;
 
-            foreach (var (position, shape, size, color, name, iconId) in service.WaymarksToRender)
+            foreach (var (position, shape, size, color, name, iconId) in service.MarkersToRender)
             {
                 var colorU32 = ImGui.ColorConvertFloat4ToU32(color);
 
-                WaymarkRenderer.RenderWaymark(drawList, position, shape, size, colorU32, iconId);
+                MarkerRenderer.RenderMarker(drawList, position, shape, size, colorU32, iconId);
 
                 if (plugin.Configuration.ShowWaymarkTooltips &&
                     !string.IsNullOrEmpty(name) &&
                     Vector2.Distance(mousePos, position) <= size + (2.0f * ImGuiHelpers.GlobalScale))
                 {
-                    hoveredWaymarkName = name;
+                    hoveredMarkerName = name;
                 }
             }
 
-            if (hoveredWaymarkName != null)
+            if (hoveredMarkerName != null)
             {
-                ImGui.SetTooltip(hoveredWaymarkName);
+                ImGui.SetTooltip(hoveredMarkerName);
             }
         }
 

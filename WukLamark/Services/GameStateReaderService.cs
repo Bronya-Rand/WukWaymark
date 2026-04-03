@@ -18,7 +18,7 @@ namespace WukLamark.Services
             IsInPvP = Plugin.ClientState.IsPvPExcludingDen;
             IsInCombat = Plugin.ObjectTable.LocalPlayer != null && Plugin.ObjectTable.LocalPlayer.StatusFlags.HasFlag(Dalamud.Game.ClientState.Objects.Enums.StatusFlags.InCombat);
         }
-        public bool DisableWaymarkActions() => !IsLoggedIn || IsInPvP || IsInCombat;
+        public bool DisableMarkerActions() => !IsLoggedIn || IsInPvP || IsInCombat;
         public void Dispose()
         {
             Plugin.Framework.Update -= OnFrameworkUpdate;

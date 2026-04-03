@@ -1,79 +1,79 @@
 # WukLamark
-A Final Fantasy XIV plugin for making custom waymarks around Eorzea.
+A Final Fantasy XIV plugin for making custom map markers around Eorzea.
 
-| Table View | Group View |
+<!-- | Table View | Group View |
 | :---: | :---: |
-| ![WukLamark Main Window](./.github/assets/MainWindowWithMarkersTable.png) | ![WukLamark Group View](./.github/assets/MainWindowWithMarkersGroup.png) |
+| ![WukLamark Main Window](./.github/assets/MainWindowWithMarkersTable.png) | ![WukLamark Group View](./.github/assets/MainWindowWithMarkersGroup.png) | -->
 
 ## What is WukLamark?
 
-WukLamark is a plugin that allows players to create and manage custom waymarks around Eorzea. Whether it's that one spot you use often for GPosing, a venue you frequented once but decided to go again or simply anything that you find interesting, WukLamark will allow you to create a custom waymark for it and make it appear on both the main map and the minimap itself! Think of it as `<flag>` but permanent.
+WukLamark is a plugin that allows players to create and manage custom map markers around Eorzea. Whether it's that one spot you use often for GPosing, a venue you frequented once but decided to go again or simply anything that you find interesting, WukLamark will allow you to create a custom map marker for it and make it appear on both the main map and the minimap itself! Think of it as `<flag>` but permanent.
 
 ## Features
-- Create and manage custom waymarks
-- Configure how waymarks are displayed on the map and minimap
-- Set different icons for waymarks (shapes or game icons)
-- Add personal notes to waymarks
-- Set different scopes for waymarks (personal, shared)
-   > Shared waymarks are visible to anyone who logs into the game from your computer.
-- Per-character waymarks
-- Group waymarks for different purposes
-- Import waymarks from other players/Export waymarks to other players
+- Create and manage custom map markers
+- Configure how map markers are displayed on the map and minimap
+- Set different icons for map markers (shapes or game icons)
+- Add personal notes to map markers
+- Set different scopes for map markers (personal, shared)
+   > Shared map markers are visible to anyone who logs into the game from your computer.
+- Per-character map markers
+- Group map markers for different purposes
+- Import map markers from other players/Export map markers to other players
 - Displays in-game locations and world locations by name
 
 ## How To Use
 
-### Creating a Waymark
+### Creating a Map Marker
 
-To create a waymark, you can use the `/wlmark here` command in chat or open the WukLamark window and click the `Create Waymark` button.
+To create a map marker, you can use the `/wlmark here` command in chat or open the WukLamark window and click the `Create Marker` button.
 
 | Command | Window Button |
 | --- | --- |
-| ![Waymark Here](./.github/assets/CommandCreateMarker.png) | ![Waymark Here](./.github/assets/WindowCreateMarker.png) |
+| ![Create Marker](./.github/assets/CommandCreateMarker.png) | ![Create Marker](./.github/assets/WindowCreateMarker.png) |
 
-### Editing a Waymark
+### Editing a Map Marker
 
-To edit a waymark, open the WukLamark window and click the `Edit Waymark` button.
+To edit a map marker, open the WukLamark window and click the `Edit Marker` button.
 
-![Edit Waymark](./.github/assets/WindowEditMarker.png)
+![Edit Marker](./.github/assets/WindowEditMarker.png)
 
-> `Color` and `Shape` are only applicable to No Icon waymarks. Waymark Scope is only applicable to waymarks that are not in a group. Waymarks in a group will inherit the scope of the group. 
+> `Color` and `Shape` are only applicable to No Icon map markers. Scope is only applicable to map markers that are not in a group. Map markers in a group will inherit the scope of the group. 
 
-### Deleting a Waymark
+### Deleting a Map Marker
 
-To delete a waymark, open the WukLamark window and click the `Delete Waymark` button.
+To delete a map marker, open the WukLamark window and click the `Delete Marker` button.
 
-![Delete Waymark](./.github/assets/WindowDeleteMarker.png)
+![Delete Marker](./.github/assets/WindowDeleteMarker.png)
 
-### Sharing a Waymark to Others Using WukLamark
+### Sharing a Map Marker to Others Using WukLamark
 
-To share a waymark with others, open the WukLamark window and click the `Copy to Clipboard` button.
+To share a map marker with others, open the WukLamark window and click the `Copy to Clipboard` button.
 
-![Share Waymark](./.github/assets/WindowShareWaymark.png)
+![Share Map Marker](./.github/assets/WindowShareWaymark.png)
 
-To import a waymark from someone else, open the WukLamark window and click the `Import Waymarks from Clipboard` button.
+To import a map marker from someone else, open the WukLamark window and click the `Import Map Markers from Clipboard` button.
 
-![Import Waymark](./.github/assets/WindowImportWaymark.png)
+![Import Map Marker](./.github/assets/WindowImportWaymark.png)
 
 ### Creating a Group
 
-A group is a collection of waymarks. To create a group, switch to the Group View and click the + button to create a group.
+A group is a collection of map markers. To create a group, switch to the Group View and click the + button to create a group.
 
 |     |     | 
 | :-: | :-: |
 | ![Group Button](./.github/assets/GroupButton.png) | ![Create Group](./.github/assets/GroupCreate.png)
 
-### Adding a Waymark to a Group
+### Adding a Map Marker to a Group
 
-**New Waymarks**
+**New Map Markers**
 | Command | Window Button |
 | --- | --- |
-| ![Group Waymark Create](./.github/assets/GroupWaymarkCreate.png) | ![Group Waymark Create](./.github/assets/GroupWaymarkCreateGUI.png) 
+| ![Group Map Marker Create](./.github/assets/GroupWaymarkCreate.png) | ![Group Map Marker Create](./.github/assets/GroupWaymarkCreateGUI.png) 
 |
 
-**Existing Waymarks**
+**Existing Map Markers**
 
-![Group Waymark Existing](./.github/assets/GroupWaymarkExistingGUI.png)
+![Group Map Marker Existing](./.github/assets/GroupWaymarkExistingGUI.png)
 
 ## Editing a Group
 
@@ -85,7 +85,7 @@ To edit a group, click the pencil icon on the right-side.
 ## Deleting a Group
 
 To delete a group, click the trash icon on the right-side.
-> This ability is grayed-out for Shared groups set to read-only for ALL users. Owners of groups wishing to delete groups should turn off read-only mode before deleting. If waymarks exist in the group you wish to delete, you will be asked whether to keep them or not.
+> This ability is grayed-out for Shared groups set to read-only for ALL users. Owners of groups wishing to delete groups should turn off read-only mode before deleting. If map markers exist in the group you wish to delete, you will be asked whether to keep them or not.
 
 ![Group Delete](./.github/assets/GroupDelete.png)
 
@@ -93,32 +93,32 @@ To delete a group, click the trash icon on the right-side.
 
 ![Configuration](./.github/assets/ConfigWindow.png)
 
-### Enable Waymark Display on Map
-> This option allows you to enable or disable the display of waymarks on the main map.
+### Enable Marker Display on Map
+> This option allows you to enable or disable the display of map markers on the main map.
 
-### Enable Waymark Display on Minimap
-> This option allows you to enable or disable the display of waymarks on the minimap.
+### Enable Marker Display on Minimap
+> This option allows you to enable or disable the display of map markers on the minimap.
 
 ### Marker Size
-> This option allows you to change the size of the waymarks on the map and minimap. (Only applicable to No Icon waymarks)
+> This option allows you to change the size of the map markers on the map and minimap. (Only applicable to No Icon map markers)
 
-### Fade Waymarks on Minimap Edge
-> This option toggles the fade effect waymarks apply to themselves when at the edge of the minimap.
+### Fade Markers on Minimap Edge
+> This option toggles the fade effect map markers apply to themselves when at the edge of the minimap.
 
-### Fade Waymarks on Map Edge
-> This option toggles the fade effect waymarks apply to themselves when at the edge of the map.
+### Fade Markers on Map Edge
+> This option toggles the fade effect map markers apply to themselves when at the edge of the map.
 
 ### Edge Fade Opacity
-> This option allows you to change the opacity of the fade effect waymarks apply to themselves when at the edge of the map or minimap.
+> This option allows you to change the opacity of the fade effect map markers apply to themselves when at the edge of the map or minimap.
 
-### Default Shape for New Waymarks
-> This option allows you to change the default shape for new waymarks. (Only applicable to No Icon waymarks)
+### Default Shape for New Markers
+> This option allows you to change the default shape for new map markers. (Only applicable to No Icon map markers)
 
 ### Show Tooltips on Hover
-> This option allows you to enable or disable the display of tooltips on hovering over a waymark (mostly for the name of the waymark).
+> This option allows you to enable or disable the display of tooltips on hovering over a map marker (mostly for the name of the map marker).
 
-### Erase All Created Waymarks
-> This option allows you to clear all waymarks created by you from the map and minimap.  
+### Erase All Created Markers
+> This option allows you to clear all map markers created by you from the map and minimap.  
 
 ## Building from Source
 

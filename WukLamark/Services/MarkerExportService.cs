@@ -9,17 +9,17 @@ namespace WukLamark.Services;
 
 /// <summary>
 /// Payload wrapper used for import/export operations.
-/// Contains both waymarks and optional group metadata.
+/// Contains both markers and optional group metadata.
 /// </summary>
-public class WaymarkExportPayload
+public class MarkerExportPayload
 {
     public string Version { get; set; } = "1";
-    public List<Waymark> Waymarks { get; set; } = [];
-    public List<WaymarkGroup> Groups { get; set; } = [];
+    public List<Marker> Waymarks { get; set; } = [];
+    public List<MarkerGroup> Groups { get; set; } = [];
 }
 
 /// <summary>
-/// Conflict information returned when an imported waymark/group already exists in configuration.
+/// Conflict information returned when an imported marker/group already exists in configuration.
 /// </summary>
 public class ImportConflict
 {
@@ -35,16 +35,16 @@ public class ImportResult
 {
     public bool Success { get; init; }
     public string? ErrorMessage { get; init; }
-    public WaymarkExportPayload? Payload { get; init; }
+    public MarkerExportPayload? Payload { get; init; }
     public List<ImportConflict> Conflicts { get; init; } = [];
 }
 
 /// <summary>
-/// Service responsible for serializing and deserializing waymarks + groups
+/// Service responsible for serializing and deserializing markers + groups
 /// for export to the clipboard or file system, and import back.
 /// Format: JSON → UTF-8 → Base64 string (clipboard-safe).
 /// </summary>
-public class WaymarkExportService
+public class MarkerExportService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -55,35 +55,35 @@ public class WaymarkExportService
     // ─── Export ─────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Encodes a single waymark into a Base64 JSON string and places
+    /// Encodes a single marker into a Base64 JSON string and places
     /// it on the system clipboard.
     /// </summary>
-    public static void ExportToClipboard(Waymark waymark)
+    public static void ExportToClipboard(Marker marker)
     {
         // Clone and strip fields we don't want to export
-        var exportWaymark = new Waymark
+        var exportMarker = new Marker
         {
-            Id = waymark.Id,
-            Name = waymark.Name,
-            Position = waymark.Position,
-            TerritoryId = waymark.TerritoryId,
-            WardId = waymark.WardId,
-            MapId = waymark.MapId,
-            WorldId = waymark.WorldId,
-            Color = waymark.Color,
-            CreatedAt = waymark.CreatedAt,
-            Notes = waymark.Notes,
-            Shape = waymark.Shape,
-            IconId = waymark.IconId,
-            VisibilityRadius = waymark.VisibilityRadius,
-            Scope = waymark.Scope,
+            Id = marker.Id,
+            Name = marker.Name,
+            Position = marker.Position,
+            TerritoryId = marker.TerritoryId,
+            WardId = marker.WardId,
+            MapId = marker.MapId,
+            WorldId = marker.WorldId,
+            Color = marker.Color,
+            CreatedAt = marker.CreatedAt,
+            Notes = marker.Notes,
+            Shape = marker.Shape,
+            IconId = marker.IconId,
+            VisibilityRadius = marker.VisibilityRadius,
+            Scope = marker.Scope,
             GroupId = null,           // Omit
             CharacterHash = null      // Omit
         };
 
-        var payload = new WaymarkExportPayload
+        var payload = new MarkerExportPayload
         {
-            Waymarks = [exportWaymark],
+            Waymarks = [exportMarker],
             Groups = []
         };
         var json = JsonSerializer.Serialize(payload, JsonOptions);
@@ -95,12 +95,12 @@ public class WaymarkExportService
 
     /// <summary>
     /// Reads a Base64 JSON string from the clipboard and deserialises it into a payload.
-    /// Identifies any conflicting IDs already present in <paramref name="existingWaymarks"/>
+    /// Identifies any conflicting IDs already present in <paramref name="existingMarkers"/>
     /// and <paramref name="existingGroups"/>.
     /// </summary>
     public static ImportResult ImportFromClipboard(
-        List<Waymark> existingWaymarks,
-        List<WaymarkGroup> existingGroups)
+        List<Marker> existingMarkers,
+        List<MarkerGroup> existingGroups)
     {
         try
         {
@@ -108,7 +108,7 @@ public class WaymarkExportService
             if (string.IsNullOrEmpty(b64))
                 return new ImportResult { Success = false, ErrorMessage = "Clipboard is empty." };
 
-            return Deserialize(b64, existingWaymarks, existingGroups);
+            return Deserialize(b64, existingMarkers, existingGroups);
         }
         catch (Exception ex)
         {
@@ -121,8 +121,8 @@ public class WaymarkExportService
 
     private static ImportResult Deserialize(
         string input,
-        List<Waymark> existingWaymarks,
-        List<WaymarkGroup> existingGroups,
+        List<Marker> existingMarkers,
+        List<MarkerGroup> existingGroups,
         bool base64 = true)
     {
         string json;
@@ -144,17 +144,17 @@ public class WaymarkExportService
             json = input;
         }
 
-        var payload = JsonSerializer.Deserialize<WaymarkExportPayload>(json, JsonOptions);
+        var payload = JsonSerializer.Deserialize<MarkerExportPayload>(json, JsonOptions);
         if (payload == null)
             return new ImportResult { Success = false, ErrorMessage = "Invalid or empty export payload." };
 
         // Detect conflicts (same GUID already in config)
-        var existingWaymarkIds = new HashSet<Guid>(existingWaymarks.Select(w => w.Id));
+        var existingMarkerIds = new HashSet<Guid>(existingMarkers.Select(w => w.Id));
         var existingGroupIds = new HashSet<Guid>(existingGroups.Select(g => g.Id));
 
         var conflicts = new List<ImportConflict>();
         foreach (var w in payload.Waymarks)
-            if (existingWaymarkIds.Contains(w.Id))
+            if (existingMarkerIds.Contains(w.Id))
                 conflicts.Add(new ImportConflict { Id = w.Id, Name = w.Name, IsGroup = false });
 
         foreach (var g in payload.Groups)

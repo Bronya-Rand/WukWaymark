@@ -53,37 +53,37 @@ public sealed class Plugin : IDalamudPlugin
     // ═══════════════════════════════════════════════════════════════
 
     /// <summary>Primary slash command: /wlmark</summary>
-    private const string WaymarkCommandName = "/wlmark";
-    private const string WaymarkCommandAlias = "/wuklamark";
+    private const string MarkerCommandName = "/wlmark";
+    private const string MarkerCommandAlias = "/wuklamark";
 
-    /// <summary>Persistent configuration storage for waymarks and settings</summary>
+    /// <summary>Persistent configuration storage for map markers and settings</summary>
     public Configuration Configuration { get; init; }
 
-    /// <summary>Business logic service for waymark operations (save, load, delete)</summary>
-    public WaymarkService WaymarkService { get; init; }
+    /// <summary>Business logic service for marker operations (save, load, delete)</summary>
+    public MarkerService MarkerService { get; init; }
 
     /// <summary>Background service for loading and caching game icons</summary>
     public IconBrowserService IconBrowserService { get; init; }
 
     public GameStateReaderService GameStateReaderService { get; init; } = new();
 
-    /// <summary>Handles cross-character waymark persistence and scoping</summary>
-    public WaymarkStorageService WaymarkStorageService { get; init; }
+    /// <summary>Handles cross-character marker persistence and scoping</summary>
+    public MarkerStorageService MarkerStorageService { get; init; }
 
     /// <summary>Manages rendering of all plugin windows</summary>
     public readonly WindowSystem WindowSystem = new("WukLamark");
 
-    /// <summary>Settings window for configuring waymark display behavior</summary>
+    /// <summary>Settings window for configuring marker display behavior</summary>
     private ConfigWindow ConfigWindow { get; init; }
 
-    /// <summary>Main window displaying list of saved waymarks and management UI</summary>
+    /// <summary>Main window displaying list of saved map markers and management UI</summary>
     private MainWindow MainWindow { get; init; }
 
-    /// <summary>Service for rendering waymarks on the full-screen area map</summary>
-    private WaymarkMapService WaymarkMapService { get; init; }
+    /// <summary>Service for rendering map markers on the full-screen area map</summary>
+    private MarkerMapService MarkerMapService { get; init; }
 
-    /// <summary>Service for rendering waymarks on the minimap</summary>
-    private WaymarkMinimapService WaymarkMinimapService { get; init; }
+    /// <summary>Service for rendering map markers on the minimap</summary>
+    private MarkerMinimapService MarkerMinimapService { get; init; }
 
     public Plugin()
     {
@@ -92,8 +92,8 @@ public sealed class Plugin : IDalamudPlugin
 
         // Initialize services
         var pluginConfigDir = PluginInterface.GetPluginConfigDirectory();
-        WaymarkStorageService = new WaymarkStorageService(pluginConfigDir);
-        WaymarkService = new WaymarkService(Configuration, WaymarkStorageService);
+        MarkerStorageService = new MarkerStorageService(pluginConfigDir);
+        MarkerService = new MarkerService(Configuration, MarkerStorageService);
         IconBrowserService = new IconBrowserService(DataManager);
         GameStateReaderService = new GameStateReaderService();
 
@@ -102,7 +102,7 @@ public sealed class Plugin : IDalamudPlugin
         // so we pass content ID directly from PlayerState
         if (PlayerState.ContentId != 0)
         {
-            WaymarkStorageService.SetCharacterHash(PlayerState.ContentId);
+            MarkerStorageService.SetCharacterHash(PlayerState.ContentId);
         }
 
         // Subscribe to login/logout events for character hash management
@@ -112,27 +112,27 @@ public sealed class Plugin : IDalamudPlugin
         // Initialize UI windows
         ConfigWindow = new ConfigWindow(this);
         MainWindow = new MainWindow(this);
-        WaymarkMapService = new WaymarkMapService(this);
-        WaymarkMinimapService = new WaymarkMinimapService(this);
+        MarkerMapService = new MarkerMapService(this);
+        MarkerMinimapService = new MarkerMinimapService(this);
 
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(MainWindow);
 
-        // Register the /waymark command
-        CommandManager.AddHandler(WaymarkCommandName, new CommandInfo(OnWaymarkCommand)
+        // Register the /wlmark command
+        CommandManager.AddHandler(MarkerCommandName, new CommandInfo(OnMarkerCommand)
         {
             HelpMessage = $"""
-            Manage and view your custom waymarks.
-            {WaymarkCommandName} here → Save your current location as a waymark.
-            {WaymarkCommandName} here <group> → Save to a specific group.
+            Manage and view your custom map markers.
+            {MarkerCommandName} here → Save your current location as a map marker.
+            {MarkerCommandName} here <group> → Save to a specific group.
             """, ShowInHelp = true
         });
         // Also register an alias for the command
-        CommandManager.AddHandler(WaymarkCommandAlias, new CommandInfo(OnWaymarkCommand)
+        CommandManager.AddHandler(MarkerCommandAlias, new CommandInfo(OnMarkerCommand)
         {
             HelpMessage = $"""
-            Alias for {WaymarkCommandName}.
-            {WaymarkCommandAlias} here → Alias for `{WaymarkCommandName} here`.
+            Alias for {MarkerCommandName}.
+            {MarkerCommandAlias} here → Alias for `{MarkerCommandName} here`.
             """, ShowInHelp = false
         });
 
@@ -161,29 +161,29 @@ public sealed class Plugin : IDalamudPlugin
 
         ConfigWindow.Dispose();
         MainWindow.Dispose();
-        WaymarkMapService.Dispose();
-        WaymarkMinimapService.Dispose();
+        MarkerMapService.Dispose();
+        MarkerMinimapService.Dispose();
         GameStateReaderService.Dispose();
         IconBrowserService.Dispose();
 
         // Unregister the slash command
-        CommandManager.RemoveHandler(WaymarkCommandName);
-        CommandManager.RemoveHandler(WaymarkCommandAlias);
+        CommandManager.RemoveHandler(MarkerCommandName);
+        CommandManager.RemoveHandler(MarkerCommandAlias);
     }
 
-    /// <summary>Called when the player logs in — set character hash for personal waymark scoping.</summary>
+    /// <summary>Called when the player logs in — set character hash for personal marker scoping.</summary>
     private void OnLogin()
     {
         if (PlayerState.ContentId != 0)
         {
-            WaymarkStorageService.SetCharacterHash(PlayerState.ContentId);
+            MarkerStorageService.SetCharacterHash(PlayerState.ContentId);
         }
     }
 
     /// <summary>Called when the player logs out — clear character hash.</summary>
     private void OnLogout(int kind, int flags)
     {
-        WaymarkStorageService.ClearCharacterHash();
+        MarkerStorageService.ClearCharacterHash();
     }
 
     /// <summary>
@@ -192,17 +192,17 @@ public sealed class Plugin : IDalamudPlugin
     /// <param name="args">The arguments provided with the command.</param>
     /// <remarks>
     /// Supported commands:
-    /// /wlmark                  - Opens the main waymark list window
-    /// /wlmark here             - Saves current location as a new waymark (ungrouped)
+    /// /wlmark                  - Opens the main map marker list window
+    /// /wlmark here             - Saves current location as a new map marker (ungrouped)
     /// /wlmark here [group]     - Saves current location to the specified group
     /// </remarks>
-    private void OnWaymarkCommand(string command, string args)
+    private void OnMarkerCommand(string command, string args)
     {
         var argsTrimmed = args.Trim();
 
         if (string.IsNullOrEmpty(argsTrimmed))
         {
-            // No arguments - open the main window to view waymarks
+            // No arguments - open the main window to view map markers
             MainWindow.Toggle();
             return;
         }
@@ -218,31 +218,31 @@ public sealed class Plugin : IDalamudPlugin
             if (string.IsNullOrEmpty(remainder))
             {
                 // /wlmark here — save ungrouped
-                Log.Information("Saving current location as a waymark...");
-                WaymarkService.SaveCurrentLocation();
+                Log.Information("Saving current location as a map marker...");
+                MarkerService.SaveCurrentLocation();
                 return;
             }
 
             // /wlmark here <group> — save to the specified group
-            var group = WaymarkService.FindGroupByName(remainder);
-            if (group == null || !WaymarkService.CanAddWaymarkToGroup(group))
+            var group = MarkerService.FindGroupByName(remainder);
+            if (group == null || !MarkerService.CanAddMarkerToGroup(group))
             {
-                ChatGui.PrintError($"[WukLamark] Group '{remainder}' not found or you lack permission to modify it. Available groups:\n{WaymarkService.GetGroupNamesList()}");
+                ChatGui.PrintError($"[WukLamark] Group '{remainder}' not found or you lack permission to modify it. Available groups:\n{MarkerService.GetGroupNamesList()}");
                 return;
             }
 
             Log.Information($"Saving current location to group '{group.Name}'...");
-            WaymarkService.SaveCurrentLocation(group, group.Scope);
+            MarkerService.SaveCurrentLocation(group, group.Scope);
             return;
         }
 
         // Unknown argument
-        ChatGui.Print($"[WukLamark] Unknown command. Use '{WaymarkCommandName}' to view waymarks or '{WaymarkCommandName} here [group]' to save current location.");
+        ChatGui.Print($"[WukLamark] Unknown command. Use '{MarkerCommandName}' to view map markers or '{MarkerCommandName} here [group]' to save current location.");
     }
 
     /// <summary>Toggles the visibility of the configuration window</summary>
     public void ToggleConfigUi() => ConfigWindow.Toggle();
 
-    /// <summary>Toggles the visibility of the main waymark management window</summary>
+    /// <summary>Toggles the visibility of the main map marker management window</summary>
     public void ToggleMainUi() => MainWindow.Toggle();
 }
