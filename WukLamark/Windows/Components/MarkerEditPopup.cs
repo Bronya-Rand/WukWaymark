@@ -26,6 +26,7 @@ internal class MarkerEditPopup
     private uint? editingIconId = null;
     private MarkerScope editingScope = MarkerScope.Personal;
     private bool editingReadOnly = false;
+    private bool editingAppliesToAllWorlds = false;
 
     #endregion
 
@@ -55,6 +56,7 @@ internal class MarkerEditPopup
         editingIconId = marker.IconId;
         editingScope = marker.Scope;
         editingReadOnly = marker.IsReadOnly;
+        editingAppliesToAllWorlds = marker.AppliesToAllWorlds;
     }
 
     public void Draw(Marker marker, MarkerGroup? parentGroup = null)
@@ -271,6 +273,12 @@ internal class MarkerEditPopup
             ImGui.SetTooltip(tooltip);
         }
 
+        ImGui.Text("Visible Across Worlds/DCs:");
+        using (ImRaii.Disabled(!canEditGeneralFields))
+            ImGui.Checkbox($"###AllWorlds{identifier}", ref editingAppliesToAllWorlds);
+        if (ImWuk.IsItemHoveredWhenDisabled())
+            ImGui.SetTooltip("When enabled, this marker appears on matching maps in all worlds/data centers.");
+
         // Read-only checkbox (only for shared markers and only editable by the creator)
         if (selectedScope == MarkerScope.Shared)
         {
@@ -348,6 +356,7 @@ internal class MarkerEditPopup
                     IconId = editingIconId,
                     Scope = isGrouped ? parentGroup!.Scope : editingScope,
                     IsReadOnly = selectedScope == MarkerScope.Shared && editingReadOnly,
+                    AppliesToAllWorlds = editingAppliesToAllWorlds,
                 };
                 OnSave?.Invoke(marker, result);
                 ImGui.CloseCurrentPopup();
@@ -376,4 +385,5 @@ public class MarkerEditResult
     public uint? IconId { get; init; }
     public MarkerScope Scope { get; init; }
     public bool IsReadOnly { get; init; }
+    public bool AppliesToAllWorlds { get; init; }
 }

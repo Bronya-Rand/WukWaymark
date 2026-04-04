@@ -102,7 +102,8 @@ public class MarkerService(Configuration configuration, MarkerStorageService sto
             GroupId = group?.Id,
             Scope = scope,
             CharacterHash = storageService.CurrentCharacterHash, // Set creator for both personal and shared
-            IsReadOnly = group?.IsReadOnly ?? false // Use group's read-only status if available
+            IsReadOnly = group?.IsReadOnly ?? false, // Use group's read-only status if available
+            AppliesToAllWorlds = false
         };
 
         // Persist to correct storage based on scope

@@ -5,6 +5,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using System;
 using WukLamark.Services;
+using WukLamark.Utils;
 using WukLamark.Windows;
 
 namespace WukLamark;
@@ -96,6 +97,10 @@ public sealed class Plugin : IDalamudPlugin
         MarkerService = new MarkerService(Configuration, MarkerStorageService);
         IconBrowserService = new IconBrowserService(DataManager);
         GameStateReaderService = new GameStateReaderService();
+
+        // Preload world/DC/territory lookup caches
+        LocationHelper.InitializeWorldCache();
+        LocationHelper.InitializeTerritoryCache();
 
         // Set character hash if player is already logged in
         // Note: We can't access ObjectTable.LocalPlayer in the constructor

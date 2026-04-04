@@ -46,6 +46,11 @@ public class Marker
     public uint WorldId { get; set; }
 
     /// <summary>
+    /// When true, this marker is treated as global and shown across all worlds/data centers.
+    /// </summary>
+    public bool AppliesToAllWorlds { get; set; } = false;
+
+    /// <summary>
     /// Custom color for this marker (RGBA).
     /// </summary>
     public Vector4 Color { get; set; } = new Vector4(1.0f, 0.8f, 0.0f, 1.0f); // Gold/yellow default

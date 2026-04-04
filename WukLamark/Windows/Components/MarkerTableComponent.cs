@@ -112,7 +112,7 @@ internal class MarkerTableComponent
     private static void DrawLocationColumn(Marker marker)
     {
         ImGui.TableNextColumn();
-        var locationText = LocationHelper.GetLocationName(marker.TerritoryId, marker.WorldId, marker.WardId);
+        var locationText = LocationHelper.GetLocationName(marker.TerritoryId, marker.WorldId, marker.WardId, marker.AppliesToAllWorlds);
         ImGui.Text(locationText);
         if (ImGui.IsItemHovered())
         {
@@ -122,7 +122,7 @@ internal class MarkerTableComponent
                 ImGui.Text($"Position: X: {marker.Position.X:F2}, Y: {marker.Position.Y:F2}, Z: {marker.Position.Z:F2}");
                 ImGui.Text($"Territory ID: {marker.TerritoryId}");
                 ImGui.Text($"Map ID: {marker.MapId}");
-                ImGui.Text($"World ID: {marker.WorldId}");
+                ImGui.Text(marker.AppliesToAllWorlds ? "World ID: All Worlds/Data Centers" : $"World ID: {marker.WorldId}");
                 if (marker.WardId != -1)
                     ImGui.Text($"Ward ID: {marker.WardId}");
             }

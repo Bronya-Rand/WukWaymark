@@ -59,6 +59,7 @@ public static class LocationHelper
             var name = territoryRow.PlaceName.Value.Name.ToString();
             TerritoryNameCache[territoryId] = name;
         }
+        TerritoryCacheInitialized = true;
     }
     #endregion
 
@@ -74,11 +75,14 @@ public static class LocationHelper
     /// Location may return a ward ID if the location is in a residential zone. 
     /// Location may return a world ID if the location is in a different world than the player's current world.
     /// </remarks>
-    public static string GetLocationName(ushort territoryId, uint worldId, sbyte wardId)
+    public static string GetLocationName(ushort territoryId, uint worldId, sbyte wardId, bool appliesToAllWorlds)
     {
         var territoryName = GetTerritoryName(territoryId);
         if (wardId >= 0)
             territoryName += $" - Ward {wardId + 1}";
+
+        if (appliesToAllWorlds)
+            return territoryName;
 
         var (targetWorldName, targetDcName) = GetWorldAndDataCenterName(worldId);
 

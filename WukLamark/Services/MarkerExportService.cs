@@ -76,6 +76,7 @@ public class MarkerExportService
             Shape = marker.Shape,
             IconId = marker.IconId,
             VisibilityRadius = marker.VisibilityRadius,
+            AppliesToAllWorlds = marker.AppliesToAllWorlds,
             Scope = marker.Scope,
             GroupId = null,           // Omit
             CharacterHash = null      // Omit
