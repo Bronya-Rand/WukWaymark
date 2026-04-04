@@ -85,6 +85,8 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Service for rendering map markers on the minimap</summary>
     private MarkerMinimapService MarkerMinimapService { get; init; }
 
+    private MarkerTeleportMapService MarkerTeleportMapService { get; init; }
+
     public Plugin()
     {
         // Load or create configuration
@@ -114,6 +116,7 @@ public sealed class Plugin : IDalamudPlugin
         MainWindow = new MainWindow(this);
         MarkerMapService = new MarkerMapService(this);
         MarkerMinimapService = new MarkerMinimapService(this);
+        MarkerTeleportMapService = new MarkerTeleportMapService(this);
 
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(MainWindow);
@@ -161,6 +164,7 @@ public sealed class Plugin : IDalamudPlugin
 
         ConfigWindow.Dispose();
         MainWindow.Dispose();
+        MarkerTeleportMapService.Dispose();
         MarkerMapService.Dispose();
         MarkerMinimapService.Dispose();
         GameStateReaderService.Dispose();

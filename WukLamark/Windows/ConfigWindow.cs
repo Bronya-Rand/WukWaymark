@@ -57,6 +57,14 @@ public class ConfigWindow : Window, IDisposable
             configuration.Save();
         }
 
+        // Enable/Disable marker display on Aethernet map overlay (TelepotTown)
+        var markersAethernetMapEnabled = configuration.ShowMarkersOnAethernet;
+        if (ImGui.Checkbox("Show Markers on Teleport (Aethernet) Map", ref markersAethernetMapEnabled))
+        {
+            configuration.ShowMarkersOnAethernet = markersAethernetMapEnabled;
+            configuration.Save();
+        }
+
         ImGui.Spacing();
 
         // Marker size slider

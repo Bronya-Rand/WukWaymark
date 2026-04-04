@@ -24,6 +24,12 @@ public class Configuration : IPluginConfiguration
     public bool WaymarksMinimapEnabled { get; set; } = true;
 
     /// <summary>
+    /// Enable or disable rendering of markers on the Aethernet map overlay
+    /// (internally called "TelepotTown")
+    /// </summary>
+    public bool ShowMarkersOnAethernet { get; set; } = false;
+
+    /// <summary>
     /// Radius (in pixels) of markers displayed on the map.
     /// Valid range: 4.0 to 20.0 pixels.
     /// Affects all markers uniformly via this global setting.

@@ -2,27 +2,22 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
-using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
-using System.Runtime.InteropServices;
 using WukLamark.Models;
 using WukLamark.Utils;
 using WukLamark.Windows;
 
 namespace WukLamark.Services
 {
-    /// <summary>
-    /// Service responsible for calculating marker positions on the full Area Map (AreaMap addon).
-    /// </summary>
-    internal class MarkerMapService : IDisposable
+    internal class MarkerTeleportMapService : IDisposable
     {
         private readonly Plugin plugin;
         private readonly Configuration configuration;
-        private readonly MarkerWindow window;
+        private readonly MarkerTeleportWindow window;
         private bool disposed;
 
         public readonly List<(Vector2 ScreenPos, MarkerShape Shape, float MarkerSize, uint Color, string? Name, uint? IconId)> MarkersToRender = [];
@@ -36,26 +31,21 @@ namespace WukLamark.Services
         public float MapMaxX { get; private set; }
         public float MapMaxY { get; private set; }
 
-        public MarkerMapService(Plugin plugin)
+        public MarkerTeleportMapService(Plugin plugin)
         {
             this.plugin = plugin;
-            configuration = plugin.Configuration;
-            window = new MarkerWindow(this, plugin);
+            this.configuration = plugin.Configuration;
+            this.window = new MarkerTeleportWindow(this, plugin);
             Plugin.Framework.Update += OnFrameworkUpdate;
         }
 
-        /// <summary>
-        /// Called every frame to gather game state and pre-calculate marker screen positions.
-        /// All coordinate math happens here so the window is a thin rendering layer.
-        /// </summary>
         private unsafe void OnFrameworkUpdate(IFramework framework)
         {
             MarkersToRender.Clear();
             MapCenterScreenPos = null;
 
             if (!Plugin.ClientState.IsLoggedIn) return;
-            if (!configuration.WaymarksMapEnabled)
-                return;
+            //if (!configuration.ShowMarkersOnAethernet) return;
 
             // Get Housing Manager
             var housingManager = HousingManager.Instance();
@@ -68,54 +58,50 @@ namespace WukLamark.Services
                 return;
             var currentWorldId = player.CurrentWorld.RowId;
 
-            // Skip rendering in combat
-            var playerCharacter = (Character*)player.Address;
-            if (playerCharacter->InCombat)
-                return;
-            if (playerCharacter->IsInPvP())
-                return;
-
             // ═══════════════════════════════════════════════════════════════
-            // STEP 1: Validate AreaMap addon state
+            // Valiidate "TelepotTown" addon state
             // ═══════════════════════════════════════════════════════════════
 
-            var areaMapAddonPtr = Plugin.GameGui.GetAddonByName("AreaMap");
-            if (areaMapAddonPtr.IsNull)
-                return;
+            var teleportTownAddonPtr = Plugin.GameGui.GetAddonByName("TelepotTown");
+            if (teleportTownAddonPtr.IsNull) return;
 
-            var areaMap = (AtkUnitBase*)areaMapAddonPtr.Address;
-            if (areaMap == null || !areaMap->IsVisible || areaMap->UldManager.LoadedState != AtkLoadState.Loaded)
-                return;
+            var teleportTown = (AtkUnitBase*)teleportTownAddonPtr.Address;
+            if (teleportTown == null || !teleportTown->IsVisible || teleportTown->UldManager.LoadedState != AtkLoadState.Loaded) return;
 
+            // The actual map component
+            var teleportAreaMap = teleportTown->GetComponentNodeById(21);
+            if (teleportAreaMap == null) return;
+
+            var teleportAreaMapResNode = teleportTown->GetNodeById(10);
+            if (teleportAreaMapResNode == null) return;
+
+            // TODO: Find out how AgentTelepotTown handles what map to display
             var agentMap = AgentMap.Instance();
-            if (agentMap == null || agentMap->CurrentMapId == 0)
-                return;
+            if (agentMap == null || agentMap->CurrentMapId == 0) return;
 
             // ═══════════════════════════════════════════════════════════════
-            // STEP 2: Locate critical UI nodes
+            // Locate UI nodes
             // ═══════════════════════════════════════════════════════════════
 
-            var mapComponent = areaMap->GetComponentNodeById(53);
+            var mapComponent = teleportTown->GetComponentNodeById(21);
             if (mapComponent == null) return;
 
-            var imageNode = (AtkImageNode*)Marshal.ReadIntPtr(areaMapAddonPtr, 0x3B8);
+            var imageNode = (AtkImageNode*)mapComponent->Component->GetNodeById(7);
             if (imageNode == null) return;
 
             // ═══════════════════════════════════════════════════════════════
-            // STEP 3: Extract map state for coordinate calculations
+            // Extract map state for coordinate calculations
             // ═══════════════════════════════════════════════════════════════
 
-            var sliderNode = (AtkComponentNode*)areaMap->GetNodeById(16);
-            if (sliderNode == null) return;
-            var sliderComponent = (AtkComponentSlider*)sliderNode->GetComponent();
-            if (sliderComponent == null) return;
-
-            var zoomIndex = sliderComponent->Value;
+            // Zoom Index appears to be set to 3 on the teleport map
+            var zoomIndex = 3;
             var zoneScale = agentMap->SelectedMapSizeFactorFloat;
 
-            // ═══════════════════════════════════════════════════════════════
-            // STEP 4: Calculate static map center screen position
-            // ═══════════════════════════════════════════════════════════════
+            Plugin.Log.Verbose($"AgentMap SelectedMapId: {agentMap->SelectedMapId}, MapSizeFactor: {agentMap->SelectedMapSizeFactorFloat}, CurrentMapId: {agentMap->CurrentMapId}");
+
+            var actualX = teleportTown->X + (teleportAreaMapResNode->X * teleportTown->Scale);
+            // Lower Y by 18 due to map extending up to header bar versus AreaMap
+            var actualY = teleportTown->Y + (teleportAreaMapResNode->Y * teleportTown->Scale) - (18 * teleportTown->Scale);
 
             Vector2 mapCenterScreenPos;
             if (imageNode->IsVisible())
@@ -127,13 +113,13 @@ namespace WukLamark.Services
                 var playerMarkerCenterX = nodeX + (node->Width / 2f * node->ScaleX);
                 var playerMarkerCenterY = nodeY + (node->Height / 2f * node->ScaleY);
 
-                var mapOffsetX = 16.0f * areaMap->Scale;
-                var mapOffsetY = 52.0f * areaMap->Scale;
+                var mapOffsetX = 16.0f * teleportTown->Scale;
+                var mapOffsetY = 52.0f * teleportTown->Scale;
 
-                var playerScreenX = areaMap->X - mapOffsetX + (playerMarkerCenterX * areaMap->Scale);
-                var playerScreenY = areaMap->Y + mapOffsetY + (playerMarkerCenterY * areaMap->Scale);
+                var playerScreenX = actualX - mapOffsetX + (playerMarkerCenterX * teleportTown->Scale);
+                var playerScreenY = actualY + mapOffsetY + (playerMarkerCenterY * teleportTown->Scale);
 
-                var multiplier = Calculate.GetMultiplier(zoomIndex, areaMap->Scale);
+                var multiplier = Calculate.GetMultiplier(zoomIndex, teleportTown->Scale);
                 var playerOffsetX = player.Position.X * zoneScale * multiplier;
                 var playerOffsetY = player.Position.Z * zoneScale * multiplier;
 
@@ -152,37 +138,36 @@ namespace WukLamark.Services
                 var markerCenterY = nodeY + (node->Height / 2f * node->ScaleY);
 
                 var globalScale = ImGuiHelpers.GlobalScale;
-                var mapOffsetX = 16.0f * areaMap->Scale * globalScale;
-                var mapOffsetY = 52.0f * areaMap->Scale * globalScale;
+                var mapOffsetX = 16.0f * teleportTown->Scale * globalScale;
+                var mapOffsetY = 52.0f * teleportTown->Scale * globalScale;
 
                 mapCenterScreenPos = new Vector2(
-                    areaMap->X - mapOffsetX + (markerCenterX * areaMap->Scale),
-                    areaMap->Y + mapOffsetY + (markerCenterY * areaMap->Scale)
+                    actualX - mapOffsetX + (markerCenterX * teleportTown->Scale),
+                    actualY + mapOffsetY + (markerCenterY * teleportTown->Scale)
                 );
             }
 
             MapCenterScreenPos = mapCenterScreenPos;
 
             // ═══════════════════════════════════════════════════════════════
-            // STEP 5: Get map bounds for edge clamping
+            // Get map bounds for clipping
             // ═══════════════════════════════════════════════════════════════
 
-            var clipNode = mapComponent->Component->UldManager.SearchNodeById(0);
-            if (clipNode == null) clipNode = &mapComponent->AtkResNode;
+            var clipNode = teleportAreaMapResNode;
 
             float mapBoxX, mapBoxY;
             clipNode->GetPositionFloat(&mapBoxX, &mapBoxY);
 
-            MapMinX = areaMap->X + (mapBoxX * areaMap->Scale);
-            MapMinY = areaMap->Y + (mapBoxY * areaMap->Scale);
-            MapMaxX = MapMinX + (clipNode->Width * clipNode->ScaleX * areaMap->Scale);
-            MapMaxY = MapMinY + (clipNode->Height * clipNode->ScaleY * areaMap->Scale);
+            MapMinX = teleportTown->X + ((mapBoxX + teleportAreaMap->X) * teleportTown->Scale);
+            MapMinY = teleportTown->Y + ((mapBoxY + teleportAreaMap->Y) * teleportTown->Scale) + (18 * teleportTown->Scale); // Lower Y by 18 due to map extending up to header bar versus AreaMap
+            MapMaxX = MapMinX + (clipNode->Width * clipNode->ScaleX * teleportTown->Scale) - (18 * teleportTown->Scale); // Somehow the reduction of Y works here for X?
+            MapMaxY = MapMinY + (clipNode->Height * clipNode->ScaleY * teleportTown->Scale) - (36 * teleportTown->Scale); // Double the Y reduction to account for min adjustment
 
             // ═══════════════════════════════════════════════════════════════
-            // STEP 6: Process and pre-calculate marker screen positions
+            // Process and pre-calculate marker screen positions
             // ═══════════════════════════════════════════════════════════════
 
-            var multiplierForMarkers = Calculate.GetMultiplier(zoomIndex, areaMap->Scale);
+            var multiplierForMarkers = Calculate.GetMultiplier(zoomIndex, teleportTown->Scale);
             var mapCenterWorldPos = Vector3.Zero;
             var currentMapId = agentMap->SelectedMapId;
 
@@ -255,7 +240,7 @@ namespace WukLamark.Services
                 if (marker.IconId != null)
                 {
                     var iconSize = plugin.IconBrowserService.GetIconSize(marker.IconId.Value);
-                    var deSize = 6.0f / areaMap->Scale * ImGuiHelpers.GlobalScale;
+                    var deSize = 6.0f / teleportTown->Scale * ImGuiHelpers.GlobalScale;
                     if (iconSize.HasValue)
                     {
                         markerSize = iconSize.Value.X / deSize;
