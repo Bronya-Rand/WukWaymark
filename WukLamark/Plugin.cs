@@ -113,6 +113,7 @@ public sealed class Plugin : IDalamudPlugin
         // Subscribe to login/logout events for character hash management
         ClientState.Login += OnLogin;
         ClientState.Logout += OnLogout;
+        ClientState.TerritoryChanged += OnTerritoryChange;
 
         // Initialize UI windows
         ConfigWindow = new ConfigWindow(this);
@@ -183,6 +184,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             MarkerStorageService.SetCharacterHash(PlayerState.ContentId);
         }
+        LocationHelper.UpdateCurrentWorldId();
     }
 
     /// <summary>Called when the player logs out — clear character hash.</summary>
@@ -190,6 +192,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         MarkerStorageService.ClearCharacterHash();
     }
+    private void OnTerritoryChange(ushort _) => LocationHelper.UpdateCurrentWorldId();
 
     /// <summary>
     /// Handles the /wlmark slash command with optional arguments.

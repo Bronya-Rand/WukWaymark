@@ -10,10 +10,10 @@ public static class LocationHelper
 
     // For use in search filtering by DC
     private static readonly Dictionary<string, HashSet<uint>> DataCenterWorldIdCache = new(System.StringComparer.Ordinal);
+    private static uint CachedCurrentWorldId;
 
     private static bool WorldCacheInitialized;
     private static bool TerritoryCacheInitialized;
-
     #region Initialization
     public static void InitializeWorldCache()
     {
@@ -67,6 +67,13 @@ public static class LocationHelper
     {
         return DataCenterWorldIdCache.TryGetValue(dataCenterName, out var worldIds) ? worldIds : [];
     }
+    public static void UpdateCurrentWorldId()
+    {
+        var player = Plugin.PlayerState;
+        Plugin.Log.Debug($"Updating current world ID cache: {player.CurrentWorld.RowId}");
+        if (player != null)
+            CachedCurrentWorldId = player.CurrentWorld.RowId;
+    }
 
     /// <summary>
     /// Returns a formatted location string, optionally including ward and world info.
@@ -88,9 +95,16 @@ public static class LocationHelper
 
         var player = Plugin.ObjectTable.LocalPlayer;
         if (player == null)
-            return $"{territoryName} ({targetDcName} - {targetWorldName})";
+        {
+            if (!Plugin.ClientState.IsLoggedIn)
+                return $"{territoryName} ({targetDcName} - {targetWorldName})";
+            if (worldId != CachedCurrentWorldId)
+                return $"{territoryName} ({targetWorldName})";
+            return territoryName;
+        }
 
         var playerWorldId = player.CurrentWorld.RowId;
+
         if (playerWorldId == worldId)
             return territoryName;
 
