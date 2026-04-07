@@ -199,6 +199,7 @@ public class MainWindow : Window, IDisposable
         marker.IconId = result.IconId;
         marker.Scope = result.Scope;
         marker.IsReadOnly = result.IsReadOnly;
+        marker.AppliesToAllWorlds = result.AppliesToAllWorlds;
 
         if (oldScope != marker.Scope)
         {

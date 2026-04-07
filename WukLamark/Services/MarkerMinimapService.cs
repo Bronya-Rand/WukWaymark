@@ -145,7 +145,7 @@ namespace WukLamark.Services
             foreach (var marker in plugin.MarkerStorageService.GetVisibleMarkers())
             {
                 // Minimap early culling
-                if (marker.WorldId != currentWorldId)
+                if (!marker.AppliesToAllWorlds && marker.WorldId != currentWorldId)
                     continue; // Wrong world
                 if (marker.MapId != agentMap->CurrentMapId)
                     continue; // Wrong map

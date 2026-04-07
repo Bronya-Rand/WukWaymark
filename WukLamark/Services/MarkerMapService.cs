@@ -200,7 +200,7 @@ namespace WukLamark.Services
             foreach (var marker in plugin.MarkerStorageService.GetVisibleMarkers())
             {
                 // Early culling
-                if (marker.WorldId != currentWorldId)
+                if (!marker.AppliesToAllWorlds && marker.WorldId != currentWorldId)
                     continue; // Wrong world
                 if (marker.MapId != currentMapId)
                     continue; // Wrong map

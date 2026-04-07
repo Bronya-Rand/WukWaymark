@@ -5,8 +5,79 @@ namespace WukLamark.Utils;
 
 public static class LocationHelper
 {
-    private static readonly Dictionary<ushort, string> TerritoryNameCache = [];
-    private static readonly Dictionary<uint, string> WorldNameCache = [];
+    private static readonly Dictionary<uint, string> TerritoryNameCache = [];
+    private static readonly Dictionary<uint, (string WorldName, string DataCenterName)> WorldInfoCache = [];
+
+    // For use in search filtering by DC
+    private static readonly Dictionary<string, HashSet<uint>> DataCenterWorldIdCache = new(System.StringComparer.Ordinal);
+    private static uint CachedCurrentWorldId;
+
+    private static bool WorldCacheInitialized;
+    private static bool TerritoryCacheInitialized;
+    #region Initialization
+    public static void InitializeWorldCache()
+    {
+        if (WorldCacheInitialized) return;
+
+        var worldSheet = Plugin.DataManager.GetExcelSheet<World>();
+        if (worldSheet == null) return;
+
+        foreach (var worldRow in worldSheet)
+        {
+            var worldId = worldRow.RowId;
+            if (worldId == 0) continue;
+
+            var worldName = worldRow.Name.ToString();
+            var dataCenterName = worldRow.DataCenter.Value.Name.ToString();
+
+            // Cache world info
+            WorldInfoCache[worldId] = (worldName, dataCenterName);
+
+            if (!DataCenterWorldIdCache.TryGetValue(dataCenterName, out var worldIds))
+            {
+                worldIds = [];
+                DataCenterWorldIdCache[dataCenterName] = worldIds;
+            }
+
+            // Cache world ID under its data center for q
+            worldIds.Add(worldId);
+        }
+        WorldCacheInitialized = true;
+    }
+
+    public static void InitializeTerritoryCache()
+    {
+        if (TerritoryCacheInitialized) return;
+
+        var territorySheet = Plugin.DataManager.GetExcelSheet<TerritoryType>();
+        if (territorySheet == null) return;
+
+        foreach (var territoryRow in territorySheet)
+        {
+            var territoryId = territoryRow.RowId;
+            if (territoryId == 0) continue;
+            var name = territoryRow.PlaceName.Value.Name.ToString();
+            TerritoryNameCache[territoryId] = name;
+        }
+        TerritoryCacheInitialized = true;
+    }
+    #endregion
+
+    public static IReadOnlyCollection<uint> GetWorldIdsForDataCenter(string dataCenterName)
+    {
+        return DataCenterWorldIdCache.TryGetValue(dataCenterName, out var worldIds) ? worldIds : [];
+    }
+    public static void UpdateCurrentWorldId()
+    {
+        var player = Plugin.PlayerState;
+        if (player == null) return;
+
+        var currentWorldId = player.CurrentWorld.RowId;
+        if (currentWorldId == 0) return;
+
+        Plugin.Log.Debug($"Updating current world ID cache: {currentWorldId}");
+        CachedCurrentWorldId = currentWorldId;
+    }
 
     /// <summary>
     /// Returns a formatted location string, optionally including ward and world info.
@@ -15,19 +86,38 @@ public static class LocationHelper
     /// Location may return a ward ID if the location is in a residential zone. 
     /// Location may return a world ID if the location is in a different world than the player's current world.
     /// </remarks>
-    public static string GetLocationName(ushort territoryId, uint worldId, sbyte wardId)
+    public static string GetLocationName(ushort territoryId, uint worldId, sbyte wardId, bool appliesToAllWorlds)
     {
         var territoryName = GetTerritoryName(territoryId);
         if (wardId >= 0)
             territoryName += $" - Ward {wardId + 1}";
 
-        var worldName = GetWorldName(worldId);
+        if (appliesToAllWorlds)
+            return territoryName;
+
+        var (targetWorldName, targetDcName) = GetWorldAndDataCenterName(worldId);
 
         var player = Plugin.ObjectTable.LocalPlayer;
-        if (player != null && player.CurrentWorld.RowId == worldId)
+        if (player == null)
+        {
+            if (!Plugin.ClientState.IsLoggedIn)
+                return $"{territoryName} ({targetDcName} - {targetWorldName})";
+            if (worldId != CachedCurrentWorldId)
+                return $"{territoryName} ({targetWorldName})";
             return territoryName;
-        else
-            return $"{territoryName} ({worldName})";
+        }
+
+        var playerWorldId = player.CurrentWorld.RowId;
+
+        if (playerWorldId == worldId)
+            return territoryName;
+
+        var (_, playerDcName) = GetWorldAndDataCenterName(playerWorldId);
+
+        if (playerDcName == targetDcName)
+            return $"{territoryName} ({targetWorldName})";
+
+        return $"{territoryName} ({targetDcName} - {targetWorldName})";
     }
 
     /// <summary>
@@ -38,12 +128,11 @@ public static class LocationHelper
         if (TerritoryNameCache.TryGetValue(territoryId, out var cachedName))
             return cachedName;
 
-        if (Plugin.DataManager.GetExcelSheet<TerritoryType>().TryGetRow(territoryId, out var territoryRow))
-        {
-            var name = territoryRow.PlaceName.Value.Name.ToString();
-            TerritoryNameCache[territoryId] = name;
-            return name;
-        }
+        // Fallback
+        InitializeTerritoryCache();
+
+        if (TerritoryNameCache.TryGetValue(territoryId, out var territoryName))
+            return territoryName;
 
         var unknownName = $"Unknown (ID: {territoryId})";
         TerritoryNameCache[territoryId] = unknownName;
@@ -51,22 +140,24 @@ public static class LocationHelper
     }
 
     /// <summary>
-    /// Resolves and caches the world name for a world ID.
+    /// Retrieves the world and data center names associated with the specified world identifier.
     /// </summary>
-    public static string GetWorldName(uint worldId)
+    /// <param name="worldId">The world ID to lookup info for.</param>
+    /// <returns>A tuple containing the world name and data center name corresponding to the specified world identifier. If the
+    /// world identifier is not recognized, returns a tuple with an 'Unknown' label and the provided identifier.</returns>
+    public static (string WorldName, string DataCenterName) GetWorldAndDataCenterName(uint worldId)
     {
-        if (WorldNameCache.TryGetValue(worldId, out var cachedName))
-            return cachedName;
+        if (WorldInfoCache.TryGetValue(worldId, out var cachedInfo))
+            return cachedInfo;
 
-        if (Plugin.DataManager.GetExcelSheet<World>().TryGetRow(worldId, out var worldRow))
-        {
-            var name = worldRow.Name.ToString();
-            WorldNameCache[worldId] = name;
-            return name;
-        }
+        // Fallback
+        InitializeWorldCache();
 
-        var unknownName = $"Unknown (ID: {worldId})";
-        WorldNameCache[worldId] = unknownName;
-        return unknownName;
+        if (WorldInfoCache.TryGetValue(worldId, out var worldInfo))
+            return worldInfo;
+
+        var unknownInfo = ($"Unknown (ID: {worldId})", "Unknown DC");
+        WorldInfoCache[worldId] = unknownInfo;
+        return unknownInfo;
     }
 }

@@ -10,7 +10,7 @@ namespace WukLamark.Windows
     /// This is a thin rendering layer — all coordinate calculations are done
     /// in <see cref="MarkerMapService"/> during Framework.Update.
     /// </summary>
-    public unsafe class MarkerWindow : IDisposable
+    public class MarkerWindow : IDisposable
     {
         private readonly MarkerMapService service;
         private readonly Plugin plugin;
