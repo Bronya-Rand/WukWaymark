@@ -88,7 +88,7 @@ public static class LocationHelper
 
         var player = Plugin.ObjectTable.LocalPlayer;
         if (player == null)
-            return $"{territoryName} ({targetWorldName})";
+            return $"{territoryName} ({targetDcName} - {targetWorldName})";
 
         var playerWorldId = player.CurrentWorld.RowId;
         if (playerWorldId == worldId)
