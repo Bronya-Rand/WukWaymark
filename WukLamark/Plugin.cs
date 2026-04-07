@@ -156,6 +156,7 @@ public sealed class Plugin : IDalamudPlugin
         // Unregister login/logout events
         ClientState.Login -= OnLogin;
         ClientState.Logout -= OnLogout;
+        ClientState.TerritoryChanged -= OnTerritoryChange;
 
         // Unregister all event handlers to prevent memory leaks
         PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
@@ -177,14 +178,18 @@ public sealed class Plugin : IDalamudPlugin
         CommandManager.RemoveHandler(MarkerCommandAlias);
     }
 
-    /// <summary>Called when the player logs in — set character hash for personal marker scoping.</summary>
+    /// <summary>
+    /// Called when the player logs in
+    /// -- Sets the character hash for personal marker scoping.
+    /// -- Updates the current world ID for location-based marker display.
+    /// </summary>
     private void OnLogin()
     {
         if (PlayerState.ContentId != 0)
         {
             MarkerStorageService.SetCharacterHash(PlayerState.ContentId);
+            LocationHelper.UpdateCurrentWorldId();
         }
-        LocationHelper.UpdateCurrentWorldId();
     }
 
     /// <summary>Called when the player logs out — clear character hash.</summary>
@@ -192,12 +197,18 @@ public sealed class Plugin : IDalamudPlugin
     {
         MarkerStorageService.ClearCharacterHash();
     }
+
+    /// <summary>
+    /// Called when the player changes territory (zone) in the game.
+    /// -- Updates the current world ID in the LocationHelper to the current world ID.
+    /// </summary>
     private void OnTerritoryChange(ushort _) => LocationHelper.UpdateCurrentWorldId();
 
     /// <summary>
     /// Handles the /wlmark slash command with optional arguments.
     /// <param name="command">The command string (e.g., "/wlmark").</param>
     /// <param name="args">The arguments provided with the command.</param>
+    /// </summary>
     /// <remarks>
     /// Supported commands:
     /// /wlmark                  - Opens the main map marker list window

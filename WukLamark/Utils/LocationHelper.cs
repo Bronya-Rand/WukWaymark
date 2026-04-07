@@ -70,9 +70,13 @@ public static class LocationHelper
     public static void UpdateCurrentWorldId()
     {
         var player = Plugin.PlayerState;
-        Plugin.Log.Debug($"Updating current world ID cache: {player.CurrentWorld.RowId}");
-        if (player != null)
-            CachedCurrentWorldId = player.CurrentWorld.RowId;
+        if (player == null) return;
+
+        var currentWorldId = player.CurrentWorld.RowId;
+        if (currentWorldId == 0) return;
+
+        Plugin.Log.Debug($"Updating current world ID cache: {currentWorldId}");
+        CachedCurrentWorldId = currentWorldId;
     }
 
     /// <summary>
@@ -138,7 +142,7 @@ public static class LocationHelper
     /// <summary>
     /// Retrieves the world and data center names associated with the specified world identifier.
     /// </summary>
-    /// <param name="worldId">The worid ID to lookup info for.</param>
+    /// <param name="worldId">The world ID to lookup info for.</param>
     /// <returns>A tuple containing the world name and data center name corresponding to the specified world identifier. If the
     /// world identifier is not recognized, returns a tuple with an 'Unknown' label and the provided identifier.</returns>
     public static (string WorldName, string DataCenterName) GetWorldAndDataCenterName(uint worldId)
