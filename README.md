@@ -16,7 +16,7 @@ WukLamark is a plugin that allows players to create and manage custom map marker
 - Add personal notes to map markers
 - Set different scopes for map markers (personal, shared)
    > Shared map markers are visible to anyone who logs into the game from your computer.
-- Per-character map markers
+- Per-world, per-data center or global map markers
 - Group map markers for different purposes
 - Import map markers from other players/Export map markers to other players
 - Displays in-game locations and world locations by name
@@ -39,6 +39,10 @@ To edit a map marker, open the WukLamark window and click the `Edit Marker` butt
 
 > `Color` and `Shape` are only applicable to No Icon map markers. Scope is only applicable to map markers that are not in a group. Map markers in a group will inherit the scope of the group. 
 
+### Making a Map Marker Global
+
+To make a map marker global, open the WukLamark window and click the `Edit Marker` button. Then, click the `Visible Across Worlds/DCs` checkbox.
+
 ### Deleting a Map Marker
 
 To delete a map marker, open the WukLamark window and click the `Delete Marker` button.
@@ -54,6 +58,8 @@ To share a map marker with others, open the WukLamark window and click the `Copy
 To import a map marker from someone else, open the WukLamark window and click the `Import Map Markers from Clipboard` button.
 
 ![Import Map Marker](./.github/assets/WindowImportWaymark.png)
+
+## Groups
 
 ### Creating a Group
 
