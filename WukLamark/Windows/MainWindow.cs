@@ -60,9 +60,10 @@ public class MainWindow : Window, IDisposable
         // Initialize modals
         deleteMarkerModal = new DeleteMarkerModal
         {
-            OnConfirmDelete = marker =>
+            OnConfirmDelete = markers =>
             {
-                plugin.MarkerService.DeleteMarker(marker);
+                foreach (var marker in markers)
+                    plugin.MarkerService.DeleteMarker(marker);
             },
         };
 
@@ -133,7 +134,10 @@ public class MainWindow : Window, IDisposable
             OnExportRequested = marker =>
             {
                 MarkerExportService.ExportShareToClipboard(marker);
-                importFeedback = $"Copied marker to clipboard!";
+                if (marker.Count == 1)
+                    importFeedback = $"Copied marker to clipboard!";
+                else
+                    importFeedback = $"Copied {marker.Count} markers to clipboard!";
                 importFeedbackTicks = 180;
             },
             OnSaveRequested = HandleMarkerSave,
@@ -160,6 +164,7 @@ public class MainWindow : Window, IDisposable
 
         groupViewSection = new GroupViewSection(plugin.GameStateReaderService, plugin.MarkerStorageService, markerTableComponent)
         {
+            IsMultiSelectActive = () => markerTableComponent.IsMultiSelect,
             OnCreateGroup = () =>
             {
                 groupEditorModal.Open(null);
@@ -176,6 +181,12 @@ public class MainWindow : Window, IDisposable
             {
                 plugin.MarkerService.SaveCurrentLocation(group, group.Scope);
             },
+            OnExportGroupMarkers = markers =>
+            {
+                MarkerExportService.ExportShareToClipboard(markers);
+                importFeedback = $"Copied {markers.Count} marker(s) from group to clipboard!";
+                importFeedbackTicks = 180;
+            }
         };
 
         emptyStateSection = new EmptyStateSection(plugin.GameStateReaderService)

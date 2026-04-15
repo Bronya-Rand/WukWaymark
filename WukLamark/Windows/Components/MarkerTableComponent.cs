@@ -1,8 +1,8 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Utility;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -18,16 +18,21 @@ internal class MarkerTableComponent
     private readonly GameStateReaderService gameStateReaderService;
     private readonly MarkerEditPopup editPopup;
 
+    #region Selection State
+    private Marker? pendingEditMarker;
+    private MarkerGroup? pendingEditParentGroup;
+    private bool pendingEditPopupOpenRequested;
+
     private int selectionAnchorIndex = -1;
     public HashSet<Guid> SelectedMarkerIds { get; } = [];
     public bool IsMultiSelect => SelectedMarkerIds.Count > 1;
+    #endregion
 
     #region Callback Actions
-    public Action<Marker>? OnDeleteRequested { get; set; }
+    public Action<Marker, MarkerEditResult>? OnSaveRequested { get; set; }
     public Action<Marker>? OnFlagRequested { get; set; }
     public Action<List<Marker>>? OnExportRequested { get; set; }
-    public Action<Marker, MarkerEditResult>? OnSaveRequested { get; set; }
-
+    public Action<List<Marker>>? OnDeleteRequested { get; set; }
     #endregion
 
     public MarkerTableComponent(Plugin plugin, GameStateReaderService gameStateReaderService)
@@ -42,7 +47,7 @@ internal class MarkerTableComponent
 
     public void Draw(List<Marker> markers, MarkerGroup? parentGroup = null)
     {
-        using var markerTableMode = ImRaii.Table("MarkerTable", 5,
+        using var markerTableMode = ImRaii.Table("MarkerTable", 4,
             ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY |
             ImGuiTableFlags.ScrollX | ImGuiTableFlags.Resizable);
         if (!markerTableMode) return;
@@ -51,7 +56,6 @@ internal class MarkerTableComponent
         ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 100);
         ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.WidthStretch, 160);
         ImGui.TableSetupColumn("Created", ImGuiTableColumnFlags.WidthFixed, 120);
-        ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthFixed, 120);
         ImGui.TableHeadersRow();
 
         for (var i = 0; i < markers.Count; i++)
@@ -74,20 +78,48 @@ internal class MarkerTableComponent
 
                 ImGui.SetItemAllowOverlap();
 
-                // Reset cursor so the selectable acts as an overlay and does not add extra row height.
+                ImGui.OpenPopupOnItemClick($"MarkerContextMenu##{marker.Id}", ImGuiPopupFlags.MouseButtonRight);
+                using (var popup = ImRaii.Popup($"MarkerContextMenu##{marker.Id}"))
+                {
+                    if (popup)
+                        if (IsMultiSelect)
+                            DrawMultiMarkerContextMenu();
+                        else
+                            DrawMarkerContextMenu(marker, parentGroup);
+                }
+
+                // Reset cursor so selectable acts as an overlay.
                 ImGui.SetCursorScreenPos(rowStart);
 
                 if (rowClicked)
                     HandleRowSelection(markers, i);
 
                 if (SelectedMarkerIds.Contains(marker.Id) && IsMultiSelect)
-                    ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg0, ImGui.GetColorU32(ImGuiCol.HeaderActive));
+                    ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg0, ImGui.GetColorU32(ImGuiCol.ButtonActive));
 
                 DrawMarkerColumn(marker);
                 DrawNameColumn(marker);
                 DrawLocationColumn(marker);
                 DrawCreatedColumn(marker);
-                DrawActionsColumn(marker, parentGroup);
+            }
+        }
+
+        if (pendingEditMarker != null)
+        {
+            var popupId = $"EditMarker##{pendingEditMarker.Id}";
+
+            if (pendingEditPopupOpenRequested)
+            {
+                ImGui.OpenPopup(popupId);
+                pendingEditPopupOpenRequested = false;
+            }
+            editPopup.Draw(pendingEditMarker, pendingEditParentGroup);
+
+            if (!ImGui.IsPopupOpen(popupId))
+            {
+                pendingEditMarker = null;
+                pendingEditParentGroup = null;
+                pendingEditPopupOpenRequested = false;
             }
         }
     }
@@ -166,126 +198,77 @@ internal class MarkerTableComponent
         ImGui.Text(marker.CreatedAt.ToString("yyyy-MM-dd HH:mm"));
     }
 
-    private void DrawActionsColumn(Marker marker, MarkerGroup? parentGroup)
+    /// <summary>
+    /// Single-select context menu for individual marker actions. For multi-select actions, see <see cref="DrawMultiMarkerContextMenu"/>.
+    /// </summary>
+    /// <param name="marker"></param>
+    private void DrawMarkerContextMenu(Marker marker, MarkerGroup? parentGroup)
     {
-        ImGui.TableSetColumnIndex(4);
+        if (IsMultiSelect) return;
 
-        var isLoggedIn = gameStateReaderService.IsLoggedIn;
-        var currentHash = plugin.MarkerStorageService.CurrentCharacterHash;
-        var isMarkerCreator = marker.CharacterHash != null &&
-                        currentHash != null &&
-                        marker.CharacterHash == currentHash;
+        GetPermissionsForMarker(marker, parentGroup, out var isLoggedIn, out var isCreator, out var canEdit, out var canDelete);
 
-        var canEdit = false;
-        var canDelete = false;
-
-        if (parentGroup != null)
-        {
-            var isGroupCreator = parentGroup.CreatorHash != null && currentHash != null && parentGroup.CreatorHash == currentHash;
-
-            // Only creators of personal groups may edit/delete them
-            if (parentGroup.Scope == MarkerScope.Personal)
-            {
-                canEdit = isGroupCreator;
-                canDelete = isGroupCreator;
-            }
-            else if (parentGroup.Scope == MarkerScope.Shared)
-            {
-                // Shared read-only groups: only marker creators can open edit to disable read-only.
-                if (parentGroup.IsReadOnly)
-                {
-                    canEdit = isMarkerCreator;
-                    canDelete = false;
-                }
-                else
-                {
-                    // Shared non-read-only markers: editable by anyone unless the marker itself is read-only.
-                    canEdit = !marker.IsReadOnly || isMarkerCreator;
-                    canDelete = !marker.IsReadOnly;
-                }
-            }
-        }
-        else
-        {
-            // Only creators of personal markers may edit/delete them or
-            // shared non-read-only markers are editable by anyone.
-            canEdit = (marker.Scope == MarkerScope.Shared && (!marker.IsReadOnly || isMarkerCreator)) ||
-                        (marker.Scope == MarkerScope.Personal && isMarkerCreator);
-
-            canDelete = (marker.Scope == MarkerScope.Shared && !marker.IsReadOnly) ||
-                        (marker.Scope == MarkerScope.Personal && isMarkerCreator);
-        }
-
-        // Edit button
         using (ImRaii.Disabled(!canEdit))
-        {
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.Edit))
+            if (ImGui.MenuItem("Edit Marker"))
             {
+                pendingEditMarker = marker;
+                pendingEditParentGroup = parentGroup;
+                pendingEditPopupOpenRequested = true;
                 editPopup.LoadFromMarker(marker);
-                ImGui.OpenPopup($"EditMarker##{marker.Id}");
             }
-        }
-        if (ImWuk.IsItemHoveredWhenDisabled())
+        if (!canEdit)
         {
-            var tooltip = parentGroup != null && parentGroup.Scope == MarkerScope.Personal && !canEdit ? "Only the group's creator can edit markers in this personal group." :
-                          parentGroup != null && parentGroup.Scope == MarkerScope.Shared && parentGroup.IsReadOnly ? "This group is read-only. Only the marker creator can edit it." :
-                          parentGroup != null && parentGroup.Scope == MarkerScope.Shared && marker.IsReadOnly && !canEdit ? "This shared marker is read-only and only the creator can edit it." :
-                          parentGroup == null && !canEdit && marker.Scope == MarkerScope.Personal ? "Only the creator can edit this marker." :
-                          parentGroup == null && !canEdit && marker.Scope == MarkerScope.Shared && marker.IsReadOnly ? "This shared marker is read-only and cannot be edited." :
-                          "Edit Marker";
-            ImGui.SetTooltip(tooltip);
+            var tooltip = GetEditMarkerTooltipText(marker, parentGroup);
+            if (ImWuk.IsItemHoveredWhenDisabled() && !tooltip.IsNullOrEmpty())
+                ImGui.SetTooltip(tooltip);
         }
 
-        // Edit popup
-        editPopup.Draw(marker, parentGroup);
-
-        // Flag button
-        ImGui.SameLine();
         using (ImRaii.Disabled(!isLoggedIn))
         {
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.Flag))
-            {
+            if (ImGui.MenuItem("Flag Marker on Map"))
                 OnFlagRequested?.Invoke(marker);
-            }
-        }
-        if (ImWuk.IsItemHoveredWhenDisabled())
-        {
-            var tooltip = !isLoggedIn ? "Log in to flag markers!" :
-                          "Flag Location on Map";
-            ImGui.SetTooltip(tooltip);
         }
 
-        // Export to clipboard button
-        ImGui.SameLine();
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.Clipboard))
+        if (ImGui.MenuItem("Copy to Clipboard"))
         {
-            var exportList = new List<Marker> { marker };
-            OnExportRequested?.Invoke(exportList);
-        }
-        if (ImGui.IsItemHovered())
-        {
-            ImGui.SetTooltip("Copy to Clipboard");
+            var temp = new List<Marker> { marker };
+            OnExportRequested?.Invoke(temp);
         }
 
-        // Delete button
-        ImGui.SameLine();
         using (ImRaii.Disabled(!canDelete))
         {
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash))
+            if (ImGui.MenuItem("Delete"))
             {
-                OnDeleteRequested?.Invoke(marker);
+                var temp = new List<Marker> { marker };
+                OnDeleteRequested?.Invoke(temp);
             }
         }
-        if (ImWuk.IsItemHoveredWhenDisabled())
+        if (!canDelete)
         {
-            var tooltip = parentGroup != null && parentGroup.Scope == MarkerScope.Personal && !canDelete ? "Only the group's creator can delete markers in this personal group." :
-                          parentGroup != null && parentGroup.Scope == MarkerScope.Shared && parentGroup.IsReadOnly ? "This group is read-only and markers cannot be deleted." :
-                          parentGroup != null && parentGroup.Scope == MarkerScope.Shared && marker.IsReadOnly && !canDelete ? "This shared marker is read-only and cannot be deleted." :
-                          parentGroup == null && !canDelete && marker.Scope == MarkerScope.Personal ? "Only the creator can delete this marker." :
-                          parentGroup == null && !canDelete && marker.Scope == MarkerScope.Shared && marker.IsReadOnly ? "This shared marker is read-only and cannot be deleted." :
-                          "Delete Marker";
+            var tooltip = GetDeleteMarkerTooltipText(marker, parentGroup);
+            if (ImWuk.IsItemHoveredWhenDisabled() && !tooltip.IsNullOrEmpty())
+                ImGui.SetTooltip(tooltip);
+        }
+    }
 
-            ImGui.SetTooltip(tooltip);
+    /// <summary>
+    /// Multi-select context menu for batch marker actions. For individual marker actions, see <see cref="DrawMarkerContextMenu"/>.
+    /// </summary>
+    private void DrawMultiMarkerContextMenu()
+    {
+        if (!IsMultiSelect) return;
+
+        if (ImGui.MenuItem("Export All"))
+        {
+            var allMarkers = plugin.MarkerStorageService.GetVisibleMarkers();
+            var markersToExport = allMarkers.FindAll(m => SelectedMarkerIds.Contains(m.Id));
+            OnExportRequested?.Invoke(markersToExport);
+        }
+        if (ImGui.MenuItem("Delete All"))
+        {
+            var allMarkers = plugin.MarkerStorageService.GetVisibleMarkers();
+            var markersToDelete = allMarkers.FindAll(m => SelectedMarkerIds.Contains(m.Id));
+            OnDeleteRequested?.Invoke(markersToDelete);
         }
     }
     private void HandleRowSelection(List<Marker> markers, int clickedIndex)
@@ -293,7 +276,7 @@ internal class MarkerTableComponent
         var io = ImGui.GetIO();
         var clickedId = markers[clickedIndex].Id;
 
-        // Shift selects a contiguous range from the anchor.
+        // Shift actions.
         if (io.KeyShift && selectionAnchorIndex >= 0)
         {
             SelectedMarkerIds.Clear();
@@ -306,7 +289,7 @@ internal class MarkerTableComponent
             return;
         }
 
-        // Ctrl toggles individual markers.
+        // Ctrl actions
         if (io.KeyCtrl)
         {
             if (SelectedMarkerIds.Contains(clickedId))
@@ -321,5 +304,81 @@ internal class MarkerTableComponent
         SelectedMarkerIds.Clear();
         SelectedMarkerIds.Add(clickedId);
         selectionAnchorIndex = clickedIndex;
+    }
+    private void GetPermissionsForMarker(Marker marker, MarkerGroup? parentGroup, out bool isLoggedIn, out bool isCreator, out bool canEdit, out bool canDelete)
+    {
+        var currentPlayerHash = plugin.MarkerStorageService.CurrentCharacterHash;
+
+        isLoggedIn = gameStateReaderService.IsLoggedIn;
+        isCreator = marker.CharacterHash != null &&
+                    currentPlayerHash != null &&
+                    marker.CharacterHash == currentPlayerHash;
+        canEdit = false;
+        canDelete = false;
+
+        // Group permissions checks
+        if (parentGroup != null)
+        {
+            var isGroupCreator = parentGroup.CreatorHash != null && currentPlayerHash != null && parentGroup.CreatorHash == currentPlayerHash;
+
+            // Only creators of personal groups may edit/delete them
+            if (parentGroup.Scope == MarkerScope.Personal)
+            {
+                canEdit = isGroupCreator;
+                canDelete = isGroupCreator;
+            }
+            else if (parentGroup.Scope == MarkerScope.Shared)
+            {
+                // Shared read-only groups: only marker creators can open edit to disable read-only.
+                if (parentGroup.IsReadOnly)
+                {
+                    canEdit = isCreator;
+                    canDelete = false;
+                }
+                else
+                {
+                    // Shared non-read-only markers: editable by anyone unless the marker itself is read-only.
+                    canEdit = !marker.IsReadOnly || isCreator;
+                    canDelete = !marker.IsReadOnly;
+                }
+            }
+        }
+        else
+        {
+            // Marker permission checks
+            canEdit = (marker.Scope == MarkerScope.Shared && (!marker.IsReadOnly || isCreator)) ||
+                        (marker.Scope == MarkerScope.Personal && isCreator);
+
+            canDelete = (marker.Scope == MarkerScope.Shared && !marker.IsReadOnly) ||
+                        (marker.Scope == MarkerScope.Personal && isCreator);
+        }
+    }
+    private static string GetEditMarkerTooltipText(Marker marker, MarkerGroup? parentGroup)
+    {
+        if (parentGroup != null && parentGroup.Scope == MarkerScope.Personal)
+            return "Only the group's creator can edit markers in this personal group.";
+        if (parentGroup != null && parentGroup.Scope == MarkerScope.Shared && parentGroup.IsReadOnly)
+            return "This group is read-only. Only the marker creator can edit it.";
+        if (parentGroup != null && parentGroup.Scope == MarkerScope.Shared && marker.IsReadOnly)
+            return "This shared marker is read-only and only the creator can edit it.";
+        if (parentGroup == null && marker.Scope == MarkerScope.Personal)
+            return "Only the creator can edit this marker.";
+        if (parentGroup == null && marker.Scope == MarkerScope.Shared && marker.IsReadOnly)
+            return "This shared marker is read-only and cannot be edited.";
+        return "";
+    }
+    private static string GetDeleteMarkerTooltipText(Marker marker, MarkerGroup? parentGroup)
+    {
+        if (parentGroup != null && parentGroup.Scope == MarkerScope.Personal)
+            return "Only the group's creator can delete markers in this personal group.";
+        if (parentGroup != null && parentGroup.Scope == MarkerScope.Shared && parentGroup.IsReadOnly)
+            return "This group is read-only and markers cannot be deleted.";
+        if (parentGroup != null && parentGroup.Scope == MarkerScope.Shared && marker.IsReadOnly)
+            return "This shared marker is read-only and cannot be deleted.";
+        if (parentGroup == null && marker.Scope == MarkerScope.Personal)
+            return "Only the creator can delete this marker.";
+        if (parentGroup == null && marker.Scope == MarkerScope.Shared && marker.IsReadOnly)
+            return "This shared marker is read-only and cannot be deleted.";
+        return "";
     }
 }

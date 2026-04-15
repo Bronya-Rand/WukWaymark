@@ -1,40 +1,54 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility.Raii;
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using WukLamark.Models;
+using WukLamark.Utils;
 
 namespace WukLamark.Windows.Sections.Modals;
 
 public class DeleteMarkerModal
 {
     private bool isOpen = false;
-    private Marker? markerToDelete = null;
+    private List<Marker>? markersToDelete = null;
 
-    public Action<Marker>? OnConfirmDelete { get; set; }
+    public Action<List<Marker>>? OnConfirmDelete { get; set; }
 
-    public void Open(Marker marker)
+    public void Open(List<Marker> marker)
     {
-        markerToDelete = marker;
+        markersToDelete = marker;
         isOpen = true;
     }
 
     public void Draw(Plugin plugin)
     {
-        if (!isOpen || markerToDelete == null) return;
+        if (!isOpen || markersToDelete == null) return;
 
-        // Validation
-        if ((markerToDelete.Scope == MarkerScope.Shared &&
-            markerToDelete.IsReadOnly) ||
-            (markerToDelete.Scope == MarkerScope.Personal &&
-            (markerToDelete.CharacterHash == null ||
-            plugin.MarkerStorageService.CurrentCharacterHash == null ||
-            markerToDelete.CharacterHash != plugin.MarkerStorageService.CurrentCharacterHash)))
+        // Validation for marker deletion
+        var validMarkersToDelete = new List<Marker>();
+        foreach (var marker in markersToDelete)
         {
-            Plugin.Log.Warning("Attempted to delete a marker that doesn't belong to the current character. Action blocked.");
-            isOpen = false;
-            markerToDelete = null;
-            return;
+            if (marker == null) continue;
+
+            // Personal Marker Check:
+            // 1. Must belong to the character who made the marker
+            // 2. Cannot be read-only
+            // 3. Hashes must match
+            // 4. Must have current character hash set in storage service
+            if (marker.Scope == MarkerScope.Personal && (marker.IsReadOnly ||
+                    marker.CharacterHash == null ||
+                    plugin.MarkerStorageService.CurrentCharacterHash == null ||
+                    marker.CharacterHash != plugin.MarkerStorageService.CurrentCharacterHash))
+            { continue; }
+
+            // Shared Marker Check:
+            // 1. Cannot be read-only
+            if (marker.Scope == MarkerScope.Shared && marker.IsReadOnly) continue;
+
+            validMarkersToDelete.Add(marker);
+
         }
 
         ImGui.OpenPopup("Delete Marker?##WWDeleteMarkerModal");
@@ -45,8 +59,40 @@ public class DeleteMarkerModal
         using var deleteMarkerModal = ImRaii.PopupModal("Delete Marker?##WWDeleteMarkerModal", ref isOpen, ImGuiWindowFlags.AlwaysAutoResize);
         if (deleteMarkerModal)
         {
-            ImGui.Text($"Are you sure you want to delete the marker '{markerToDelete.Name}'?");
-            ImGui.Text("This action can be undone with the Undo button.");
+            if (validMarkersToDelete.Count == 1)
+            {
+                var marker = validMarkersToDelete[0];
+                ImWuk.CenteredText($"Are you sure you want to delete marker '{marker.Name}'?");
+            }
+            else
+                ImWuk.CenteredText($"Are you sure you want to delete these {validMarkersToDelete.Count} markers?");
+            ImWuk.CenteredText("This action can be undone with the Undo button.");
+
+            // Add warning text if valid markers count != original markers count
+            var hasSpaced = false;
+            if (validMarkersToDelete.Count != markersToDelete.Count)
+            {
+                ImGui.Spacing();
+                hasSpaced = true;
+                using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudYellow))
+                {
+                    ImWuk.CenteredText("Some selected markers cannot be deleted due to ownership or read-only status and have been skipped.");
+                }
+            }
+
+            // Add danger text for marker deletion in excess of 10
+            if (validMarkersToDelete.Count > 10)
+            {
+                if (!hasSpaced)
+                {
+                    ImGui.Spacing();
+                    hasSpaced = true;
+                }
+                using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudRed))
+                {
+                    ImWuk.CenteredText($"Warning: {validMarkersToDelete.Count - 10} marker(s) will not be able to be undone once deleted.");
+                }
+            }
 
             ImGui.Spacing();
             ImGui.Separator();
@@ -62,20 +108,25 @@ public class DeleteMarkerModal
             if (padding > 0)
                 ImGui.SetCursorPosX(ImGui.GetCursorPosX() + padding);
 
-            if (ImGui.Button("Yes###DeleteMarkerYesButton", new Vector2(buttonWidth, 0)))
+            using (ImRaii.Disabled(validMarkersToDelete.Count == 0))
             {
-                OnConfirmDelete?.Invoke(markerToDelete);
-                isOpen = false;
-                markerToDelete = null;
-                ImGui.CloseCurrentPopup();
+                if (ImGui.Button("Yes###DeleteMarkerYesButton", new Vector2(buttonWidth, 0)))
+                {
+                    OnConfirmDelete?.Invoke(validMarkersToDelete);
+                    isOpen = false;
+                    markersToDelete = null;
+                    ImGui.CloseCurrentPopup();
+                }
             }
+            if (ImWuk.IsItemHoveredWhenDisabled())
+                ImGui.SetTooltip("No valid markers to delete.");
 
             ImGui.SameLine(0, spacing);
 
             if (ImGui.Button("Cancel###DeleteMarkerCancelButton", new Vector2(buttonWidth, 0)))
             {
                 isOpen = false;
-                markerToDelete = null;
+                markersToDelete = null;
                 ImGui.CloseCurrentPopup();
             }
         }

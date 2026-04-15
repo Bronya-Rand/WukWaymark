@@ -20,10 +20,12 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, M
     private readonly MarkerStorageService markerStorageService = markerStorageService;
     private readonly MarkerTableComponent tableComponent = tableComponent;
 
+    public Func<bool>? IsMultiSelectActive { get; set; }
     public Action? OnCreateGroup { get; set; }
     public Action<MarkerGroup>? OnEditGroup { get; set; }
     public Action<MarkerGroup>? OnDeleteGroup { get; set; }
     public Action<MarkerGroup>? OnSaveToGroup { get; set; }
+    public Action<List<Marker>>? OnExportGroupMarkers { get; set; }
 
     public void Draw(List<Marker> filteredMarkers, string searchFilter, bool filterCurrentZone)
     {
@@ -59,7 +61,7 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, M
 
             var headerOpen = ImGui.CollapsingHeader($"{group.Name} ({groupMarkers.Count})###group_{identifier}", ImGuiTreeNodeFlags.AllowItemOverlap);
 
-            DrawGroupHeaderButtons(group);
+            DrawGroupHeaderButtons(group, groupMarkers);
 
             if (headerOpen)
             {
@@ -105,17 +107,21 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, M
             }
         }
     }
-    private void DrawGroupHeaderButtons(MarkerGroup group)
+    private void DrawGroupHeaderButtons(MarkerGroup group, List<Marker> groupMarkers)
     {
         var isLoggedIn = gameStateReaderService.IsLoggedIn;
         var inPvP = gameStateReaderService.IsInPvP;
         var inCombat = gameStateReaderService.IsInCombat;
         var markersDisabled = gameStateReaderService.DisableMarkerActions();
+        var multiSelect = IsMultiSelectActive?.Invoke() ?? false;
 
+        var buttons = 4;
         var buttonSize = 20.0f * ImGuiHelpers.GlobalScale;
+        var buttonSpacing = buttons % 2 == 0 ? buttons : buttons - 1;
+
         var spacing = 5.0f;
         var scopeIconSize = 18.0f * ImGuiHelpers.GlobalScale;
-        var totalWidth = (buttonSize * 3) + (spacing * 2) + scopeIconSize + spacing + 8;
+        var totalWidth = (buttonSize * buttons) + (spacing * buttonSpacing) + scopeIconSize + spacing + 8;
 
         ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalWidth + ImGui.GetCursorPosX());
 
@@ -162,6 +168,24 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, M
                 inCombat ? "Saving markers is disabled in combat." :
                 group.IsReadOnly ? "Cannot save markers to a read-only group." :
                 "Save current location to this group.";
+            ImGui.SetTooltip(tooltip);
+        }
+
+        ImGui.SameLine(0, spacing);
+
+        using (ImRaii.PushId("groupexport"))
+        {
+            using (ImRaii.Disabled(groupMarkers.Count == 0 || multiSelect))
+            {
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.FileExport))
+                    OnExportGroupMarkers?.Invoke(groupMarkers);
+            }
+        }
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            var tooltip = groupMarkers.Count == 0 ? "No markers in this group to export!"
+                : multiSelect ? "Cannot export group markers while multi-select is active."
+                : "Export all markers in this group to clipboard.";
             ImGui.SetTooltip(tooltip);
         }
 

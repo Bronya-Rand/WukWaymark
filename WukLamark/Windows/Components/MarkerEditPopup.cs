@@ -282,11 +282,9 @@ internal class MarkerEditPopup
         }
 
         using (ImRaii.Disabled(!canEditGeneralFields))
-            ImGui.Checkbox($"###AllWorlds{identifier}", ref editingAppliesToAllWorlds);
+            ImGui.Checkbox($"Visible Crossworld###AllWorlds{identifier}", ref editingAppliesToAllWorlds);
         if (ImWuk.IsItemHoveredWhenDisabled())
             ImGui.SetTooltip("When enabled, this marker appears on matching maps in all worlds/data centers.");
-        ImGui.SameLine();
-        ImGui.Text("Visible Crossworld");
 
         // Read-only checkbox (only for shared markers and only editable by the creator)
         if (selectedScope == MarkerScope.Shared)
