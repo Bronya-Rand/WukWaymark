@@ -18,10 +18,14 @@ internal class MarkerTableComponent
     private readonly GameStateReaderService gameStateReaderService;
     private readonly MarkerEditPopup editPopup;
 
+    private int selectionAnchorIndex = -1;
+    public HashSet<Guid> SelectedMarkerIds { get; } = [];
+    public bool IsMultiSelect => SelectedMarkerIds.Count > 1;
+
     #region Callback Actions
     public Action<Marker>? OnDeleteRequested { get; set; }
     public Action<Marker>? OnFlagRequested { get; set; }
-    public Action<Marker>? OnExportRequested { get; set; }
+    public Action<List<Marker>>? OnExportRequested { get; set; }
     public Action<Marker, MarkerEditResult>? OnSaveRequested { get; set; }
 
     #endregion
@@ -38,7 +42,9 @@ internal class MarkerTableComponent
 
     public void Draw(List<Marker> markers, MarkerGroup? parentGroup = null)
     {
-        using var markerTableMode = ImRaii.Table("MarkerTable", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.ScrollX | ImGuiTableFlags.Resizable);
+        using var markerTableMode = ImRaii.Table("MarkerTable", 5,
+            ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY |
+            ImGuiTableFlags.ScrollX | ImGuiTableFlags.Resizable);
         if (!markerTableMode) return;
 
         ImGui.TableSetupColumn("Marker", ImGuiTableColumnFlags.WidthFixed, 50);
@@ -48,11 +54,34 @@ internal class MarkerTableComponent
         ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthFixed, 120);
         ImGui.TableHeadersRow();
 
-        foreach (var marker in markers)
+        for (var i = 0; i < markers.Count; i++)
         {
+            var marker = markers[i];
+
             using (ImRaii.PushId(marker.Id.ToString()))
             {
                 ImGui.TableNextRow();
+                ImGui.TableSetColumnIndex(0);
+
+                var rowStart = ImGui.GetCursorScreenPos();
+                var rowHeight = Math.Max(ImGui.GetFrameHeight(), 20f * ImGuiHelpers.GlobalScale);
+
+                var isSelected = SelectedMarkerIds.Contains(marker.Id);
+                var rowClicked = ImGui.Selectable($"##row_{marker.Id}",
+                    isSelected,
+                    ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap,
+                    new Vector2(0, rowHeight));
+
+                ImGui.SetItemAllowOverlap();
+
+                // Reset cursor so the selectable acts as an overlay and does not add extra row height.
+                ImGui.SetCursorScreenPos(rowStart);
+
+                if (rowClicked)
+                    HandleRowSelection(markers, i);
+
+                if (SelectedMarkerIds.Contains(marker.Id) && IsMultiSelect)
+                    ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg0, ImGui.GetColorU32(ImGuiCol.HeaderActive));
 
                 DrawMarkerColumn(marker);
                 DrawNameColumn(marker);
@@ -65,7 +94,8 @@ internal class MarkerTableComponent
 
     private static void DrawMarkerColumn(Marker marker)
     {
-        ImGui.TableNextColumn();
+        ImGui.TableSetColumnIndex(0);
+
         var colorU32 = ImGui.ColorConvertFloat4ToU32(marker.Color);
         var globalScale = ImGuiHelpers.GlobalScale;
         MarkerRenderer.RenderMarker(
@@ -81,7 +111,7 @@ internal class MarkerTableComponent
 
     private static void DrawNameColumn(Marker marker)
     {
-        ImGui.TableNextColumn();
+        ImGui.TableSetColumnIndex(1);
 
         if (marker.GroupId == null)
         {
@@ -111,7 +141,8 @@ internal class MarkerTableComponent
 
     private static void DrawLocationColumn(Marker marker)
     {
-        ImGui.TableNextColumn();
+        ImGui.TableSetColumnIndex(2);
+
         var locationText = LocationHelper.GetLocationName(marker.TerritoryId, marker.WorldId, marker.WardId, marker.AppliesToAllWorlds);
         ImGui.Text(locationText);
         if (ImGui.IsItemHovered())
@@ -131,13 +162,13 @@ internal class MarkerTableComponent
 
     private static void DrawCreatedColumn(Marker marker)
     {
-        ImGui.TableNextColumn();
+        ImGui.TableSetColumnIndex(3);
         ImGui.Text(marker.CreatedAt.ToString("yyyy-MM-dd HH:mm"));
     }
 
     private void DrawActionsColumn(Marker marker, MarkerGroup? parentGroup)
     {
-        ImGui.TableNextColumn();
+        ImGui.TableSetColumnIndex(4);
 
         var isLoggedIn = gameStateReaderService.IsLoggedIn;
         var currentHash = plugin.MarkerStorageService.CurrentCharacterHash;
@@ -228,7 +259,8 @@ internal class MarkerTableComponent
         ImGui.SameLine();
         if (ImGuiComponents.IconButton(FontAwesomeIcon.Clipboard))
         {
-            OnExportRequested?.Invoke(marker);
+            var exportList = new List<Marker> { marker };
+            OnExportRequested?.Invoke(exportList);
         }
         if (ImGui.IsItemHovered())
         {
@@ -255,5 +287,39 @@ internal class MarkerTableComponent
 
             ImGui.SetTooltip(tooltip);
         }
+    }
+    private void HandleRowSelection(List<Marker> markers, int clickedIndex)
+    {
+        var io = ImGui.GetIO();
+        var clickedId = markers[clickedIndex].Id;
+
+        // Shift selects a contiguous range from the anchor.
+        if (io.KeyShift && selectionAnchorIndex >= 0)
+        {
+            SelectedMarkerIds.Clear();
+
+            var start = Math.Min(selectionAnchorIndex, clickedIndex);
+            var end = Math.Max(selectionAnchorIndex, clickedIndex);
+
+            for (var i = start; i <= end; i++)
+                SelectedMarkerIds.Add(markers[i].Id);
+            return;
+        }
+
+        // Ctrl toggles individual markers.
+        if (io.KeyCtrl)
+        {
+            if (SelectedMarkerIds.Contains(clickedId))
+                SelectedMarkerIds.Remove(clickedId);
+            else
+                SelectedMarkerIds.Add(clickedId);
+
+            selectionAnchorIndex = clickedIndex;
+            return;
+        }
+
+        SelectedMarkerIds.Clear();
+        SelectedMarkerIds.Add(clickedId);
+        selectionAnchorIndex = clickedIndex;
     }
 }

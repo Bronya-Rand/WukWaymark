@@ -132,8 +132,8 @@ public class MainWindow : Window, IDisposable
             },
             OnExportRequested = marker =>
             {
-                MarkerExportService.ExportToClipboard(marker);
-                importFeedback = $"Copied '{marker.Name}' to clipboard!";
+                MarkerExportService.ExportShareToClipboard(marker);
+                importFeedback = $"Copied marker to clipboard!";
                 importFeedbackTicks = 180;
             },
             OnSaveRequested = HandleMarkerSave,
@@ -143,6 +143,8 @@ public class MainWindow : Window, IDisposable
         headerSection = new HeaderSection(plugin.Configuration, plugin.GameStateReaderService, plugin.MarkerStorageService)
         {
             OnImport = HandleImportResult,
+            OnExportSelected = HandleExportSelected,
+            CanExportMarkers = () => markerTableComponent.IsMultiSelect,
             OnSaveLocation = () => plugin.MarkerService.SaveCurrentLocation(),
             OnToggleView = () =>
             {
@@ -322,6 +324,22 @@ public class MainWindow : Window, IDisposable
             ApplyImport(result, [], overwriteAll: false);
         }
     }
+    private void HandleExportSelected()
+    {
+        var allVisible = plugin.MarkerStorageService.GetVisibleMarkers();
+        var selected = allVisible.Where(m => markerTableComponent.SelectedMarkerIds.Contains(m.Id)).ToList();
+
+        if (selected.Count == 0)
+        {
+            importFeedback = "No markers selected for export.";
+            importFeedbackTicks = 180;
+            return;
+        }
+
+        MarkerExportService.ExportShareToClipboard(selected);
+        importFeedback = $"Copied {selected.Count} marker(s) to clipboard.";
+        importFeedbackTicks = 180;
+    }
 
     /// <summary>
     /// Applies an import result to the storage service.
@@ -331,130 +349,34 @@ public class MainWindow : Window, IDisposable
     {
         if (result.Payload == null) return;
 
-        var groupIdSwaps = new Dictionary<Guid, Guid>();
-        var conflictIds = new HashSet<Guid>(result.Conflicts.Select(c => c.Id));
         var addedMarkers = 0;
-        var addedGroups = 0;
-
-        // Apply groups first (markers may reference them)
-        foreach (var importedGroup in result.Payload.Groups)
-        {
-            var isSharedGroup = importedGroup.Scope == MarkerScope.Shared;
-            if (conflictIds.Contains(importedGroup.Id))
-            {
-                var shouldOverwrite = overwriteAll || (importConflictChoices.TryGetValue(importedGroup.Id, out var v) && v);
-                if (shouldOverwrite)
-                {
-                    // Remove entirely from both group collections first to safely overwrite
-                    plugin.MarkerStorageService.PersonalGroups.RemoveAll(g => g.Id == importedGroup.Id);
-                    plugin.MarkerStorageService.SharedGroups.RemoveAll(g => g.Id == importedGroup.Id);
-                    importedGroup.CreatorHash = plugin.MarkerStorageService.CurrentCharacterHash;
-                    if (isSharedGroup)
-                    {
-                        plugin.MarkerStorageService.SharedGroups.Add(importedGroup);
-                    }
-                    else
-                    {
-                        plugin.MarkerStorageService.PersonalGroups.Add(importedGroup);
-                    }
-                    addedGroups++;
-                }
-                else
-                {
-                    // User chose NOT to overwrite. Apply specific resolution rules.
-                    var localGroup = plugin.MarkerStorageService.PersonalGroups.FirstOrDefault(g => g.Id == importedGroup.Id)
-                                  ?? plugin.MarkerStorageService.SharedGroups.FirstOrDefault(g => g.Id == importedGroup.Id);
-
-                    // Rules 1 & 3: If local group is Shared and Read-Only, generate a new Guid so we don't merge into a locked group.
-                    if (localGroup != null && localGroup.Scope == MarkerScope.Shared && localGroup.IsReadOnly)
-                    {
-                        var oldId = importedGroup.Id;
-                        importedGroup.Id = Guid.NewGuid();
-                        groupIdSwaps[oldId] = importedGroup.Id;
-
-                        importedGroup.CreatorHash = plugin.MarkerStorageService.CurrentCharacterHash;
-                        if (isSharedGroup)
-                        {
-                            plugin.MarkerStorageService.SharedGroups.Add(importedGroup);
-                        }
-                        else
-                        {
-                            plugin.MarkerStorageService.PersonalGroups.Add(importedGroup);
-                        }
-                        addedGroups++;
-                    }
-                    // Rules 2, 4, 5: Merge into existing. Group is skipped, markers will attach to existing local group.
-                }
-            }
-            else
-            {
-                importedGroup.CreatorHash = plugin.MarkerStorageService.CurrentCharacterHash;
-                if (isSharedGroup)
-                {
-                    plugin.MarkerStorageService.SharedGroups.Add(importedGroup);
-                }
-                else
-                {
-                    plugin.MarkerStorageService.PersonalGroups.Add(importedGroup);
-                }
-                addedGroups++;
-            }
-        }
 
         // Apply imported markers
-        foreach (var importedMarker in result.Payload.Waymarks)
+        foreach (var importedMarker in result.Payload.Markers)
         {
-            if (importedMarker.GroupId.HasValue && groupIdSwaps.TryGetValue(importedMarker.GroupId.Value, out var newGroupId))
+            var newMarker = new Marker
             {
-                importedMarker.GroupId = newGroupId;
-                // Since the group's ID changed (Rules 1 & 3), we clone the marker so it doesn't conflict
-                // and gets safely appended to the new group.
-                importedMarker.Id = Guid.NewGuid();
-            }
-
-            var isShared = importedMarker.Scope == MarkerScope.Shared;
-            if (conflictIds.Contains(importedMarker.Id))
-            {
-                var shouldOverwrite = overwriteAll || (importConflictChoices.TryGetValue(importedMarker.Id, out var v) && v);
-                if (shouldOverwrite)
-                {
-                    // Remove entirely from both first to safely overwrite
-                    plugin.MarkerStorageService.PersonalMarkers.RemoveAll(w => w.Id == importedMarker.Id);
-                    plugin.MarkerStorageService.SharedMarkers.RemoveAll(w => w.Id == importedMarker.Id);
-
-                    if (isShared)
-                    {
-                        importedMarker.CharacterHash = plugin.MarkerStorageService.CurrentCharacterHash;
-                        plugin.MarkerStorageService.SharedMarkers.Add(importedMarker);
-                    }
-                    else
-                    {
-                        importedMarker.CharacterHash = plugin.MarkerStorageService.CurrentCharacterHash;
-                        plugin.MarkerStorageService.PersonalMarkers.Add(importedMarker);
-                    }
-                    addedMarkers++;
-                }
-                // else skip
-            }
-            else
-            {
-                if (isShared)
-                {
-                    importedMarker.CharacterHash = plugin.MarkerStorageService.CurrentCharacterHash;
-                    plugin.MarkerStorageService.SharedMarkers.Add(importedMarker);
-                }
-                else
-                {
-                    importedMarker.CharacterHash = plugin.MarkerStorageService.CurrentCharacterHash;
-                    plugin.MarkerStorageService.PersonalMarkers.Add(importedMarker);
-                }
-                addedMarkers++;
-            }
+                Id = Guid.NewGuid(),
+                Name = importedMarker.Name,
+                Position = importedMarker.Position,
+                TerritoryId = importedMarker.TerritoryId,
+                WardId = importedMarker.WardId,
+                MapId = importedMarker.MapId,
+                WorldId = importedMarker.WorldId,
+                AppliesToAllWorlds = importedMarker.AppliesToAllWorlds,
+                Color = importedMarker.Color,
+                CreatedAt = DateTime.Now,
+                Shape = importedMarker.Shape,
+                IconId = importedMarker.IconId,
+                Scope = MarkerScope.Personal,
+                CharacterHash = plugin.MarkerStorageService.CurrentCharacterHash,
+            };
+            plugin.MarkerStorageService.PersonalMarkers.Add(newMarker);
+            addedMarkers++;
         }
 
         plugin.MarkerStorageService.SavePersonalMarkers();
-        plugin.MarkerStorageService.SaveSharedMarkers();
-        importFeedback = $"Imported {addedMarkers} marker(s) and {addedGroups} group(s).";
+        importFeedback = $"Imported {addedMarkers} marker(s) to WukLamark.";
         importFeedbackTicks = 240;
         Plugin.Log.Information(importFeedback);
     }
