@@ -282,8 +282,8 @@ namespace WukLamark.Services
                     }
                     else
                     {
-                        // Fallback to 64x64 (seems most icons are this size?)
-                        markerSize = (64.0f / deSize) * (baseMarkerSize / 8.0f);
+                        var fallbackBase = plugin.IconBrowserService.IconIsIcon(marker.IconId.Value) ? 64.0f : 32.0f;
+                        markerSize = (fallbackBase / deSize) * (baseMarkerSize / 8.0f);
                     }
                 }
 

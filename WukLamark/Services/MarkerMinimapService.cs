@@ -213,10 +213,9 @@ namespace WukLamark.Services
                     }
                     else
                     {
-                        // Fallback to 64x64 (seems most icons are this size?)
-                        markerSize = (64f / deSize) * (baseMarkerSize / 8.0f);
+                        var fallbackBase = plugin.IconBrowserService.IconIsIcon(iconId.Value) ? 64.0f : 32.0f;
+                        markerSize = (fallbackBase / deSize) * (baseMarkerSize / 8.0f);
                     }
-                    Plugin.Log.Verbose($"Marker Size: {markerSize} | Icon Game Size {iconGameSize?.X}, deSize: {deSize}");
                 }
 
                 // Apply visibility radius alpha fade (last 20% of radius)
