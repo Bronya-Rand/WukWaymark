@@ -106,9 +106,9 @@ public class MainWindow : Window, IDisposable
 
         importConflictModal = new ImportConflictModal
         {
-            OnApplyImport = (result, choices, overwriteAll) =>
+            OnApplyImport = (result, choices, overwriteAll, importGroup) =>
             {
-                ApplyImport(result, choices, overwriteAll);
+                ApplyImport(result, choices, overwriteAll, importGroup);
             },
         };
 
@@ -181,6 +181,7 @@ public class MainWindow : Window, IDisposable
             {
                 plugin.MarkerService.SaveCurrentLocation(group, group.Scope, isShiftHeld);
             },
+            OnImportGroupMarkers = HandleImportResult,
             OnExportGroupMarkers = markers =>
             {
                 MarkerExportService.ExportShareToClipboard(markers);
@@ -319,7 +320,7 @@ public class MainWindow : Window, IDisposable
     /// <summary>
     /// Handles an import result from the HeaderSection.
     /// </summary>
-    private void HandleImportResult(ImportResult result)
+    private void HandleImportResult(ImportResult result, MarkerGroup? importGroup)
     {
         if (!result.Success)
         {
@@ -328,11 +329,11 @@ public class MainWindow : Window, IDisposable
         }
         else if (result.Conflicts.Count > 0)
         {
-            importConflictModal.Open(result);
+            importConflictModal.Open(result, importGroup);
         }
         else
         {
-            ApplyImport(result, [], overwriteAll: false);
+            ApplyImport(result, [], false, importGroup);
         }
     }
     private void HandleExportSelected()
@@ -356,7 +357,7 @@ public class MainWindow : Window, IDisposable
     /// Applies an import result to the storage service.
     /// Handles conflict resolution based on user choices.
     /// </summary>
-    private void ApplyImport(ImportResult result, Dictionary<Guid, bool> importConflictChoices, bool overwriteAll)
+    private void ApplyImport(ImportResult result, Dictionary<Guid, bool> importConflictChoices, bool overwriteAll, MarkerGroup? importGroup)
     {
         if (result.Payload == null) return;
 
@@ -381,6 +382,7 @@ public class MainWindow : Window, IDisposable
                 IconId = importedMarker.IconId,
                 Scope = MarkerScope.Personal,
                 CharacterHash = plugin.MarkerStorageService.CurrentCharacterHash,
+                GroupId = importGroup?.Id ?? null,
             };
             plugin.MarkerStorageService.PersonalMarkers.Add(newMarker);
             addedMarkers++;

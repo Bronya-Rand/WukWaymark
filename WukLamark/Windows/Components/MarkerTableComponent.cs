@@ -258,13 +258,13 @@ internal class MarkerTableComponent
     {
         if (!IsMultiSelect) return;
 
-        if (ImGui.MenuItem("Export All"))
+        if (ImGui.MenuItem("Export Selected Markers"))
         {
             var allMarkers = plugin.MarkerStorageService.GetVisibleMarkers();
             var markersToExport = allMarkers.FindAll(m => SelectedMarkerIds.Contains(m.Id));
             OnExportRequested?.Invoke(markersToExport);
         }
-        if (ImGui.MenuItem("Delete All"))
+        if (ImGui.MenuItem("Delete Selected Markers"))
         {
             var allMarkers = plugin.MarkerStorageService.GetVisibleMarkers();
             var markersToDelete = allMarkers.FindAll(m => SelectedMarkerIds.Contains(m.Id));

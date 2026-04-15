@@ -5,6 +5,7 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using System;
 using System.Numerics;
+using WukLamark.Models;
 using WukLamark.Services;
 using WukLamark.Utils;
 
@@ -16,7 +17,7 @@ internal class HeaderSection(Configuration configuration, GameStateReaderService
     private readonly GameStateReaderService gameStateReaderService = gameStateReaderService;
     private readonly MarkerStorageService markerStorageService = markerStorageService;
 
-    public Action<ImportResult>? OnImport { get; set; }
+    public Action<ImportResult, MarkerGroup?>? OnImport { get; set; }
     public Action? OnExportSelected { get; set; }
     public Func<bool>? CanExportMarkers { get; set; }
     public Action<bool>? OnSaveLocation { get; set; }
@@ -51,7 +52,7 @@ internal class HeaderSection(Configuration configuration, GameStateReaderService
                 var result = MarkerExportService.ImportFromClipboard(
                     allKnownMarkers);
 
-                OnImport?.Invoke(result);
+                OnImport?.Invoke(result, null);
             }
         }
         if (ImWuk.IsItemHoveredWhenDisabled())

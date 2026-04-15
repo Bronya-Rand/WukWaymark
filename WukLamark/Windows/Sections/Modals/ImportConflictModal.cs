@@ -3,6 +3,7 @@ using Dalamud.Interface.Utility.Raii;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using WukLamark.Models;
 using WukLamark.Services;
 
 namespace WukLamark.Windows.Sections.Modals;
@@ -10,14 +11,16 @@ namespace WukLamark.Windows.Sections.Modals;
 public class ImportConflictModal
 {
     private bool isOpen = false;
+    private MarkerGroup? importGroup = null;
     private ImportResult? pendingImport = null;
     private Dictionary<Guid, bool> importConflictChoices = [];
 
-    public Action<ImportResult, Dictionary<Guid, bool>, bool>? OnApplyImport { get; set; }
+    public Action<ImportResult, Dictionary<Guid, bool>, bool, MarkerGroup?>? OnApplyImport { get; set; }
 
-    public void Open(ImportResult result)
+    public void Open(ImportResult result, MarkerGroup? importGroup)
     {
         pendingImport = result;
+        this.importGroup = importGroup;
         importConflictChoices.Clear();
         isOpen = true;
     }
@@ -66,7 +69,7 @@ public class ImportConflictModal
 
             if (ImGui.Button("Overwrite All###ImportOverwriteAll", new Vector2(buttonWidth, 0)))
             {
-                OnApplyImport?.Invoke(pendingImport, importConflictChoices, true);
+                OnApplyImport?.Invoke(pendingImport, importConflictChoices, true, importGroup);
                 pendingImport = null;
                 isOpen = false;
                 ImGui.CloseCurrentPopup();
@@ -74,7 +77,7 @@ public class ImportConflictModal
             ImGui.SameLine();
             if (ImGui.Button("Apply Choices###ImportApplySelection", new Vector2(buttonWidth, 0)))
             {
-                OnApplyImport?.Invoke(pendingImport!, importConflictChoices, false);
+                OnApplyImport?.Invoke(pendingImport!, importConflictChoices, false, importGroup);
                 pendingImport = null;
                 isOpen = false;
                 ImGui.CloseCurrentPopup();
