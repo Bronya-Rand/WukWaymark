@@ -24,6 +24,7 @@ internal class MarkerEditPopup
     private Guid? editingGroupId;
     private float editingVisibilityRadius;
     private uint? editingIconId = null;
+    private float editingIconSize = 0.0f;
     private MarkerScope editingScope = MarkerScope.Personal;
     private bool editingReadOnly = false;
     private bool editingAppliesToAllWorlds = false;
@@ -54,6 +55,7 @@ internal class MarkerEditPopup
         editingGroupId = marker.GroupId;
         editingVisibilityRadius = marker.VisibilityRadius;
         editingIconId = marker.IconId;
+        editingIconSize = marker.IconSize.HasValue ? marker.IconSize.Value : plugin.Configuration.WaymarkMarkerSize;
         editingScope = marker.Scope;
         editingReadOnly = marker.IsReadOnly;
         editingAppliesToAllWorlds = marker.AppliesToAllWorlds;
@@ -192,6 +194,12 @@ internal class MarkerEditPopup
             ImGui.SetTooltip(tooltip);
         }
 
+        // Shape/Icon size slider
+        ImGui.Text("Shape/Icon Size:");
+        ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
+        using (ImRaii.Disabled(!canEditGeneralFields))
+            ImGui.SliderFloat($"###Size{identifier}", ref editingIconSize, 0f, 24.0f, editingIconSize == 0 ? "Global Icon/Shape Size" : "%.1f");
+
         // Group assignment dropdown
         ImGui.Text("Group:");
         ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
@@ -273,11 +281,12 @@ internal class MarkerEditPopup
             ImGui.SetTooltip(tooltip);
         }
 
-        ImGui.Text("Visible Across Worlds/DCs:");
         using (ImRaii.Disabled(!canEditGeneralFields))
             ImGui.Checkbox($"###AllWorlds{identifier}", ref editingAppliesToAllWorlds);
         if (ImWuk.IsItemHoveredWhenDisabled())
             ImGui.SetTooltip("When enabled, this marker appears on matching maps in all worlds/data centers.");
+        ImGui.SameLine();
+        ImGui.Text("Visible Crossworld");
 
         // Read-only checkbox (only for shared markers and only editable by the creator)
         if (selectedScope == MarkerScope.Shared)
@@ -354,6 +363,7 @@ internal class MarkerEditPopup
                     GroupId = editingGroupId,
                     VisibilityRadius = editingVisibilityRadius,
                     IconId = editingIconId,
+                    IconSize = editingIconSize,
                     Scope = isGrouped ? parentGroup!.Scope : editingScope,
                     IsReadOnly = selectedScope == MarkerScope.Shared && editingReadOnly,
                     AppliesToAllWorlds = editingAppliesToAllWorlds,
@@ -383,6 +393,7 @@ public class MarkerEditResult
     public Guid? GroupId { get; init; }
     public float VisibilityRadius { get; init; }
     public uint? IconId { get; init; }
+    public float IconSize { get; init; }
     public MarkerScope Scope { get; init; }
     public bool IsReadOnly { get; init; }
     public bool AppliesToAllWorlds { get; init; }

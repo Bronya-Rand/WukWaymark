@@ -86,6 +86,7 @@ public class Marker
     /// However, their alpha may be modified by the renderer.
     /// </remarks>
     public uint? IconId { get; set; }
+    public float? IconSize { get; set; } = 0.0f; // Use default size of config
 
     /// <summary>
     /// Persistence scope — Personal (character-specific) or Shared (all characters on this install).

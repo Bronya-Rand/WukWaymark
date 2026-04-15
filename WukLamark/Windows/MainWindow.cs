@@ -197,6 +197,7 @@ public class MainWindow : Window, IDisposable
         marker.GroupId = result.GroupId;
         marker.VisibilityRadius = result.VisibilityRadius;
         marker.IconId = result.IconId;
+        marker.IconSize = result.IconSize;
         marker.Scope = result.Scope;
         marker.IsReadOnly = result.IsReadOnly;
         marker.AppliesToAllWorlds = result.AppliesToAllWorlds;
