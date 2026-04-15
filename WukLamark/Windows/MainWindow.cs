@@ -149,7 +149,7 @@ public class MainWindow : Window, IDisposable
             OnImport = HandleImportResult,
             OnExportSelected = HandleExportSelected,
             CanExportMarkers = () => markerTableComponent.IsMultiSelect,
-            OnSaveLocation = () => plugin.MarkerService.SaveCurrentLocation(),
+            OnSaveLocation = (isShiftHeld) => plugin.MarkerService.SaveCurrentLocation(crossworld: isShiftHeld),
             OnToggleView = () =>
             {
                 plugin.Configuration.UseGroupView = !plugin.Configuration.UseGroupView;
@@ -177,9 +177,9 @@ public class MainWindow : Window, IDisposable
             {
                 deleteGroupModal.Open(group);
             },
-            OnSaveToGroup = group =>
+            OnSaveToGroup = (group, isShiftHeld) =>
             {
-                plugin.MarkerService.SaveCurrentLocation(group, group.Scope);
+                plugin.MarkerService.SaveCurrentLocation(group, group.Scope, isShiftHeld);
             },
             OnExportGroupMarkers = markers =>
             {
@@ -191,7 +191,7 @@ public class MainWindow : Window, IDisposable
 
         emptyStateSection = new EmptyStateSection(plugin.GameStateReaderService)
         {
-            OnSaveLocation = () => plugin.MarkerService.SaveCurrentLocation(),
+            OnSaveLocation = (isShiftHeld) => plugin.MarkerService.SaveCurrentLocation(crossworld: isShiftHeld),
         };
     }
 

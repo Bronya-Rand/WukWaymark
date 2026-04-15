@@ -55,7 +55,7 @@ internal class MarkerEditPopup
         editingGroupId = marker.GroupId;
         editingVisibilityRadius = marker.VisibilityRadius;
         editingIconId = marker.IconId;
-        editingIconSize = marker.IconSize.HasValue ? marker.IconSize.Value : plugin.Configuration.WaymarkMarkerSize;
+        editingIconSize = marker.IconSize ?? plugin.Configuration.WaymarkMarkerSize;
         editingScope = marker.Scope;
         editingReadOnly = marker.IsReadOnly;
         editingAppliesToAllWorlds = marker.AppliesToAllWorlds;

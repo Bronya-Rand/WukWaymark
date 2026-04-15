@@ -45,7 +45,10 @@ public class MarkerService(Configuration configuration, MarkerStorageService sto
     /// <param name="group">Optional group to assign the marker to.</param>
     /// <param name="scope">The scope of the marker (Personal or Shared).</param>
     /// <returns>The created marker if successful, null if validation failed</returns>
-    public unsafe Marker? SaveCurrentLocation(MarkerGroup? group = null, MarkerScope scope = MarkerScope.Personal)
+    public unsafe Marker? SaveCurrentLocation(
+        MarkerGroup? group = null,
+        MarkerScope scope = MarkerScope.Personal,
+        bool crossworld = false)
     {
         // Verify player is logged in
         if (!Plugin.ClientState.IsLoggedIn) return null;
@@ -103,7 +106,7 @@ public class MarkerService(Configuration configuration, MarkerStorageService sto
             Scope = scope,
             CharacterHash = storageService.CurrentCharacterHash, // Set creator for both personal and shared
             IsReadOnly = group?.IsReadOnly ?? false, // Use group's read-only status if available
-            AppliesToAllWorlds = false
+            AppliesToAllWorlds = crossworld
         };
 
         // Persist to correct storage based on scope

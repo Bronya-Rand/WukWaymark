@@ -24,7 +24,7 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, M
     public Action? OnCreateGroup { get; set; }
     public Action<MarkerGroup>? OnEditGroup { get; set; }
     public Action<MarkerGroup>? OnDeleteGroup { get; set; }
-    public Action<MarkerGroup>? OnSaveToGroup { get; set; }
+    public Action<MarkerGroup, bool>? OnSaveToGroup { get; set; }
     public Action<List<Marker>>? OnExportGroupMarkers { get; set; }
 
     public void Draw(List<Marker> filteredMarkers, string searchFilter, bool filterCurrentZone)
@@ -114,6 +114,7 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, M
         var inCombat = gameStateReaderService.IsInCombat;
         var markersDisabled = gameStateReaderService.DisableMarkerActions();
         var multiSelect = IsMultiSelectActive?.Invoke() ?? false;
+        var isShiftHeld = ImGui.GetIO().KeyShift;
 
         var buttons = 4;
         var buttonSize = 20.0f * ImGuiHelpers.GlobalScale;
@@ -158,7 +159,7 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, M
             using (ImRaii.Disabled(!canAdd || markersDisabled))
             {
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
-                    OnSaveToGroup?.Invoke(group);
+                    OnSaveToGroup?.Invoke(group, isShiftHeld);
             }
         }
         if (ImWuk.IsItemHoveredWhenDisabled())
@@ -167,7 +168,7 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, M
                 inPvP ? "Saving markers is disabled in PvP zones." :
                 inCombat ? "Saving markers is disabled in combat." :
                 group.IsReadOnly ? "Cannot save markers to a read-only group." :
-                "Save current location to this group.";
+                "Save current location to this group.\nHold Shift to save this location as a crossworld map marker.";
             ImGui.SetTooltip(tooltip);
         }
 

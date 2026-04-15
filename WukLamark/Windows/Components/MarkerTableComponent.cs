@@ -292,9 +292,7 @@ internal class MarkerTableComponent
         // Ctrl actions
         if (io.KeyCtrl)
         {
-            if (SelectedMarkerIds.Contains(clickedId))
-                SelectedMarkerIds.Remove(clickedId);
-            else
+            if (!SelectedMarkerIds.Remove(clickedId))
                 SelectedMarkerIds.Add(clickedId);
 
             selectionAnchorIndex = clickedIndex;

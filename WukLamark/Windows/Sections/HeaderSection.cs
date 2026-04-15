@@ -19,7 +19,7 @@ internal class HeaderSection(Configuration configuration, GameStateReaderService
     public Action<ImportResult>? OnImport { get; set; }
     public Action? OnExportSelected { get; set; }
     public Func<bool>? CanExportMarkers { get; set; }
-    public Action? OnSaveLocation { get; set; }
+    public Action<bool>? OnSaveLocation { get; set; }
     public Action? OnToggleView { get; set; }
     public Action? OnSettingsClicked { get; set; }
 
@@ -30,6 +30,7 @@ internal class HeaderSection(Configuration configuration, GameStateReaderService
         var inCombat = gameStateReaderService.IsInCombat;
         var markersDisabled = gameStateReaderService.DisableMarkerActions();
         var canExportSelected = CanExportMarkers?.Invoke() ?? false;
+        var isShiftHeld = ImGui.GetIO().KeyShift;
 
         ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.0f, 1.0f), "Custom Marker Locations");
 
@@ -80,15 +81,15 @@ internal class HeaderSection(Configuration configuration, GameStateReaderService
         {
             if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
             {
-                OnSaveLocation?.Invoke();
+                OnSaveLocation?.Invoke(isShiftHeld);
             }
         }
         if (ImWuk.IsItemHoveredWhenDisabled())
         {
-            var tooltip = !isLoggedIn ? "Log in to save markers" :
-                          inPvP ? "Saving markers is disabled in PvP zones" :
-                          inCombat ? "Saving markers is disabled in combat" :
-                          "Save Current Location as Marker";
+            var tooltip = !isLoggedIn ? "Log in to save markers!" :
+                          inPvP ? "Saving markers is disabled in PvP zones." :
+                          inCombat ? "Saving markers is disabled in combat." :
+                          "Save Current Location as Marker.\nHold Shift to save this location as a crossworld map marker.";
             using (ImRaii.PushStyle(ImGuiStyleVar.Alpha, 1.0f))
                 ImGui.SetTooltip(tooltip);
         }

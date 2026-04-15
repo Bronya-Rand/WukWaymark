@@ -12,7 +12,7 @@ namespace WukLamark.Windows.Sections;
 internal class EmptyStateSection(GameStateReaderService gameStateReaderService)
 {
     private readonly GameStateReaderService gameStateReaderService = gameStateReaderService;
-    public Action? OnSaveLocation { get; set; }
+    public Action<bool>? OnSaveLocation { get; set; }
 
     public void Draw()
     {
@@ -20,6 +20,7 @@ internal class EmptyStateSection(GameStateReaderService gameStateReaderService)
         var inPvP = gameStateReaderService.IsInPvP;
         var inCombat = gameStateReaderService.IsInCombat;
         var markersDisabled = gameStateReaderService.DisableMarkerActions();
+        var isShiftHeld = ImGui.GetIO().KeyShift;
 
         var coloredText = "No markers saved yet. Create one!";
         if (!isLoggedIn)
@@ -36,13 +37,13 @@ internal class EmptyStateSection(GameStateReaderService gameStateReaderService)
             using (ImRaii.Disabled(markersDisabled))
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
                 {
-                    OnSaveLocation?.Invoke();
+                    OnSaveLocation?.Invoke(isShiftHeld);
                 }
             if (ImWuk.IsItemHoveredWhenDisabled())
             {
-                var tooltip = inPvP ? "Saving markers is disabled in PvP zones" :
-                              inCombat ? "Saving markers is disabled in combat" :
-                              "Save Current Location as Marker";
+                var tooltip = inPvP ? "Saving markers is disabled in PvP zones." :
+                              inCombat ? "Saving markers is disabled in combat." :
+                              "Save Current Location as Marker.\nHold Shift to save this location as a crossworld map marker.";
                 ImGui.SetTooltip(tooltip);
             }
             ImGui.SameLine();
