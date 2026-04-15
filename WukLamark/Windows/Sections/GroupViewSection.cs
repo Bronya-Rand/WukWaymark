@@ -205,10 +205,10 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, M
             {
                 ImGui.OpenPopup("###GroupHeaderMoreOptions");
             }
-            DrawGroupHeaderMoreOptionsPopup(group, groupMarkers, canEdit, canDelete, isLoggedIn, isCreator);
+            DrawGroupHeaderMoreOptionsPopup(group, groupMarkers, canEdit, canDelete, isLoggedIn, isCreator, multiSelect);
         }
     }
-    private void DrawGroupHeaderMoreOptionsPopup(MarkerGroup group, List<Marker> groupMarkers, bool canEdit, bool canDelete, bool isLoggedIn, bool isCreator)
+    private void DrawGroupHeaderMoreOptionsPopup(MarkerGroup group, List<Marker> groupMarkers, bool canEdit, bool canDelete, bool isLoggedIn, bool isCreator, bool muliSelect)
     {
         using (var popup = ImRaii.Popup("###GroupHeaderMoreOptions"))
         {
@@ -230,9 +230,20 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, M
                     ImGui.SetTooltip(tooltip);
             }
 
-            if (ImGui.MenuItem("Export Markers"))
+            using (ImRaii.Disabled(groupMarkers.Count == 0 || muliSelect))
             {
-                OnExportGroupMarkers?.Invoke(groupMarkers);
+                if (ImGui.MenuItem("Export Markers"))
+                {
+                    OnExportGroupMarkers?.Invoke(groupMarkers);
+                }
+            }
+            if (groupMarkers.Count == 0 || muliSelect)
+            {
+                var tooltip = muliSelect ? "Cannot export while multiple groups are selected." :
+                    groupMarkers.Count == 0 ? "No markers in this group to export." :
+                    "";
+                if (ImWuk.IsItemHoveredWhenDisabled() && !tooltip.IsNullOrEmpty())
+                    ImGui.SetTooltip(tooltip);
             }
 
             using (ImRaii.Disabled(!canDelete || !isLoggedIn))
