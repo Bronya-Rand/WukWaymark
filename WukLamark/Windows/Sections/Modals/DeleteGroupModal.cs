@@ -4,6 +4,7 @@ using System;
 using System.Linq;
 using System.Numerics;
 using WukLamark.Models;
+using WukLamark.Utils;
 
 namespace WukLamark.Windows.Sections.Modals;
 
@@ -49,10 +50,10 @@ public class DeleteGroupModal
         {
             var allMarkers = plugin.MarkerStorageService.GetVisibleMarkers();
             var markersInGroup = allMarkers.Where(w => w.GroupId == groupToDelete.Id).Count();
-            ImGui.Text($"Are you sure you want to delete the group '{groupToDelete.Name}'?");
+            ImWuk.CenteredText($"Are you sure you want to delete the group '{groupToDelete.Name}'?");
             if (markersInGroup > 0)
             {
-                ImGui.Text($"This group contains {markersInGroup} marker(s).");
+                ImWuk.CenteredText($"This group contains {markersInGroup} marker(s).");
                 ImGui.Checkbox("Keep markers (move to Ungrouped)", ref keepMarkers);
             }
 

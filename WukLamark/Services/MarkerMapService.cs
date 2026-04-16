@@ -24,7 +24,7 @@ namespace WukLamark.Services
         private readonly MarkerWindow window;
         private bool disposed;
 
-        public readonly List<(Vector2 ScreenPos, MarkerShape Shape, float MarkerSize, uint Color, string? Name, uint? IconId)> MarkersToRender = [];
+        public readonly List<(Vector2 ScreenPos, MarkerShape Shape, float MarkerSize, uint Color, string? Name, uint? IconId, bool useShapeColorOnIcon)> MarkersToRender = [];
 
         // Cached state from Framework.Update for debug / window access
         public Vector2? MapCenterScreenPos { get; private set; }
@@ -262,19 +262,28 @@ namespace WukLamark.Services
                     isClamped = true;
 
                 var colorU32 = ImGui.ColorConvertFloat4ToU32(marker.Color);
-                var markerSize = configuration.WaymarkMarkerSize * ImGuiHelpers.GlobalScale;
+                var baseMarkerSize = configuration.WaymarkMarkerSize;
+                // Override base size if marker has an explicit size set
+                if (marker.IconSize.HasValue && marker.IconSize > 0.0)
+                    baseMarkerSize = marker.IconSize.Value;
+                var markerSize = baseMarkerSize * ImGuiHelpers.GlobalScale;
+
                 if (marker.IconId != null)
                 {
                     var iconSize = plugin.IconBrowserService.GetIconSize(marker.IconId.Value);
                     var deSize = 6.0f / areaMap->Scale * ImGuiHelpers.GlobalScale;
                     if (iconSize.HasValue)
                     {
-                        markerSize = iconSize.Value.X / deSize;
+                        if (plugin.IconBrowserService.IconIsIcon(marker.IconId.Value))
+                            markerSize = iconSize.Value.X / deSize * (baseMarkerSize / 8.0f);
+                        else
+                            // Non-map icons are larger than real map icons (64px).
+                            markerSize = 32.0f / deSize * (baseMarkerSize / 8.0f);
                     }
                     else
                     {
-                        // Fallback to 64x64 (seems most icons are this size?)
-                        markerSize = 64.0f / deSize;
+                        var fallbackBase = plugin.IconBrowserService.IconIsIcon(marker.IconId.Value) ? 64.0f : 32.0f;
+                        markerSize = fallbackBase / deSize * (baseMarkerSize / 8.0f);
                     }
                 }
 
@@ -307,7 +316,7 @@ namespace WukLamark.Services
                     colorU32 = (colorU32 & 0x00FFFFFF) | (a << 24);
                 }
 
-                MarkersToRender.Add((new Vector2(markerScreenX, markerScreenY), marker.Shape, markerSize, colorU32, marker.Name, marker.IconId));
+                MarkersToRender.Add((new Vector2(markerScreenX, markerScreenY), marker.Shape, markerSize, colorU32, marker.Name, marker.IconId, marker.UseShapeColorOnIcon));
             }
         }
 

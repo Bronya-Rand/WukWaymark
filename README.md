@@ -10,16 +10,16 @@ A Final Fantasy XIV plugin for making custom map markers around Eorzea.
 WukLamark is a plugin that allows players to create and manage custom map markers around Eorzea. Whether it's that one spot you use often for GPosing, a venue you frequented once but decided to go again or simply anything that you find interesting, WukLamark will allow you to create a custom map marker for it and make it appear on both the main map and the minimap itself! Think of it as `<flag>` but permanent.
 
 ## Features
-- Create and manage custom map markers
-- Configure how map markers are displayed on the map and minimap
-- Set different icons for map markers (shapes or game icons)
-- Add personal notes to map markers
-- Set different scopes for map markers (personal, shared)
-   > Shared map markers are visible to anyone who logs into the game from your computer.
-- Per-world, per-data center or global map markers
-- Group map markers for different purposes
-- Import map markers from other players/Export map markers to other players
-- Displays in-game locations and world locations by name
+- Create and manage persistent custom map markers.
+- Configure how map markers are displayed on the map and minimap.
+- Set how map markers look on the map and minimap using shapes or in-game icons.
+- Add personal notes to map markers.
+- Set different map marker visibility settings for map markers (per-character vs shared on this PC).
+- Crossworld markers (appear on matching maps across worlds/data centers).
+- Group map markers for different purposes.
+- Batch import/export map markers to share with your friends.
+- Customize the colors of in-game icons.
+- Display in-game locations (territory/world/ward) by name.
 
 ## How To Use
 
@@ -31,33 +31,59 @@ To create a map marker, you can use the `/wlmark here` command in chat or open t
 | --- | --- |
 | ![Create Marker](./.github/assets/CommandCreateMarker.png) | ![Create Marker](./.github/assets/WindowCreateMarker.png) |
 
+> For the GUI, holding `Shift` while clicking the `Create Marker` button will create a Crossworld map marker instead of a world-specific map marker.
+
 ### Editing a Map Marker
 
 To edit a map marker, open the WukLamark window and click the `Edit Marker` button.
 
 ![Edit Marker](./.github/assets/WindowEditMarker.png)
 
-> `Color` and `Shape` are only applicable to No Icon map markers. Scope is only applicable to map markers that are not in a group. Map markers in a group will inherit the scope of the group. 
+> `Shape` is only applicable to No Icon map markers. `Scope` is only applicable to map markers that are not in a group. Map markers in a group will inherit the scope of the group. `Color` is only applicable to No Icon map markers unless `Apply Shape Color to Icon` is enabled.
 
 ### Making a Map Marker Global
 
-To make a map marker global, open the WukLamark window and click the `Edit Marker` button. Then, click the `Visible Across Worlds/DCs` checkbox.
+To make a map marker global, open the WukLamark window and click the `Edit Marker` button. Then, click the `Visible Crossworld` checkbox.
 
-### Deleting a Map Marker
+### Deleting a Map Marker(s)
 
-To delete a map marker, open the WukLamark window and click the `Delete Marker` button.
+#### Deleting a Single Map Marker
+
+To delete a map marker, open the WukLamark window, right-click the marker you wish to delete and click the `Delete Marker` button.
 
 ![Delete Marker](./.github/assets/WindowDeleteMarker.png)
 
-### Sharing a Map Marker to Others Using WukLamark
+#### Deleting Multiple Map Markers
 
-To share a map marker with others, open the WukLamark window and click the `Copy to Clipboard` button.
+To delete multiple map markers, open the WukLamark window, shift-click or ctrl-click the markers you wish to delete, right-click any of the selected markers and click the `Delete Selected Markers` button.
+
+![Delete Markers](./.github/assets/WindowDeleteMarkers.png)
+
+> If you select a marker that you do not have permission to delete, it will not be included in the deletion and the delete button may be grayed out or say `Delete N of Y Markers`.
+
+### Sharing a Map Marker
+
+#### Sharing a Single Map Marker
+
+To share a map marker with others, open the WukLamark window, right-click the marker you wish to share and click the `Copy to Clipboard` button.
 
 ![Share Map Marker](./.github/assets/WindowShareWaymark.png)
 
-To import a map marker from someone else, open the WukLamark window and click the `Import Map Markers from Clipboard` button.
+#### Sharing Multiple Map Markers
 
-![Import Map Marker](./.github/assets/WindowImportWaymark.png)
+To share multiple map markers with others, open the WukLamark window, shift-click or ctrl-click the markers you wish to share, right-click any of the selected markers and click `Export Selected Markers`.
+
+![Export Markers](./.github/assets/WindowShareMarkers.png)
+
+   > Alternatively, you can click the `Export Selected Marker(s) to Clipboard` button at the top of the window.
+
+   ![Export Markers Alt](./.github/assets/WindowShareMarkersAlt.png)
+
+### Importing Map Markers
+
+To import map markers from someone else, open the WukLamark window and click the `Import Markers from Clipboard` button.
+
+![Import Markers](./.github/assets/WindowImportWaymark.png)
 
 ## Groups
 
@@ -77,23 +103,35 @@ A group is a collection of map markers. To create a group, switch to the Group V
 | ![Group Map Marker Create](./.github/assets/GroupWaymarkCreate.png) | ![Group Map Marker Create](./.github/assets/GroupWaymarkCreateGUI.png) 
 |
 
+> For the GUI, holding `Shift` while clicking the `Create Marker` button will create a Crossworld map marker instead of a world-specific map marker in the group.
+
 **Existing Map Markers**
 
 ![Group Map Marker Existing](./.github/assets/GroupWaymarkExistingGUI.png)
 
 ## Editing a Group
 
-To edit a group, click the pencil icon on the right-side.
-> This ability is grayed-out for Shared groups set to read-only (only editable by the owner of the group). Non-owners can only edit the name of Shared groups for non-read-only groups.
+To edit a group, click the `...` button on the right-side of the group header and click `Edit Group`.
 
 ![Group Edit](./.github/assets/GroupEdit.png)
 
+> This ability is grayed-out for Shared groups set to read-only for non-owners.
+
 ## Deleting a Group
 
-To delete a group, click the trash icon on the right-side.
+To delete a group, click the `...` button on the right-side of the group header and click `Delete Group`.
+
 > This ability is grayed-out for Shared groups set to read-only for ALL users. Owners of groups wishing to delete groups should turn off read-only mode before deleting. If map markers exist in the group you wish to delete, you will be asked whether to keep them or not.
 
-![Group Delete](./.github/assets/GroupDelete.png)
+## Exporting Group Markers
+
+To export all markers in a group, click the `...` button on the right-side of the group header and click `Export Markers`.
+
+## Importing Group Markers
+
+To import markers into a group, click the `Import` button on the right-side of the group header.
+
+![Import Group Markers](./.github/assets/GroupImportMarkers.png)
 
 ## Configuration
 
@@ -105,8 +143,8 @@ To delete a group, click the trash icon on the right-side.
 ### Enable Marker Display on Minimap
 > This option allows you to enable or disable the display of map markers on the minimap.
 
-### Marker Size
-> This option allows you to change the size of the map markers on the map and minimap. (Only applicable to No Icon map markers)
+### Default Marker Icon/Shape Size
+> This sets the default size of map markers on the map and minimap. To override this, edit the marker and change the size under `Shape/Icon Size`.
 
 ### Fade Markers on Minimap Edge
 > This option toggles the fade effect map markers apply to themselves when at the edge of the minimap.

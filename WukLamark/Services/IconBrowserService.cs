@@ -27,6 +27,7 @@ namespace WukLamark.Services
         public IReadOnlyList<IconInfo> AvailableIcons { get; private set; } = [];
 
         // Cache for icon sizes
+        private IReadOnlyList<uint> cachedIconIcons = [];
         private Dictionary<uint, Vector2> iconSizeCache = [];
 
         public IconBrowserService(IDataManager dataManager)
@@ -40,7 +41,7 @@ namespace WukLamark.Services
             {
                 var uniqueIcons = new Dictionary<uint, IconInfo>();
 
-                void AddIcons<T>(IEnumerable<T> sheet, Func<T, uint> getIcon, Func<T, string> getName, string source)
+                void AddIcons<T>(IEnumerable<T> sheet, Func<T, uint> getIcon, Func<T, string> getName, string source, bool isIcon = false)
                 {
                     foreach (var row in sheet)
                     {
@@ -55,6 +56,8 @@ namespace WukLamark.Services
                         if (!uniqueIcons.ContainsKey(iconId))
                         {
                             uniqueIcons[iconId] = new IconInfo { IconId = iconId, Name = name, Source = source };
+                            if (!cachedIconIcons.Contains(iconId) && isIcon)
+                                cachedIconIcons = cachedIconIcons.Append(iconId).ToArray();
                         }
                     }
                 }
@@ -92,10 +95,10 @@ namespace WukLamark.Services
                 AddIcons(extras, e => e.Icon >= 0 ? (uint)e.Icon : 0, e => e.Name.ToString(), "Extra");
 
                 var statuses = dataManager.GetExcelSheet<Status>()!;
-                AddIcons(statuses, s => s.Icon, s => s.Name.ToString(), "Status");
+                AddIcons(statuses, s => s.Icon, s => s.Name.ToString(), "Status", true);
 
                 var questMarkers = dataManager.GetExcelSheet<QuestLinkMarkerIcon>()!;
-                AddIcons(questMarkers, q => q.Icon, q => $"Quest Icon {q.RowId}", "Quest");
+                AddIcons(questMarkers, q => q.Icon, q => $"Quest Icon {q.RowId}", "Quest", true);
 
                 var mapSymbols = dataManager.GetExcelSheet<MapSymbol>()!;
                 foreach (var row in mapSymbols)
@@ -105,6 +108,7 @@ namespace WukLamark.Services
                     var iconId = (uint)row.Icon;
                     if (iconId == 0 || uniqueIcons.ContainsKey(iconId)) continue;
                     uniqueIcons[iconId] = new IconInfo { IconId = iconId, Name = row.PlaceName.Value.Name.ToString() ?? $"Map Symbol {iconId}", Source = "Map" };
+                    cachedIconIcons = cachedIconIcons.Append(iconId).ToArray();
                 }
 
                 if (token.IsCancellationRequested) return;
@@ -143,6 +147,7 @@ namespace WukLamark.Services
             tex.Dispose();
             return texSize;
         }
+        public bool IconIsIcon(uint iconId) => cachedIconIcons.Contains(iconId);
         public void Dispose()
         {
             cts.Cancel();

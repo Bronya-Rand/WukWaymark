@@ -27,10 +27,10 @@ namespace WukLamark.Services
         private bool disposed;
 
         // Publicly accessible list mapping markers to their PreDraw evaluated locations
-        public List<(Vector2 Position, MarkerShape Shape, float Size, Vector4 Color, string? Name, uint? IconId)> MarkersToRender { get; } = [];
+        public List<(Vector2 Position, MarkerShape Shape, float Size, Vector4 Color, string? Name, uint? IconId, bool useShapeColorOnIcon)> MarkersToRender { get; } = [];
 
         // Player data gathered during Framework.Update
-        private readonly List<(Vector3 WorldPos, MarkerShape Shape, Vector4 Color, string? Name, uint? IconId, float VisibilityRadius)> markersToRenderCache = [];
+        private readonly List<(Vector3 WorldPos, MarkerShape Shape, Vector4 Color, string? Name, uint? IconId, float? IconScale, float VisibilityRadius, bool useShapeColorOnIcon)> markersToRenderCache = [];
 
         // Minimap state cached per frame
         private float minimapRadius;
@@ -162,7 +162,7 @@ namespace WukLamark.Services
                 }
 
                 // Store world position - will convert to screen coords in PreDraw
-                markersToRenderCache.Add((marker.Position, marker.Shape, marker.Color, marker.Name, marker.IconId, marker.VisibilityRadius));
+                markersToRenderCache.Add((marker.Position, marker.Shape, marker.Color, marker.Name, marker.IconId, marker.IconSize, marker.VisibilityRadius, marker.UseShapeColorOnIcon));
             }
         }
 
@@ -189,22 +189,32 @@ namespace WukLamark.Services
             mapCenterScreenPos.Y -= 5f * globalScale;
 
             // Pass pre-computed cos/sin to avoid recomputing per marker
-            foreach (var (worldPos, shape, color, name, iconId, visibilityRadius) in markersToRenderCache)
+            foreach (var (worldPos, shape, color, name, iconId, iconSize, visibilityRadius, useShapeColorOnIcon) in markersToRenderCache)
             {
                 var circlePos = CalculateCirclePosition(worldPos, cosRotation, sinRotation);
-                var markerSize = configuration.WaymarkMarkerSize * globalScale;
+
+                var baseMarkerSize = configuration.WaymarkMarkerSize;
+                // Override base size if marker has an explicit size set
+                if (iconSize.HasValue && iconSize.Value > 0)
+                    baseMarkerSize = iconSize.Value;
+                var markerSize = baseMarkerSize * globalScale;
+
                 if (iconId != null)
                 {
-                    var iconSize = plugin.IconBrowserService.GetIconSize(iconId.Value);
+                    var iconGameSize = plugin.IconBrowserService.GetIconSize(iconId.Value);
                     var deSize = 6.0f / naviScale * globalScale;
-                    if (iconSize.HasValue)
+                    if (iconGameSize.HasValue)
                     {
-                        markerSize = iconSize.Value.X / deSize;
+                        if (plugin.IconBrowserService.IconIsIcon(iconId.Value))
+                            markerSize = iconGameSize.Value.X / deSize * (baseMarkerSize / 8.0f);
+                        else
+                            // Non-map icons are larger than 64.
+                            markerSize = 32.0f / deSize * (baseMarkerSize / 8.0f);
                     }
                     else
                     {
-                        // Fallback to 64x64 (seems most icons are this size?)
-                        markerSize = 64f / deSize;
+                        var fallbackBase = plugin.IconBrowserService.IconIsIcon(iconId.Value) ? 64.0f : 32.0f;
+                        markerSize = fallbackBase / deSize * (baseMarkerSize / 8.0f);
                     }
                 }
 
@@ -236,7 +246,7 @@ namespace WukLamark.Services
                     fadedColor.W *= Math.Clamp(edgeFade, 0.4f, 1.0f);
                 }
 
-                MarkersToRender.Add((circlePos, shape, markerSize, fadedColor, name, iconId));
+                MarkersToRender.Add((circlePos, shape, markerSize, fadedColor, name, iconId, useShapeColorOnIcon));
             }
         }
 

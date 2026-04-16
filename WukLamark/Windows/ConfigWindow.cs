@@ -61,9 +61,9 @@ public class ConfigWindow : Window, IDisposable
 
         // Marker size slider
         var markerSize = configuration.WaymarkMarkerSize;
-        ImGui.Text("Marker Size:");
+        ImGui.Text("Default Marker Icon/Shape Size:");
         ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
-        if (ImGui.SliderFloat("##MarkerSize", ref markerSize, 4.0f, 20.0f, "%.1f"))
+        if (ImGui.SliderFloat("##MarkerSize", ref markerSize, 1.0f, 24.0f, "%.1f"))
         {
             configuration.WaymarkMarkerSize = markerSize;
             configuration.Save();

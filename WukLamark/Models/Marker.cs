@@ -88,6 +88,19 @@ public class Marker
     public uint? IconId { get; set; }
 
     /// <summary>
+    /// The size the icon should be rendered at.
+    /// </summary>
+    /// <remarks>
+    /// If null or 0, the default size from the plugin configuration is used.
+    /// </remarks>
+    public float? IconSize { get; set; } = 0.0f;
+
+    /// <summary>
+    /// Whether to use the shape color when rendering the game icon on the map and minimap. 
+    /// </summary>
+    public bool UseShapeColorOnIcon { get; set; } = false;
+
+    /// <summary>
     /// Persistence scope — Personal (character-specific) or Shared (all characters on this install).
     /// </summary>
     public MarkerScope Scope { get; set; } = MarkerScope.Personal;

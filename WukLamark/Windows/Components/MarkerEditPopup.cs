@@ -24,6 +24,8 @@ internal class MarkerEditPopup
     private Guid? editingGroupId;
     private float editingVisibilityRadius;
     private uint? editingIconId = null;
+    private float editingIconSize = 0.0f;
+    private bool editingUseShapeColorOnIcon = false;
     private MarkerScope editingScope = MarkerScope.Personal;
     private bool editingReadOnly = false;
     private bool editingAppliesToAllWorlds = false;
@@ -54,6 +56,8 @@ internal class MarkerEditPopup
         editingGroupId = marker.GroupId;
         editingVisibilityRadius = marker.VisibilityRadius;
         editingIconId = marker.IconId;
+        editingIconSize = marker.IconSize ?? plugin.Configuration.WaymarkMarkerSize;
+        editingUseShapeColorOnIcon = marker.UseShapeColorOnIcon;
         editingScope = marker.Scope;
         editingReadOnly = marker.IsReadOnly;
         editingAppliesToAllWorlds = marker.AppliesToAllWorlds;
@@ -143,10 +147,9 @@ internal class MarkerEditPopup
         var canEditReadOnly = selectedScope == MarkerScope.Shared && isMarkerCreator && !editingName.IsNullOrEmpty();
 
         var canSave = !editingName.IsNullOrEmpty();
-        if (selectedScope == MarkerScope.Shared && marker.IsReadOnly && editingReadOnly)
-        {
+        // Saving only enabled if read-only state is false and is creator
+        if (selectedScope == MarkerScope.Shared && marker.IsReadOnly)
             canSave = isMarkerCreator && editingReadOnly != marker.IsReadOnly;
-        }
 
         ImGui.Text("Edit Marker");
         ImGui.Separator();
@@ -191,6 +194,12 @@ internal class MarkerEditPopup
             var tooltip = "Assigns a shape to the marker. This is overridden by the icon if one is selected.";
             ImGui.SetTooltip(tooltip);
         }
+
+        // Shape/Icon size slider
+        ImGui.Text("Shape/Icon Size:");
+        ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
+        using (ImRaii.Disabled(!canEditGeneralFields))
+            ImGui.SliderFloat($"###Size{identifier}", ref editingIconSize, 0f, 24.0f, editingIconSize == 0 ? "Global Icon/Shape Size" : "%.1f");
 
         // Group assignment dropdown
         ImGui.Text("Group:");
@@ -269,13 +278,12 @@ internal class MarkerEditPopup
                     ? "Only the creator can change scope."
                     : editingReadOnly && selectedScope == MarkerScope.Shared
                         ? "Disable read-only before changing scope."
-                        : "Sets the visibility of the marker to other players on the same PC.\nPersonal markers are only visible to you, while shared markers are visible to anyone who logs in to XIV from this PC";
+                        : "Sets the visibility of the marker to other characters on the same PC.\nPersonal markers are only visible to you, while shared markers are visible to any character that logs in to FFXIV from this PC.";
             ImGui.SetTooltip(tooltip);
         }
 
-        ImGui.Text("Visible Across Worlds/DCs:");
         using (ImRaii.Disabled(!canEditGeneralFields))
-            ImGui.Checkbox($"###AllWorlds{identifier}", ref editingAppliesToAllWorlds);
+            ImGui.Checkbox($"Visible Crossworld###AllWorlds{identifier}", ref editingAppliesToAllWorlds);
         if (ImWuk.IsItemHoveredWhenDisabled())
             ImGui.SetTooltip("When enabled, this marker appears on matching maps in all worlds/data centers.");
 
@@ -340,6 +348,11 @@ internal class MarkerEditPopup
 
         iconPickerModal.Draw(marker.Name, identifier);
 
+        using (ImRaii.Disabled(!canEditGeneralFields))
+            ImGui.Checkbox($"Apply Shape Color To Icon###UseShapeColorOnIcon{identifier}", ref editingUseShapeColorOnIcon);
+        if (ImWuk.IsItemHoveredWhenDisabled())
+            ImGui.SetTooltip("When enabled, the shape color is applied to the icon rendering.");
+
         ImGui.Spacing();
 
         using (ImRaii.Disabled(!canSave))
@@ -354,6 +367,8 @@ internal class MarkerEditPopup
                     GroupId = editingGroupId,
                     VisibilityRadius = editingVisibilityRadius,
                     IconId = editingIconId,
+                    IconSize = editingIconSize,
+                    UseShapeColorOnIcon = editingUseShapeColorOnIcon,
                     Scope = isGrouped ? parentGroup!.Scope : editingScope,
                     IsReadOnly = selectedScope == MarkerScope.Shared && editingReadOnly,
                     AppliesToAllWorlds = editingAppliesToAllWorlds,
@@ -383,6 +398,8 @@ public class MarkerEditResult
     public Guid? GroupId { get; init; }
     public float VisibilityRadius { get; init; }
     public uint? IconId { get; init; }
+    public float IconSize { get; init; }
+    public bool UseShapeColorOnIcon { get; init; }
     public MarkerScope Scope { get; init; }
     public bool IsReadOnly { get; init; }
     public bool AppliesToAllWorlds { get; init; }

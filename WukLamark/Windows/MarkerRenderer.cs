@@ -165,12 +165,17 @@ namespace WukLamark.Windows
         /// <param name="markerSize">Marker size in pixels</param>
         /// <param name="colorU32">Fill color for shape rendering</param>
         /// <param name="iconId">Optional game icon ID; if set, renders icon instead of shape</param>
-        public static void RenderMarker(ImDrawListPtr drawList, Vector2 position, MarkerShape shape, float markerSize, uint colorU32, uint? iconId)
+        public static void RenderMarker(ImDrawListPtr drawList, Vector2 position, MarkerShape shape, float markerSize, uint colorU32, uint? iconId, bool useShapeColorOnIcon)
         {
             if (iconId.HasValue && iconId.Value != 0)
             {
                 // Pass the fill color as tint so icon respects alpha fade
                 var tint = 0x00FFFFFFu | (colorU32 & 0xFF000000u); // white RGB + alpha from colorU32
+
+                // Apply shape color as tint if 'useShapeColorOnIcon' is true.
+                if (useShapeColorOnIcon)
+                    tint = colorU32;
+
                 RenderMarkerIcon(drawList, position, iconId.Value, markerSize, tint);
             }
             else

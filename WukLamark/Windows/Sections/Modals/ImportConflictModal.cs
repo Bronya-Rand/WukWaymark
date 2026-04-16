@@ -1,8 +1,10 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using WukLamark.Models;
 using WukLamark.Services;
 
 namespace WukLamark.Windows.Sections.Modals;
@@ -10,14 +12,16 @@ namespace WukLamark.Windows.Sections.Modals;
 public class ImportConflictModal
 {
     private bool isOpen = false;
+    private MarkerGroup? importGroup = null;
     private ImportResult? pendingImport = null;
     private Dictionary<Guid, bool> importConflictChoices = [];
 
-    public Action<ImportResult, Dictionary<Guid, bool>, bool>? OnApplyImport { get; set; }
+    public Action<ImportResult, Dictionary<Guid, bool>, bool, MarkerGroup?>? OnApplyImport { get; set; }
 
-    public void Open(ImportResult result)
+    public void Open(ImportResult result, MarkerGroup? importGroup)
     {
         pendingImport = result;
+        this.importGroup = importGroup;
         importConflictChoices.Clear();
         isOpen = true;
     }
@@ -45,9 +49,23 @@ public class ImportConflictModal
             foreach (var conflict in pendingImport.Conflicts)
             {
                 var overwrite = importConflictChoices.TryGetValue(conflict.Id, out var v) && v;
-                var label = conflict.IsGroup ? $" {conflict.Name} (Group)" : $" {conflict.Name} (Marker)";
-                if (ImGui.Checkbox($"Overwrite: {label}###import_{conflict.Id}", ref overwrite))
+
+                ImGui.Text($"(Incoming) {conflict.ImportedName}");
+                ImGui.SameLine();
+
+                using (ImRaii.PushFont(UiBuilder.IconFont))
+                    ImGui.Text(FontAwesomeIcon.ArrowRight.ToIconString());
+
+                ImGui.SameLine();
+                ImGui.Text($"{conflict.Name} (Existing)");
+
+                using (ImRaii.Disabled(true))
+                    ImGui.Text($"Reason: {conflict.Reason}.");
+
+                if (ImGui.Checkbox($"Overwrite marker###import_{conflict.Id}", ref overwrite))
                     importConflictChoices[conflict.Id] = overwrite;
+
+                ImGui.Separator();
             }
 
             ImGui.Spacing();
@@ -66,7 +84,7 @@ public class ImportConflictModal
 
             if (ImGui.Button("Overwrite All###ImportOverwriteAll", new Vector2(buttonWidth, 0)))
             {
-                OnApplyImport?.Invoke(pendingImport, importConflictChoices, true);
+                OnApplyImport?.Invoke(pendingImport, importConflictChoices, true, importGroup);
                 pendingImport = null;
                 isOpen = false;
                 ImGui.CloseCurrentPopup();
@@ -74,7 +92,7 @@ public class ImportConflictModal
             ImGui.SameLine();
             if (ImGui.Button("Apply Choices###ImportApplySelection", new Vector2(buttonWidth, 0)))
             {
-                OnApplyImport?.Invoke(pendingImport!, importConflictChoices, false);
+                OnApplyImport?.Invoke(pendingImport!, importConflictChoices, false, importGroup);
                 pendingImport = null;
                 isOpen = false;
                 ImGui.CloseCurrentPopup();

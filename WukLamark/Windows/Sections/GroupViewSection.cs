@@ -3,6 +3,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Utility;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,10 +21,15 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, M
     private readonly MarkerStorageService markerStorageService = markerStorageService;
     private readonly MarkerTableComponent tableComponent = tableComponent;
 
+    private readonly record struct GroupPermissions(bool CanEdit, bool CanDelete, bool CanAdd, bool IsCreator, bool IsLoggedIn, bool MultiSelect);
+
+    public Func<bool>? IsMultiSelectActive { get; set; }
     public Action? OnCreateGroup { get; set; }
     public Action<MarkerGroup>? OnEditGroup { get; set; }
     public Action<MarkerGroup>? OnDeleteGroup { get; set; }
-    public Action<MarkerGroup>? OnSaveToGroup { get; set; }
+    public Action<MarkerGroup, bool>? OnSaveToGroup { get; set; }
+    public Action<ImportResult, MarkerGroup>? OnImportGroupMarkers { get; set; }
+    public Action<List<Marker>>? OnExportGroupMarkers { get; set; }
 
     public void Draw(List<Marker> filteredMarkers, string searchFilter, bool filterCurrentZone)
     {
@@ -59,7 +65,7 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, M
 
             var headerOpen = ImGui.CollapsingHeader($"{group.Name} ({groupMarkers.Count})###group_{identifier}", ImGuiTreeNodeFlags.AllowItemOverlap);
 
-            DrawGroupHeaderButtons(group);
+            DrawGroupHeaderButtons(group, groupMarkers);
 
             if (headerOpen)
             {
@@ -105,17 +111,22 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, M
             }
         }
     }
-    private void DrawGroupHeaderButtons(MarkerGroup group)
+    private void DrawGroupHeaderButtons(MarkerGroup group, List<Marker> groupMarkers)
     {
         var isLoggedIn = gameStateReaderService.IsLoggedIn;
         var inPvP = gameStateReaderService.IsInPvP;
         var inCombat = gameStateReaderService.IsInCombat;
         var markersDisabled = gameStateReaderService.DisableMarkerActions();
+        var multiSelect = IsMultiSelectActive?.Invoke() ?? false;
+        var isShiftHeld = ImGui.GetIO().KeyShift;
 
+        var buttons = 3;
         var buttonSize = 20.0f * ImGuiHelpers.GlobalScale;
+        var buttonSpacing = buttons % 2 == 0 ? buttons : buttons - 1;
+
         var spacing = 5.0f;
         var scopeIconSize = 18.0f * ImGuiHelpers.GlobalScale;
-        var totalWidth = (buttonSize * 3) + (spacing * 2) + scopeIconSize + spacing + 8;
+        var totalWidth = (buttonSize * buttons) + (spacing * buttonSpacing) + scopeIconSize + spacing + 8;
 
         ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalWidth + ImGui.GetCursorPosX());
 
@@ -142,17 +153,22 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, M
         var currentHash = markerStorageService.CurrentCharacterHash;
         var isCreator = group.CreatorHash != null && currentHash != null && group.CreatorHash == currentHash;
 
-        var canEdit = (group.Scope == MarkerScope.Personal && isCreator) || (group.Scope == MarkerScope.Shared && (isCreator || !group.IsReadOnly));
-        var canDelete = isCreator && !group.IsReadOnly;
-        var canAdd = (group.Scope == MarkerScope.Personal && isCreator) || (group.Scope == MarkerScope.Shared && !group.IsReadOnly);
+        var perms = new GroupPermissions(
+            CanEdit: (group.Scope == MarkerScope.Personal && isCreator) || (group.Scope == MarkerScope.Shared && (isCreator || !group.IsReadOnly)),
+            CanDelete: isCreator && !group.IsReadOnly,
+            CanAdd: (group.Scope == MarkerScope.Personal && isCreator) || (group.Scope == MarkerScope.Shared && !group.IsReadOnly),
+            IsCreator: isCreator,
+            IsLoggedIn: isLoggedIn,
+            MultiSelect: multiSelect
+        );
 
         // Quick-save to this group
         using (ImRaii.PushId("groupsave"))
         {
-            using (ImRaii.Disabled(!canAdd || markersDisabled))
+            using (ImRaii.Disabled(!perms.CanAdd || markersDisabled))
             {
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.MapPin))
-                    OnSaveToGroup?.Invoke(group);
+                    OnSaveToGroup?.Invoke(group, isShiftHeld);
             }
         }
         if (ImWuk.IsItemHoveredWhenDisabled())
@@ -161,47 +177,101 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, M
                 inPvP ? "Saving markers is disabled in PvP zones." :
                 inCombat ? "Saving markers is disabled in combat." :
                 group.IsReadOnly ? "Cannot save markers to a read-only group." :
-                "Save current location to this group.";
+                !perms.IsCreator && group.Scope == MarkerScope.Personal ? "Only the group's creator can save markers to this personal group." :
+                "Save current location to this group.\nHold Shift to save this location as a crossworld map marker.";
             ImGui.SetTooltip(tooltip);
         }
 
         ImGui.SameLine(0, spacing);
 
-        // Edit group
-        using (ImRaii.PushId("groupedit"))
+        using (ImRaii.PushId("groupimport"))
         {
-            using (ImRaii.Disabled(!canEdit || !isLoggedIn))
+            using (ImRaii.Disabled(!perms.CanAdd || markersDisabled))
             {
-                if (ImGuiComponents.IconButton(FontAwesomeIcon.Edit))
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.FileImport))
+                {
+                    var allExistingMarkers = markerStorageService.GetVisibleMarkers();
+                    var result = MarkerExportService.ImportFromClipboard(allExistingMarkers);
+                    OnImportGroupMarkers?.Invoke(result, group);
+                }
+            }
+        }
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            var tooltip = !isLoggedIn ? "Log in to import markers!" :
+                inPvP ? "Importing markers is disabled in PvP zones." :
+                inCombat ? "Importing markers is disabled in combat." :
+                group.IsReadOnly ? "Cannot import markers to a read-only group." :
+                !perms.IsCreator && group.Scope == MarkerScope.Personal ? "Only the group's creator can import markers to this personal group." :
+                "Import markers from the clipboard to this group.";
+            ImGui.SetTooltip(tooltip);
+        }
+
+        ImGui.SameLine(0, spacing);
+
+        using (ImRaii.PushId("groupmore"))
+        {
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.EllipsisH))
+            {
+                ImGui.OpenPopup("###GroupHeaderMoreOptions");
+            }
+            DrawGroupHeaderMoreOptionsPopup(group, groupMarkers, perms);
+        }
+    }
+    private void DrawGroupHeaderMoreOptionsPopup(MarkerGroup group, List<Marker> groupMarkers, GroupPermissions perms)
+    {
+        using (var popup = ImRaii.Popup("###GroupHeaderMoreOptions"))
+        {
+            if (!popup) return;
+
+            using (ImRaii.Disabled(!perms.CanEdit || !perms.IsLoggedIn))
+            {
+                if (ImGui.MenuItem("Edit Group"))
+                {
                     OnEditGroup?.Invoke(group);
+                }
             }
-        }
-        if (ImWuk.IsItemHoveredWhenDisabled())
-        {
-            var tooltip = !isLoggedIn ? "Log in to manage this group!" :
-                group.IsReadOnly && !isCreator ? "Only the group's creator can edit this group." :
-                "Edit group properties";
-            ImGui.SetTooltip(tooltip);
-        }
-
-        ImGui.SameLine(0, spacing);
-
-        // Delete group
-        using (ImRaii.PushId("groupdelete"))
-        {
-            using (ImRaii.Disabled(!canDelete || !isLoggedIn))
+            if (!perms.CanEdit || !perms.IsLoggedIn)
             {
-                if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash))
-                    OnDeleteGroup?.Invoke(group);
+                var tooltip = !perms.IsLoggedIn ? "Log in to manage this group!" :
+                    group.IsReadOnly && !perms.IsCreator ? "Only the group's creator can edit this group." :
+                    "";
+                if (ImWuk.IsItemHoveredWhenDisabled() && !tooltip.IsNullOrEmpty())
+                    ImGui.SetTooltip(tooltip);
             }
-        }
-        if (ImWuk.IsItemHoveredWhenDisabled())
-        {
-            var tooltip = !isLoggedIn ? "Log in to manage this group!" :
-                group.IsReadOnly && isCreator ? "Cannot delete a read-only group." :
-                !isCreator ? "Only the group's creator can delete this group." :
-                "Delete Group";
-            ImGui.SetTooltip(tooltip);
+
+            using (ImRaii.Disabled(groupMarkers.Count == 0 || perms.MultiSelect))
+            {
+                if (ImGui.MenuItem("Export Markers"))
+                {
+                    OnExportGroupMarkers?.Invoke(groupMarkers);
+                }
+            }
+            if (groupMarkers.Count == 0 || perms.MultiSelect)
+            {
+                var tooltip = perms.MultiSelect ? "Cannot export while multiple groups are selected." :
+                    groupMarkers.Count == 0 ? "No markers in this group to export." :
+                    "";
+                if (ImWuk.IsItemHoveredWhenDisabled() && !tooltip.IsNullOrEmpty())
+                    ImGui.SetTooltip(tooltip);
+            }
+
+            using (ImRaii.Disabled(!perms.CanDelete || !perms.IsLoggedIn))
+            {
+                if (ImGui.MenuItem("Delete Group"))
+                {
+                    OnDeleteGroup?.Invoke(group);
+                }
+            }
+            if (!perms.CanDelete || !perms.IsLoggedIn)
+            {
+                var tooltip = !perms.IsLoggedIn ? "Log in to manage this group!" :
+                    group.IsReadOnly ? "Disable read-only before deleting this group." :
+                    !perms.IsCreator ? "Only the group's creator can delete this group." :
+                    "";
+                if (ImWuk.IsItemHoveredWhenDisabled() && !tooltip.IsNullOrEmpty())
+                    ImGui.SetTooltip(tooltip);
+            }
         }
     }
 }
