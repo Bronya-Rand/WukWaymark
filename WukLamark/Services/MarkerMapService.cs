@@ -24,7 +24,7 @@ namespace WukLamark.Services
         private readonly MarkerWindow window;
         private bool disposed;
 
-        public readonly List<(Vector2 ScreenPos, MarkerShape Shape, float MarkerSize, uint Color, string? Name, uint? IconId)> MarkersToRender = [];
+        public readonly List<(Vector2 ScreenPos, MarkerShape Shape, float MarkerSize, uint Color, string? Name, uint? IconId, bool useShapeColorOnIcon)> MarkersToRender = [];
 
         // Cached state from Framework.Update for debug / window access
         public Vector2? MapCenterScreenPos { get; private set; }
@@ -275,15 +275,15 @@ namespace WukLamark.Services
                     if (iconSize.HasValue)
                     {
                         if (plugin.IconBrowserService.IconIsIcon(marker.IconId.Value))
-                            markerSize = (iconSize.Value.X / deSize) * (baseMarkerSize / 8.0f);
+                            markerSize = iconSize.Value.X / deSize * (baseMarkerSize / 8.0f);
                         else
                             // Non-map icons are larger than real map icons (64px).
-                            markerSize = (32.0f / deSize) * (baseMarkerSize / 8.0f);
+                            markerSize = 32.0f / deSize * (baseMarkerSize / 8.0f);
                     }
                     else
                     {
                         var fallbackBase = plugin.IconBrowserService.IconIsIcon(marker.IconId.Value) ? 64.0f : 32.0f;
-                        markerSize = (fallbackBase / deSize) * (baseMarkerSize / 8.0f);
+                        markerSize = fallbackBase / deSize * (baseMarkerSize / 8.0f);
                     }
                 }
 
@@ -316,7 +316,7 @@ namespace WukLamark.Services
                     colorU32 = (colorU32 & 0x00FFFFFF) | (a << 24);
                 }
 
-                MarkersToRender.Add((new Vector2(markerScreenX, markerScreenY), marker.Shape, markerSize, colorU32, marker.Name, marker.IconId));
+                MarkersToRender.Add((new Vector2(markerScreenX, markerScreenY), marker.Shape, markerSize, colorU32, marker.Name, marker.IconId, marker.UseShapeColorOnIcon));
             }
         }
 

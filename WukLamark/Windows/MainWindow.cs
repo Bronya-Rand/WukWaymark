@@ -212,6 +212,7 @@ public class MainWindow : Window, IDisposable
         marker.VisibilityRadius = result.VisibilityRadius;
         marker.IconId = result.IconId;
         marker.IconSize = result.IconSize;
+        marker.UseShapeColorOnIcon = result.UseShapeColorOnIcon;
         marker.Scope = result.Scope;
         marker.IsReadOnly = result.IsReadOnly;
         marker.AppliesToAllWorlds = result.AppliesToAllWorlds;

@@ -52,12 +52,11 @@ namespace WukLamark.Windows
             var mousePos = ImGui.GetMousePos();
             string? hoveredMarkerName = null;
 
-            foreach (var (position, shape, size, color, name, iconId) in service.MarkersToRender)
+            foreach (var (position, shape, size, color, name, iconId, useShapeColorOnIcon) in service.MarkersToRender)
             {
                 var colorU32 = ImGui.ColorConvertFloat4ToU32(color);
 
-                MarkerRenderer.RenderMarker(drawList, position, shape, size, colorU32, iconId);
-
+                MarkerRenderer.RenderMarker(drawList, position, shape, size, colorU32, iconId, useShapeColorOnIcon);
                 if (plugin.Configuration.ShowWaymarkTooltips &&
                     !string.IsNullOrEmpty(name) &&
                     Vector2.Distance(mousePos, position) <= size + (2.0f * ImGuiHelpers.GlobalScale))

@@ -25,6 +25,7 @@ internal class MarkerEditPopup
     private float editingVisibilityRadius;
     private uint? editingIconId = null;
     private float editingIconSize = 0.0f;
+    private bool editingUseShapeColorOnIcon = false;
     private MarkerScope editingScope = MarkerScope.Personal;
     private bool editingReadOnly = false;
     private bool editingAppliesToAllWorlds = false;
@@ -56,6 +57,7 @@ internal class MarkerEditPopup
         editingVisibilityRadius = marker.VisibilityRadius;
         editingIconId = marker.IconId;
         editingIconSize = marker.IconSize ?? plugin.Configuration.WaymarkMarkerSize;
+        editingUseShapeColorOnIcon = marker.UseShapeColorOnIcon;
         editingScope = marker.Scope;
         editingReadOnly = marker.IsReadOnly;
         editingAppliesToAllWorlds = marker.AppliesToAllWorlds;
@@ -346,6 +348,11 @@ internal class MarkerEditPopup
 
         iconPickerModal.Draw(marker.Name, identifier);
 
+        using (ImRaii.Disabled(!canEditGeneralFields))
+            ImGui.Checkbox($"Apply Shape Color To Icon###UseShapeColorOnIcon{identifier}", ref editingUseShapeColorOnIcon);
+        if (ImWuk.IsItemHoveredWhenDisabled())
+            ImGui.SetTooltip("When enabled, the shape color is applied to the icon rendering.");
+
         ImGui.Spacing();
 
         using (ImRaii.Disabled(!canSave))
@@ -361,6 +368,7 @@ internal class MarkerEditPopup
                     VisibilityRadius = editingVisibilityRadius,
                     IconId = editingIconId,
                     IconSize = editingIconSize,
+                    UseShapeColorOnIcon = editingUseShapeColorOnIcon,
                     Scope = isGrouped ? parentGroup!.Scope : editingScope,
                     IsReadOnly = selectedScope == MarkerScope.Shared && editingReadOnly,
                     AppliesToAllWorlds = editingAppliesToAllWorlds,
@@ -391,6 +399,7 @@ public class MarkerEditResult
     public float VisibilityRadius { get; init; }
     public uint? IconId { get; init; }
     public float IconSize { get; init; }
+    public bool UseShapeColorOnIcon { get; init; }
     public MarkerScope Scope { get; init; }
     public bool IsReadOnly { get; init; }
     public bool AppliesToAllWorlds { get; init; }

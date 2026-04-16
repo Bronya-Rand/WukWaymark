@@ -136,7 +136,8 @@ internal class MarkerTableComponent
             marker.Shape,
             8f * globalScale,
             colorU32,
-            marker.IconId
+            marker.IconId,
+            marker.UseShapeColorOnIcon
         );
         ImGui.Dummy(new Vector2(40 * globalScale, 20 * globalScale));
     }

@@ -86,7 +86,19 @@ public class Marker
     /// However, their alpha may be modified by the renderer.
     /// </remarks>
     public uint? IconId { get; set; }
-    public float? IconSize { get; set; } = 0.0f; // Use default size of config
+
+    /// <summary>
+    /// The size the icon should be rendered at.
+    /// </summary>
+    /// <remarks>
+    /// If null or 0, the default size from the plugin configuration is used.
+    /// </remarks>
+    public float? IconSize { get; set; } = 0.0f;
+
+    /// <summary>
+    /// Whether to use the shape color when rendering the game icon on the map and minimap. 
+    /// </summary>
+    public bool UseShapeColorOnIcon { get; set; } = false;
 
     /// <summary>
     /// Persistence scope — Personal (character-specific) or Shared (all characters on this install).
