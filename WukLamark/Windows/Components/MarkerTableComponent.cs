@@ -238,7 +238,7 @@ internal class MarkerTableComponent
 
         using (ImRaii.Disabled(!canDelete))
         {
-            if (ImGui.MenuItem("Delete"))
+            if (ImGui.MenuItem("Delete Marker"))
             {
                 var temp = new List<Marker> { marker };
                 OnDeleteRequested?.Invoke(temp);
