@@ -1,7 +1,9 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
+using Dalamud.Utility;
 using System.Numerics;
+using WukLamark.Helpers;
 using WukLamark.Services;
 
 namespace WukLamark.Windows
@@ -52,17 +54,22 @@ namespace WukLamark.Windows
             var mousePos = ImGui.GetMousePos();
             string? hoveredMarkerName = null;
 
-            foreach (var (position, shape, size, color, name, iconId, useShapeColorOnIcon) in service.MarkersToRender)
+            foreach (var (position, shape, size, color, name, notes, iconId, useShapeColorOnIcon) in service.MarkersToRender)
             {
                 var colorU32 = ImGui.ColorConvertFloat4ToU32(color);
 
                 MarkerRenderer.RenderMarker(drawList, position, shape, size, colorU32, iconId, useShapeColorOnIcon);
-                if (plugin.Configuration.ShowWaymarkTooltips &&
-                    !string.IsNullOrEmpty(name) &&
-                    Vector2.Distance(mousePos, position) <= size + (2.0f * ImGuiHelpers.GlobalScale))
-                {
-                    hoveredMarkerName = name;
-                }
+
+                if (!plugin.Configuration.ShowWaymarkTooltips) continue;
+                if (Vector2.Distance(mousePos, position) > size + (2.0f * ImGuiHelpers.GlobalScale)) continue;
+
+                var safeName = name.IsNullOrEmpty() ? "Unnamed Marker" : name;
+                var formattedNotes = MapHelper.FormatMapTooltipNotes(notes);
+
+                if (formattedNotes.Length > 0)
+                    hoveredMarkerName = $"{safeName}\n{formattedNotes}";
+                else
+                    hoveredMarkerName = safeName;
             }
 
             if (hoveredMarkerName != null)
@@ -70,7 +77,6 @@ namespace WukLamark.Windows
                 ImGui.SetTooltip(hoveredMarkerName);
             }
         }
-
         public override bool DrawConditions()
         {
             return Plugin.ClientState.IsLoggedIn &&

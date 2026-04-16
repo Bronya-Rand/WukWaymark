@@ -1,6 +1,7 @@
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
+using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.UI;
@@ -27,10 +28,10 @@ namespace WukLamark.Services
         private bool disposed;
 
         // Publicly accessible list mapping markers to their PreDraw evaluated locations
-        public List<(Vector2 Position, MarkerShape Shape, float Size, Vector4 Color, string? Name, uint? IconId, bool useShapeColorOnIcon)> MarkersToRender { get; } = [];
+        public List<(Vector2 Position, MarkerShape Shape, float Size, Vector4 Color, string Name, string? Notes, uint? IconId, bool useShapeColorOnIcon)> MarkersToRender { get; } = [];
 
         // Player data gathered during Framework.Update
-        private readonly List<(Vector3 WorldPos, MarkerShape Shape, Vector4 Color, string? Name, uint? IconId, float? IconScale, float VisibilityRadius, bool useShapeColorOnIcon)> markersToRenderCache = [];
+        private readonly List<(Vector3 WorldPos, MarkerShape Shape, Vector4 Color, string Name, string? Notes, uint? IconId, float? IconScale, float VisibilityRadius, bool useShapeColorOnIcon)> markersToRenderCache = [];
 
         // Minimap state cached per frame
         private float minimapRadius;
@@ -162,7 +163,17 @@ namespace WukLamark.Services
                 }
 
                 // Store world position - will convert to screen coords in PreDraw
-                markersToRenderCache.Add((marker.Position, marker.Shape, marker.Color, marker.Name, marker.IconId, marker.IconSize, marker.VisibilityRadius, marker.UseShapeColorOnIcon));
+                markersToRenderCache.Add((
+                    marker.Position,
+                    marker.Shape,
+                    marker.Color,
+                    marker.Name,
+                    marker.Notes.IsNullOrEmpty() ? null : marker.Notes,
+                    marker.IconId,
+                    marker.IconSize,
+                    marker.VisibilityRadius,
+                    marker.UseShapeColorOnIcon
+                ));
             }
         }
 
@@ -189,7 +200,7 @@ namespace WukLamark.Services
             mapCenterScreenPos.Y -= 5f * globalScale;
 
             // Pass pre-computed cos/sin to avoid recomputing per marker
-            foreach (var (worldPos, shape, color, name, iconId, iconSize, visibilityRadius, useShapeColorOnIcon) in markersToRenderCache)
+            foreach (var (worldPos, shape, color, name, notes, iconId, iconSize, visibilityRadius, useShapeColorOnIcon) in markersToRenderCache)
             {
                 var circlePos = CalculateCirclePosition(worldPos, cosRotation, sinRotation);
 
@@ -246,7 +257,16 @@ namespace WukLamark.Services
                     fadedColor.W *= Math.Clamp(edgeFade, 0.4f, 1.0f);
                 }
 
-                MarkersToRender.Add((circlePos, shape, markerSize, fadedColor, name, iconId, useShapeColorOnIcon));
+                MarkersToRender.Add((
+                    circlePos,
+                    shape,
+                    markerSize,
+                    fadedColor,
+                    name,
+                    notes.IsNullOrEmpty() ? null : notes,
+                    iconId,
+                    useShapeColorOnIcon
+                ));
             }
         }
 
