@@ -258,18 +258,32 @@ internal class MarkerTableComponent
     {
         if (!IsMultiSelect) return;
 
+        var allMarkers = plugin.MarkerStorageService.GetVisibleMarkers();
+        var selectedMarkers = allMarkers.FindAll(m => SelectedMarkerIds.Contains(m.Id));
+
         if (ImGui.MenuItem("Export Selected Markers"))
         {
-            var allMarkers = plugin.MarkerStorageService.GetVisibleMarkers();
-            var markersToExport = allMarkers.FindAll(m => SelectedMarkerIds.Contains(m.Id));
-            OnExportRequested?.Invoke(markersToExport);
+            OnExportRequested?.Invoke(selectedMarkers);
         }
-        if (ImGui.MenuItem("Delete Selected Markers"))
+
+        var deletableCount = 0;
+        foreach (var m in selectedMarkers)
         {
-            var allMarkers = plugin.MarkerStorageService.GetVisibleMarkers();
-            var markersToDelete = allMarkers.FindAll(m => SelectedMarkerIds.Contains(m.Id));
-            OnDeleteRequested?.Invoke(markersToDelete);
+            if (CanDeleteMarker(m))
+                deletableCount++;
         }
+
+        var deleteLabel = deletableCount > 0 && deletableCount < selectedMarkers.Count
+            ? $"Delete {deletableCount} of {selectedMarkers.Count} Selected Markers"
+            : "Delete Selected Markers";
+
+        using (ImRaii.Disabled(deletableCount == 0))
+        {
+            if (ImGui.MenuItem(deleteLabel))
+                OnDeleteRequested?.Invoke(selectedMarkers);
+        }
+        if (deletableCount == 0 && ImWuk.IsItemHoveredWhenDisabled())
+            ImGui.SetTooltip("None of the selected markers can be deleted due to ownership or read-only restrictions.");
     }
     private void HandleRowSelection(List<Marker> markers, int clickedIndex)
     {
@@ -362,7 +376,7 @@ internal class MarkerTableComponent
         if (parentGroup == null && marker.Scope == MarkerScope.Personal)
             return "Only the creator can edit this marker.";
         if (parentGroup == null && marker.Scope == MarkerScope.Shared && marker.IsReadOnly)
-            return "This shared marker is read-only and cannot be edited.";
+            return "Only the creator can edit this read-only marker.";
         return "";
     }
     private static string GetDeleteMarkerTooltipText(Marker marker, MarkerGroup? parentGroup)
@@ -378,5 +392,15 @@ internal class MarkerTableComponent
         if (parentGroup == null && marker.Scope == MarkerScope.Shared && marker.IsReadOnly)
             return "This shared marker is read-only and cannot be deleted.";
         return "";
+    }
+    private bool CanDeleteMarker(Marker marker)
+    {
+        var currentPlayerHash = plugin.MarkerStorageService.CurrentCharacterHash;
+        var isCreator = marker.CharacterHash != null &&
+                        currentPlayerHash != null &&
+                        marker.CharacterHash == currentPlayerHash;
+
+        return (marker.Scope == MarkerScope.Shared && !marker.IsReadOnly) ||
+               (marker.Scope == MarkerScope.Personal && isCreator);
     }
 }

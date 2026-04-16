@@ -68,26 +68,10 @@ public class DeleteMarkerModal
                 ImWuk.CenteredText($"Are you sure you want to delete these {validMarkersToDelete.Count} markers?");
             ImWuk.CenteredText("This action can be undone with the Undo button.");
 
-            // Add warning text if valid markers count != original markers count
-            var hasSpaced = false;
-            if (validMarkersToDelete.Count != markersToDelete.Count)
-            {
-                ImGui.Spacing();
-                hasSpaced = true;
-                using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudYellow))
-                {
-                    ImWuk.CenteredText("Some selected markers cannot be deleted due to ownership or read-only status and have been skipped.");
-                }
-            }
-
             // Add danger text for marker deletion in excess of 10
             if (validMarkersToDelete.Count > 10)
             {
-                if (!hasSpaced)
-                {
-                    ImGui.Spacing();
-                    hasSpaced = true;
-                }
+                ImGui.Spacing();
                 using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudRed))
                 {
                     ImWuk.CenteredText($"Warning: {validMarkersToDelete.Count - 10} marker(s) will not be able to be undone once deleted.");

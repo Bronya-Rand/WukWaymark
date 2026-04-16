@@ -145,10 +145,9 @@ internal class MarkerEditPopup
         var canEditReadOnly = selectedScope == MarkerScope.Shared && isMarkerCreator && !editingName.IsNullOrEmpty();
 
         var canSave = !editingName.IsNullOrEmpty();
-        if (selectedScope == MarkerScope.Shared && marker.IsReadOnly && editingReadOnly)
-        {
+        // Saving only enabled if read-only state is false and is creator
+        if (selectedScope == MarkerScope.Shared && marker.IsReadOnly)
             canSave = isMarkerCreator && editingReadOnly != marker.IsReadOnly;
-        }
 
         ImGui.Text("Edit Marker");
         ImGui.Separator();
@@ -277,7 +276,7 @@ internal class MarkerEditPopup
                     ? "Only the creator can change scope."
                     : editingReadOnly && selectedScope == MarkerScope.Shared
                         ? "Disable read-only before changing scope."
-                        : "Sets the visibility of the marker to other players on the same PC.\nPersonal markers are only visible to you, while shared markers are visible to anyone who logs in to XIV from this PC";
+                        : "Sets the visibility of the marker to other characters on the same PC.\nPersonal markers are only visible to you, while shared markers are visible to any character that logs in to FFXIV from this PC.";
             ImGui.SetTooltip(tooltip);
         }
 
