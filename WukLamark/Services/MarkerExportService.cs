@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Text.Json;
 using WukLamark.Models;
@@ -25,6 +26,10 @@ public class ImportConflict
 {
     public Guid Id { get; init; }
     public string Name { get; init; } = string.Empty;
+
+    // The name of the imported marker that caused the conflict 
+    public string ImportedName { get; init; } = string.Empty;
+    public string Reason { get; init; } = string.Empty;
 }
 
 /// <summary>
@@ -71,6 +76,7 @@ public class MarkerExportService
         {
             markersMinimal.Add(new MarkerShareEntry
             {
+                SourceId = marker.Id,
                 Name = marker.Name,
                 Position = marker.Position,
                 TerritoryId = marker.TerritoryId,
@@ -125,6 +131,26 @@ public class MarkerExportService
             return PayloadKind.Legacy;
         return PayloadKind.Unknown;
     }
+    private static Marker? FindDuplicate(MarkerShareEntry imported, List<Marker> existingMarkers)
+    {
+        if (imported.SourceId is Guid sourceId)
+        {
+            var match = existingMarkers.FirstOrDefault(m => m.Id == sourceId);
+            if (match != null)
+                return match;
+        }
+
+        return existingMarkers.FirstOrDefault(m =>
+        m.Name == imported.Name &&
+        m.TerritoryId == imported.TerritoryId &&
+        m.WardId == imported.WardId &&
+        m.MapId == imported.MapId &&
+        m.AppliesToAllWorlds == imported.AppliesToAllWorlds &&
+        (imported.AppliesToAllWorlds || m.WorldId == imported.WorldId) && // If applies to all worlds, ignore world ID in matching
+        m.IconId == imported.IconId &&
+        m.Shape == imported.Shape &&
+        Vector3.DistanceSquared(m.Position, imported.Position) < 0.01f); // Allow small position differences  
+    }
 
     /// <summary>
     /// Reads a Base64 JSON string from the clipboard and deserialises it into a payload.
@@ -175,7 +201,26 @@ public class MarkerExportService
                 if (payload == null)
                     return new ImportResult { Success = false, ErrorMessage = "Invalid or empty JSON data." };
 
-                return new ImportResult { Success = true, Payload = payload };
+                var conflicts = payload.Markers
+                    .Select(imported =>
+                    {
+                        var existing = FindDuplicate(imported, existingMarkers);
+                        if (existing == null) return null;
+
+                        return new ImportConflict
+                        {
+                            Id = existing.Id,
+                            Name = existing.Name,
+                            ImportedName = imported.Name,
+                            Reason = GetConflictReason(imported, existing)
+                        };
+                    })
+                    .Where(c => c != null)
+                    .DistinctBy(c => c!.Id) // Keep only one conflict per existing marker ID
+                    .Select(c => c!)
+                    .ToList();
+
+                return new ImportResult { Success = true, Payload = payload, Conflicts = conflicts };
             case PayloadKind.Legacy:
                 var legacyPayload = JsonSerializer.Deserialize<LegacyMarkerExportPayload>(json, JsonOptions);
                 if (legacyPayload == null)
@@ -184,7 +229,7 @@ public class MarkerExportService
                 // Detect conflicts (same GUID already in config)
                 var existingMarkerIds = new HashSet<Guid>(existingMarkers.Select(w => w.Id));
 
-                var conflicts = legacyPayload.Waymarks
+                var legacyConflicts = legacyPayload.Waymarks
                     .Where(w => existingMarkerIds.Contains(w.Id))
                     .Select(w => new ImportConflict { Id = w.Id, Name = w.Name })
                     .ToList();
@@ -207,10 +252,17 @@ public class MarkerExportService
                     }).ToList(),
                 };
 
-                return new ImportResult { Success = true, Payload = convertedPayload, Conflicts = conflicts };
+                return new ImportResult { Success = true, Payload = convertedPayload, Conflicts = legacyConflicts };
             default:
                 return new ImportResult { Success = false, ErrorMessage = "Unrecognized payload format." };
         }
+    }
+    private static string GetConflictReason(MarkerShareEntry imported, Marker existing)
+    {
+        if (imported.SourceId is Guid sourceId && existing.Id == sourceId)
+            return "Same marker ID";
+
+        return "Same marker signature (name, position, location, settings)";
     }
 }
 

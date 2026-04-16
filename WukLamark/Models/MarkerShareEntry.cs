@@ -1,9 +1,11 @@
+using System;
 using System.Numerics;
 
 namespace WukLamark.Models
 {
     public class MarkerShareEntry
     {
+        public Guid? SourceId { get; set; }
         public string Name { get; set; } = "Unnamed Location";
         public Vector3 Position { get; set; }
         public ushort TerritoryId { get; set; }

@@ -361,11 +361,40 @@ public class MainWindow : Window, IDisposable
     {
         if (result.Payload == null) return;
 
+        var existingMarkers = plugin.MarkerStorageService.GetVisibleMarkers();
+        var existingById = existingMarkers.ToDictionary(m => m.Id);
         var addedMarkers = 0;
+        var overwrittenMarkers = 0;
 
         // Apply imported markers
         foreach (var importedMarker in result.Payload.Markers)
         {
+            Marker? existing = null;
+            if (importedMarker.SourceId is Guid sourceId && existingById.TryGetValue(sourceId, out var match))
+                existing = match;
+
+            if (existing != null)
+            {
+                var shouldOverwrite = overwriteAll ||
+                    (importConflictChoices.TryGetValue(existing.Id, out var choice) && choice);
+
+                if (!shouldOverwrite) continue;
+
+                existing.Name = importedMarker.Name;
+                existing.Position = importedMarker.Position;
+                existing.TerritoryId = importedMarker.TerritoryId;
+                existing.WardId = importedMarker.WardId;
+                existing.MapId = importedMarker.MapId;
+                existing.WorldId = importedMarker.WorldId;
+                existing.AppliesToAllWorlds = importedMarker.AppliesToAllWorlds;
+                existing.Color = importedMarker.Color;
+                existing.Shape = importedMarker.Shape;
+                existing.IconId = importedMarker.IconId;
+                existing.GroupId = importGroup?.Id;
+                overwrittenMarkers++;
+                continue;
+            }
+
             var newMarker = new Marker
             {
                 Id = Guid.NewGuid(),
@@ -384,12 +413,18 @@ public class MainWindow : Window, IDisposable
                 CharacterHash = plugin.MarkerStorageService.CurrentCharacterHash,
                 GroupId = importGroup?.Id ?? null,
             };
+
             plugin.MarkerStorageService.PersonalMarkers.Add(newMarker);
             addedMarkers++;
         }
 
         plugin.MarkerStorageService.SavePersonalMarkers();
-        importFeedback = $"Imported {addedMarkers} marker(s) to WukLamark.";
+        plugin.MarkerStorageService.SaveSharedMarkers();
+
+        if (overwrittenMarkers > 0)
+            importFeedback = $"Imported {addedMarkers} marker(s), overwritten {overwrittenMarkers} marker(s) to WukLamark.";
+        else
+            importFeedback = $"Imported {addedMarkers} marker(s) to WukLamark.";
         importFeedbackTicks = 240;
         Plugin.Log.Information(importFeedback);
     }

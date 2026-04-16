@@ -1,4 +1,5 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using System;
 using System.Collections.Generic;
@@ -48,9 +49,23 @@ public class ImportConflictModal
             foreach (var conflict in pendingImport.Conflicts)
             {
                 var overwrite = importConflictChoices.TryGetValue(conflict.Id, out var v) && v;
-                var label = $" {conflict.Name} (Marker)";
-                if (ImGui.Checkbox($"Overwrite: {label}###import_{conflict.Id}", ref overwrite))
+
+                ImGui.Text($"(Incoming) {conflict.ImportedName}");
+                ImGui.SameLine();
+
+                using (ImRaii.PushFont(UiBuilder.IconFont))
+                    ImGui.Text(FontAwesomeIcon.ArrowRight.ToIconString());
+
+                ImGui.SameLine();
+                ImGui.Text($"{conflict.Name} (Existing)");
+
+                using (ImRaii.Disabled(true))
+                    ImGui.Text($"Reason: {conflict.Reason}.");
+
+                if (ImGui.Checkbox($"Overwrite marker###import_{conflict.Id}", ref overwrite))
                     importConflictChoices[conflict.Id] = overwrite;
+
+                ImGui.Separator();
             }
 
             ImGui.Spacing();

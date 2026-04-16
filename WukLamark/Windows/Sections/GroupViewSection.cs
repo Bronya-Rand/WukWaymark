@@ -182,7 +182,8 @@ internal class GroupViewSection(GameStateReaderService gameStateReaderService, M
             {
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.FileImport))
                 {
-                    var result = MarkerExportService.ImportFromClipboard(groupMarkers);
+                    var allExistingMarkers = markerStorageService.GetVisibleMarkers();
+                    var result = MarkerExportService.ImportFromClipboard(allExistingMarkers);
                     OnImportGroupMarkers?.Invoke(result, group);
                 }
             }
