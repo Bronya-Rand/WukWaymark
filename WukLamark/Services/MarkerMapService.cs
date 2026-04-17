@@ -1,6 +1,7 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using Dalamud.Plugin.Services;
+using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
@@ -24,7 +25,7 @@ namespace WukLamark.Services
         private readonly MarkerWindow window;
         private bool disposed;
 
-        public readonly List<(Vector2 ScreenPos, MarkerShape Shape, float MarkerSize, uint Color, string? Name, uint? IconId, bool useShapeColorOnIcon)> MarkersToRender = [];
+        public readonly List<(Vector2 ScreenPos, MarkerShape Shape, float MarkerSize, uint Color, string Name, string? Notes, uint? IconId, bool useShapeColorOnIcon)> MarkersToRender = [];
 
         // Cached state from Framework.Update for debug / window access
         public Vector2? MapCenterScreenPos { get; private set; }
@@ -316,7 +317,16 @@ namespace WukLamark.Services
                     colorU32 = (colorU32 & 0x00FFFFFF) | (a << 24);
                 }
 
-                MarkersToRender.Add((new Vector2(markerScreenX, markerScreenY), marker.Shape, markerSize, colorU32, marker.Name, marker.IconId, marker.UseShapeColorOnIcon));
+                MarkersToRender.Add((
+                    new Vector2(markerScreenX, markerScreenY),
+                    marker.Shape,
+                    markerSize,
+                    colorU32,
+                    marker.Name,
+                    marker.Notes.IsNullOrEmpty() ? null : marker.Notes,
+                    marker.IconId,
+                    marker.UseShapeColorOnIcon
+                ));
             }
         }
 

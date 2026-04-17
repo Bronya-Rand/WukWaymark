@@ -243,10 +243,15 @@ internal class MarkerEditPopup
             ImGui.SetTooltip(tooltip);
         }
 
-        ImGui.Text("Note:");
+        ImGui.Text("Notes:");
         ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
         using (ImRaii.Disabled(!canEditGeneralFields))
-            ImGui.InputText($"###Note{identifier}", ref editingNote, 100);
+            ImGui.InputTextMultiline(
+                $"###Note{identifier}",
+                ref editingNote,
+                1000,
+                new Vector2(250 * ImGuiHelpers.GlobalScale, 100 * ImGuiHelpers.GlobalScale)
+            );
         if (ImWuk.IsItemHoveredWhenDisabled())
         {
             var tooltip = "Additional notes for this marker.";
