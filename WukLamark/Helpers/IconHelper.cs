@@ -7,7 +7,7 @@ namespace WukLamark.Helpers
 {
     public static class IconHelper
     {
-        private static Dictionary<uint, Vector2> IconSizeCache = new();
+        private static Dictionary<uint, Vector2> IconSizeCache = [];
         public static Vector2? GetIconSize(uint iconId)
         {
             // Search cache first
@@ -26,7 +26,7 @@ namespace WukLamark.Helpers
             var texSize = new Vector2(tex.Width, tex.Height);
 
             // Cache the size for future lookups
-            IconSizeCache = new Dictionary<uint, Vector2>(IconSizeCache);
+            IconSizeCache[iconId] = texSize;
             tex.Dispose();
             return texSize;
         }
