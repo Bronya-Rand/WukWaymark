@@ -27,12 +27,8 @@ namespace WukLamark.Windows.Sections.Modals
             using var enableKtkModal = ImRaii.PopupModal("Enable Native/KamiToolkit?##WWKtkConfirmation", ref isOpen, ImGuiWindowFlags.AlwaysAutoResize);
             if (enableKtkModal)
             {
-                ImWuk.CenteredTextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), "Enabling Native/KamiToolkit is experimental and comes with a reduced feature set.");
-                ImGui.TextWrapped("Enabling Native/KamiToolkit will:");
-                ImGui.BulletText("Remove the ability to display markers on the map with a custom shape.");
-                ImGui.BulletText("Remove the ability to display marker icons with a custom tint color.");
-                ImGui.Spacing();
-                ImWuk.CenteredText("Native/KamiToolkit support is only supported on the map. Minimap will remain rendered using ImGui.");
+                ImWuk.CenteredTextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), "Enabling Native/KamiToolkit is experimental.");
+                ImGui.BulletText("Native/KamiToolkit support is only supported on the map. Minimap will remain rendered using ImGui.");
 
                 ImGui.Spacing();
                 ImGui.Separator();

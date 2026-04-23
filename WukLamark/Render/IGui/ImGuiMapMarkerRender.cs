@@ -1,11 +1,12 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Utility;
+using System;
 using System.Numerics;
 using WukLamark.Helpers;
 using WukLamark.Services;
 using WukLamark.Windows;
 
-namespace WukLamark.Render
+namespace WukLamark.Render.IGui
 {
     /// <summary>
     /// Renders map markers using ImGui's draw list system, overlaying them directly on the map window.
@@ -38,5 +39,6 @@ namespace WukLamark.Render
             ImGui.SetTooltip(tooltipText);
         }
         public void EndRender() { }
+        public void Dispose() => GC.SuppressFinalize(this);
     }
 }

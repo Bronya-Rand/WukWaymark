@@ -5,9 +5,9 @@ using System.Collections.Generic;
 using System.Numerics;
 using WukLamark.Helpers;
 using WukLamark.Services;
-using MapMarkerInfo = KamiToolKit.Classes.MapMarkerInfo;
+using WukLamark.Utils;
 
-namespace WukLamark.Render
+namespace WukLamark.Render.KTK
 {
     /// <summary>
     /// Renders map markers using KTK (KamiToolKit)'s native <see cref="KamiToolKit.Overlay.MapOverlay.MapOverlayController"/> system.
@@ -30,14 +30,20 @@ namespace WukLamark.Render
         /// Hash of the last committed marker state, used to detect changes.
         /// </summary>
         private int lastCommittedHash = 0;
+        private bool hasCommitted = false;
 
         /// <summary>
         /// Buffer of markers built during the current frame's render pass.
         /// </summary>
-        private readonly List<MapMarkerInfo> pendingMarkers = [];
+        private readonly List<KtkMapMarker> pendingMarkers = [];
 
         public bool IsEnabled => plugin.Configuration.WaymarksMapEnabled && plugin.MapOverlayController != null && plugin.Configuration.UseKTK;
 
+        internal void InvalidateCache()
+        {
+            hasCommitted = false;
+            lastCommittedHash = 0;
+        }
         public void BeginRender()
         {
             pendingMarkers.Clear();
@@ -49,13 +55,7 @@ namespace WukLamark.Render
             var formattedNotes = MapHelper.FormatMapTooltipNotes(markerInfo.Notes);
             var tooltipText = formattedNotes.Length > 0 ? $"{safeName}\n{formattedNotes}" : safeName;
 
-            var markerData = new MapMarkerInfo
-            {
-                AllowAnyMap = false,
-                MapId = selectedMapId,
-                Position = markerInfo.WorldPos,
-                Tooltip = tooltipText
-            };
+            var markerData = new KtkMapMarker { MarkerKey = markerInfo.Name };
 
             var iconId = markerInfo.IconId ?? DefaultIconId;
             var iconSize = IconHelper.GetIconSize(iconId);
@@ -65,10 +65,17 @@ namespace WukLamark.Render
                 iconSize = new Vector2(32, 32); // Default size if icon size is not found
             }
 
-            markerData.IconId = iconId;
-
             var markerSize = 12 * uiScale * ImGuiHelpers.GlobalScale;
-            markerData.Size = new Vector2(markerSize, markerSize);
+
+            markerData.Apply(
+                selectedMapId,
+                markerInfo.WorldPos,
+                tooltipText,
+                iconId,
+                new Vector2(markerSize, markerSize),
+                markerInfo.UseShapeColorOnIcon,
+                Colors.ConvertU32ToVector3(markerInfo.Color)
+                );
 
             // Buffer the marker — don't commit to KTK yet.
             pendingMarkers.Add(markerData);
@@ -79,7 +86,7 @@ namespace WukLamark.Render
             var currentHash = ComputePendingHash();
 
             // Only rebuild native markers when something actually changed.
-            if (currentHash != lastCommittedHash)
+            if (!hasCommitted || currentHash != lastCommittedHash)
             {
                 plugin.MapOverlayController?.RemoveAllMarkers();
                 foreach (var marker in pendingMarkers)
@@ -102,10 +109,16 @@ namespace WukLamark.Render
                 hash.Add(m.MapId);
                 hash.Add(m.Position);
                 hash.Add(m.IconId);
-                hash.Add(m.Tooltip);
+                hash.Add(m.TextTooltip);
                 hash.Add(m.Size);
             }
             return hash.ToHashCode();
+        }
+        public void Dispose()
+        {
+            // Clean up any KTK markers when this renderer is disposed.
+            plugin.MapOverlayController?.RemoveAllMarkers();
+            GC.SuppressFinalize(this);
         }
     }
 }

@@ -1,5 +1,7 @@
 using System;
 using WukLamark.Render;
+using WukLamark.Render.IGui;
+using WukLamark.Render.KTK;
 using WukLamark.Services;
 
 namespace WukLamark.Windows
@@ -14,6 +16,7 @@ namespace WukLamark.Windows
         private readonly MarkerMapService service;
         private readonly IMapMarkerRender imGuiRenderer;
         private readonly IMapMarkerRender ktkRenderer;
+        private IMapMarkerRender? previousRenderer;
 
         internal MarkerWindow(MarkerMapService service, Plugin plugin)
         {
@@ -40,6 +43,15 @@ namespace WukLamark.Windows
 
             var renderer = ktkRenderer.IsEnabled ? ktkRenderer : imGuiRenderer;
 
+            // Invalidate KTK cache if switching between renderers
+            if (!ReferenceEquals(previousRenderer, renderer))
+            {
+                if (renderer is KtkMapMarkerRender ktk)
+                    ktk.InvalidateCache();
+
+                previousRenderer = renderer;
+            }
+
             renderer.BeginRender();
             foreach (var marker in service.MarkersToRender)
                 renderer.RenderMarker(service.SelectedMapId, service.UIScale, marker);
@@ -48,6 +60,8 @@ namespace WukLamark.Windows
 
         public void Dispose()
         {
+            imGuiRenderer.Dispose();
+            ktkRenderer.Dispose();
             Plugin.PluginInterface.UiBuilder.Draw -= Draw;
             GC.SuppressFinalize(this);
         }

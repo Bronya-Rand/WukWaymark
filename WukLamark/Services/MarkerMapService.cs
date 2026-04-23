@@ -16,6 +16,18 @@ using WukLamark.Windows;
 
 namespace WukLamark.Services
 {
+    /// <summary>
+    /// Represents the data required to render a single map marker on the Area Map.
+    /// </summary>
+    /// <param name="ScreenPos">The screen position of the marker.</param>
+    /// <param name="WorldPos">The world position of the marker.</param>
+    /// <param name="Shape">The shape of the marker.</param>
+    /// <param name="MarkerSize">The size of the marker.</param>
+    /// <param name="Color">The color of the marker.</param>
+    /// <param name="Name">The name of the marker.</param>
+    /// <param name="Notes">Additional notes for the marker.</param>
+    /// <param name="IconId">The icon ID for the marker.</param>
+    /// <param name="UseShapeColorOnIcon">Whether to use the shape color on the icon.</param>
     public record MapMarkerData(
         Vector2 ScreenPos,
         Vector2 WorldPos,
