@@ -56,16 +56,8 @@ namespace WukLamark.Render.KTK
             var tooltipText = formattedNotes.Length > 0 ? $"{safeName}\n{formattedNotes}" : safeName;
 
             var markerData = new KtkMapMarker { MarkerKey = markerInfo.Name };
-
             var iconId = markerInfo.IconId ?? DefaultIconId;
-            var iconSize = IconHelper.GetIconSize(iconId);
-            if (iconSize == null)
-            {
-                Plugin.Log.Warning($"Icon size not found for icon ID: {iconId}. Using default size.");
-                iconSize = new Vector2(32, 32); // Default size if icon size is not found
-            }
-
-            var markerSize = 12 * uiScale * ImGuiHelpers.GlobalScale;
+            var markerSize = (markerInfo.MarkerSize * 1.5f) * uiScale * ImGuiHelpers.GlobalScale;
 
             markerData.Apply(
                 selectedMapId,
@@ -93,6 +85,7 @@ namespace WukLamark.Render.KTK
                     plugin.MapOverlayController!.AddMarker(marker);
 
                 lastCommittedHash = currentHash;
+                hasCommitted = true;
             }
         }
 
@@ -106,11 +99,13 @@ namespace WukLamark.Render.KTK
             hash.Add(pendingMarkers.Count);
             foreach (var m in pendingMarkers)
             {
-                hash.Add(m.MapId);
-                hash.Add(m.Position);
-                hash.Add(m.IconId);
-                hash.Add(m.TextTooltip);
-                hash.Add(m.Size);
+                hash.Add(m.mapId);
+                hash.Add(m.worldPos);
+                hash.Add(m.iconId);
+                hash.Add(m.tooltip);
+                hash.Add(m.iconSize);
+                hash.Add(m.useTint);
+                hash.Add(m.tintColor);
             }
             return hash.ToHashCode();
         }

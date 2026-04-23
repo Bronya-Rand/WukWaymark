@@ -7,13 +7,13 @@ namespace WukLamark.Render.KTK
     {
         public required string MarkerKey { get; init; }
 
-        private uint mapId;
-        private Vector2 worldPos;
-        private string tooltip = string.Empty;
-        private uint iconId = 60575;
-        private Vector2 iconSize = new(12.0f, 12.0f);
-        private bool useTint;
-        private Vector3 tintColor = Vector3.One;
+        internal uint mapId;
+        internal Vector2 worldPos;
+        internal string tooltip = string.Empty;
+        internal uint iconId = 60575;
+        internal Vector2 iconSize = new(12.0f, 12.0f);
+        internal bool useTint;
+        internal Vector3 tintColor = Vector3.One;
         public void Apply(uint mapId, Vector2 worldPos, string tooltip, uint iconId, Vector2 iconSize, bool useTint, Vector3 tintColor)
         {
             this.mapId = mapId;
@@ -26,7 +26,6 @@ namespace WukLamark.Render.KTK
         }
         protected override void OnUpdate()
         {
-            IsVisible = false;
             MapId = mapId;
             Position = worldPos;
             TextTooltip = tooltip;

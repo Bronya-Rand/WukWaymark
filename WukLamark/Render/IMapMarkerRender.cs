@@ -12,6 +12,5 @@ namespace WukLamark.Render
         void BeginRender();
         void RenderMarker(uint selectedMapId, float uiScale, MapMarkerData markerInfo);
         void EndRender();
-        new void Dispose();
     }
 }
