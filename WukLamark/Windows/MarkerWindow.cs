@@ -42,7 +42,7 @@ namespace WukLamark.Windows
 
             renderer.BeginRender();
             foreach (var marker in service.MarkersToRender)
-                renderer.RenderMarker(service.SelectedMapId, marker);
+                renderer.RenderMarker(service.SelectedMapId, service.UIScale, marker);
             renderer.EndRender();
         }
 

@@ -43,6 +43,7 @@ namespace WukLamark.Services
         // Cached state from Framework.Update for debug / window access
         public Vector2? MapCenterScreenPos { get; private set; }
         public uint SelectedMapId { get; private set; }
+        public float UIScale { get; private set; }
 
         // Map clip bounds for the window layer
         public float MapMinX { get; private set; }
@@ -112,6 +113,7 @@ namespace WukLamark.Services
             var areaMap = (AtkUnitBase*)areaMapAddonPtr.Address;
             if (areaMap == null || !areaMap->IsVisible || areaMap->UldManager.LoadedState != AtkLoadState.Loaded)
                 return;
+            UIScale = areaMap->Scale;
 
             var agentMap = AgentMap.Instance();
             if (agentMap == null || agentMap->CurrentMapId == 0 || agentMap->SelectedMapId == 0)

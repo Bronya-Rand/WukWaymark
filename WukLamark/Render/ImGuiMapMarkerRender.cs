@@ -7,6 +7,10 @@ using WukLamark.Windows;
 
 namespace WukLamark.Render
 {
+    /// <summary>
+    /// Renders map markers using ImGui's draw list system, overlaying them directly on the map window.
+    /// </summary>
+    /// <param name="plugin">WukLamark's main plugin instance.</param>
     internal sealed class ImGuiMapMarkerRender(Plugin plugin) : IMapMarkerRender
     {
         private ImDrawListPtr drawList;
@@ -14,11 +18,13 @@ namespace WukLamark.Render
         public bool IsEnabled => plugin.Configuration.WaymarksMapEnabled && !plugin.Configuration.UseKTK;
         public void BeginRender()
         {
+            // JIC, clear all KTK markers if switching to ImGui rendering
             plugin.MapOverlayController?.RemoveAllMarkers();
+
             drawList = ImGui.GetBackgroundDrawList();
             mousePos = ImGui.GetMousePos();
         }
-        public void RenderMarker(uint selectedMapId, MapMarkerData markerInfo)
+        public void RenderMarker(uint selectedMapId, float uiScale, MapMarkerData markerInfo)
         {
             var safeName = markerInfo.Name.IsNullOrEmpty() ? "Unnamed Marker" : markerInfo.Name;
             var formattedNotes = MapHelper.FormatMapTooltipNotes(markerInfo.Notes);
