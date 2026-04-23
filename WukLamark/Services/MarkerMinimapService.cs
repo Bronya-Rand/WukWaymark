@@ -10,6 +10,7 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using WukLamark.Helpers;
 using WukLamark.Models;
 using WukLamark.Windows;
 
@@ -212,7 +213,7 @@ namespace WukLamark.Services
 
                 if (iconId != null)
                 {
-                    var iconGameSize = plugin.IconBrowserService.GetIconSize(iconId.Value);
+                    var iconGameSize = IconHelper.GetIconSize(iconId.Value);
                     var deSize = 6.0f / naviScale * globalScale;
                     if (iconGameSize.HasValue)
                     {

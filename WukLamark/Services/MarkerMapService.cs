@@ -10,11 +10,24 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using WukLamark.Helpers;
 using WukLamark.Models;
 using WukLamark.Windows;
 
 namespace WukLamark.Services
 {
+    public record MapMarkerData(
+        Vector2 ScreenPos,
+        Vector2 WorldPos,
+        MarkerShape Shape,
+        float MarkerSize,
+        uint Color,
+        string Name,
+        string? Notes,
+        uint? IconId,
+        bool UseShapeColorOnIcon
+    );
+
     /// <summary>
     /// Service responsible for calculating marker positions on the full Area Map (AreaMap addon).
     /// </summary>
@@ -25,10 +38,11 @@ namespace WukLamark.Services
         private readonly MarkerWindow window;
         private bool disposed;
 
-        public readonly List<(Vector2 ScreenPos, MarkerShape Shape, float MarkerSize, uint Color, string Name, string? Notes, uint? IconId, bool useShapeColorOnIcon)> MarkersToRender = [];
+        public readonly List<MapMarkerData> MarkersToRender = [];
 
         // Cached state from Framework.Update for debug / window access
         public Vector2? MapCenterScreenPos { get; private set; }
+        public uint SelectedMapId { get; private set; }
 
         // Map clip bounds for the window layer
         public float MapMinX { get; private set; }
@@ -100,8 +114,11 @@ namespace WukLamark.Services
                 return;
 
             var agentMap = AgentMap.Instance();
-            if (agentMap == null || agentMap->CurrentMapId == 0)
+            if (agentMap == null || agentMap->CurrentMapId == 0 || agentMap->SelectedMapId == 0)
                 return;
+            // Update the cached SelectedMapId if it has changed
+            if (agentMap->SelectedMapId != SelectedMapId)
+                SelectedMapId = agentMap->SelectedMapId;
 
             // ═══════════════════════════════════════════════════════════════
             // STEP 2: Locate critical UI nodes
@@ -196,17 +213,19 @@ namespace WukLamark.Services
 
             var multiplierForMarkers = GetMultiplier(zoomIndex, areaMap->Scale);
             var mapCenterWorldPos = Vector3.Zero;
-            var currentMapId = agentMap->SelectedMapId;
+            var markerWorldPos = Vector2.Zero;
 
             foreach (var marker in plugin.MarkerStorageService.GetVisibleMarkers())
             {
                 // Early culling
                 if (!marker.AppliesToAllWorlds && marker.WorldId != currentWorldId)
                     continue; // Wrong world
-                if (marker.MapId != currentMapId)
+                if (marker.MapId != SelectedMapId)
                     continue; // Wrong map
                 if (marker.WardId != -1 && marker.WardId != wardId)
                     continue; // Wrong ward (for housing areas)
+
+                markerWorldPos = new Vector2(marker.Position.X, marker.Position.Z);
 
                 // Visibility radius check
                 if (configuration.FadeWaymarkOnMapEdge && marker.VisibilityRadius > 0)
@@ -271,7 +290,7 @@ namespace WukLamark.Services
 
                 if (marker.IconId != null)
                 {
-                    var iconSize = plugin.IconBrowserService.GetIconSize(marker.IconId.Value);
+                    var iconSize = IconHelper.GetIconSize(marker.IconId.Value);
                     var deSize = 6.0f / areaMap->Scale * ImGuiHelpers.GlobalScale;
                     if (iconSize.HasValue)
                     {
@@ -317,8 +336,10 @@ namespace WukLamark.Services
                     colorU32 = (colorU32 & 0x00FFFFFF) | (a << 24);
                 }
 
-                MarkersToRender.Add((
+                MarkersToRender.Add(new MapMarkerData
+                (
                     new Vector2(markerScreenX, markerScreenY),
+                    markerWorldPos,
                     marker.Shape,
                     markerSize,
                     colorU32,

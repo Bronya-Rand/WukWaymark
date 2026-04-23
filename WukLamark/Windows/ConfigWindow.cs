@@ -5,6 +5,7 @@ using Dalamud.Interface.Windowing;
 using System;
 using System.Numerics;
 using WukLamark.Models;
+using WukLamark.Windows.Sections.Modals;
 
 namespace WukLamark.Windows;
 
@@ -15,6 +16,8 @@ public class ConfigWindow : Window, IDisposable
 {
     private readonly Configuration configuration;
     private readonly Plugin plugin;
+
+    private readonly KTKExperimentalModal ktkModal;
 
     /// <summary>Tracks whether the "Clear All" confirmation dialog is shown</summary>
     private bool showClearConfirmation = false;
@@ -28,6 +31,15 @@ public class ConfigWindow : Window, IDisposable
         };
         this.plugin = plugin;
         configuration = plugin.Configuration;
+
+        ktkModal = new KTKExperimentalModal
+        {
+            OnConfirm = () =>
+            {
+                configuration.UseKTK = true;
+                configuration.Save();
+            }
+        };
     }
 
     public void Dispose()
@@ -37,6 +49,8 @@ public class ConfigWindow : Window, IDisposable
 
     public override void Draw()
     {
+        ktkModal.Draw();
+
         ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.0f, 1.0f), "Map Marker Display Settings");
         ImGui.Separator();
         ImGui.Spacing();
@@ -119,6 +133,27 @@ public class ConfigWindow : Window, IDisposable
         }
 
         ImGui.Spacing();
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        ImGui.TextColored(new Vector4(1.0f, 1.0f, 0.0f, 1.0f), "Experimental");
+        ImGui.TextDisabled("These features are experimental and may not work as expected.");
+        ImGui.Spacing();
+
+        var useKamiToolkit = configuration.UseKTK;
+        if (ImGui.Checkbox("Use Native (KamiToolkit)", ref useKamiToolkit))
+        {
+            if (useKamiToolkit && !configuration.UseKTK)
+                ktkModal.Open();
+            else if (!useKamiToolkit && configuration.UseKTK)
+            {
+                configuration.UseKTK = false;
+                configuration.Save();
+                plugin.MapOverlayController.RemoveAllMarkers();
+            }
+        }
 
         ImGui.Spacing();
         ImGui.Separator();

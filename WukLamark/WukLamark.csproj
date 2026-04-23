@@ -1,16 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/14.0.2">
   <PropertyGroup>
-    <Version>1.0.3.0</Version>
+    <Version>1.0.4.0</Version>
     <Author>Bronya Rand</Author>
     <Company>Bronya Rand</Company>
     <Name>WukLamark</Name>
     <AssemblyName>WukLamark</AssemblyName>
-    <Punchline>XIV's map flagging but permanent</Punchline>
-    <Description>Allows players to create and manage persistent custom map markers across Eorzea. Whether it's a favorite GPose spot, a venue you want to revisit, or any interesting location, WukLamark lets you drop a map marker that appears seamlessly on both your main map and minimap.</Description>
-    <Tags>utility;ui;other;custom;map;marker;flag;wuk;ww;wl;wuklamark;wukwaymark</Tags>
+    <Punchline>Create custom map markers on the map/minimap! Like &lt;flag&gt; but permanent.</Punchline>
+    <Description>Allows players to create and manage persistent custom map markers across Eorzea. Whether it's a favorite GPose spot, a venue you want to revisit, or any interesting location, WukLamark lets you drop a map marker that appears seamlessly on both your main map and minimap.
+
+Features:
+- Customizable game icons and shapes for map markers (with optional icon tinting)
+- Per-marker icon/shape sizes
+- Organize map markers into groups (with map marker import/export)
+- Cross-character sharing configurations
+- Crossworld markers
+- Add personal notes for context
+- Import/export one or multiple map markers with friends
+- Partial support for Native markers*
+  &gt; * - With a reduced feature set. Only applicable to the map, not the minimap.
+
+Think of it as dropping a flag on the map but persistent.</Description>
+    <Tags>custom;marker;map;flag;wuk;ww;wl;wuklamark;wukwaymark;utility;ui;other</Tags>
+    <CategoryTags>utility;ui;other</CategoryTags>
     <PackageProjectUrl>https://github.com/Bronya-Rand/WukLamark</PackageProjectUrl>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KamiToolKit\KamiToolKit.csproj" />
+  </ItemGroup>
 </Project>

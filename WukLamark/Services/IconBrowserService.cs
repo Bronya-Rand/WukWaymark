@@ -1,11 +1,8 @@
-using Dalamud.Interface.Textures.Internal;
-using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Plugin.Services;
 using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -28,7 +25,6 @@ namespace WukLamark.Services
 
         // Cache for icon sizes
         private IReadOnlyList<uint> cachedIconIcons = [];
-        private Dictionary<uint, Vector2> iconSizeCache = [];
 
         public IconBrowserService(IDataManager dataManager)
         {
@@ -124,28 +120,6 @@ namespace WukLamark.Services
                 if (ex is OperationCanceledException) return;
                 Plugin.Log.Error(ex, "Failed to load icon database.");
             }
-        }
-        public Vector2? GetIconSize(uint iconId)
-        {
-            // Search cache first
-            if (iconSizeCache.TryGetValue(iconId, out var cachedSize))
-                return cachedSize;
-
-            IDalamudTextureWrap? tex;
-            try
-            {
-                tex = Plugin.TextureProvider.GetFromGameIcon(iconId).GetWrapOrEmpty();
-            }
-            catch (IconNotFoundException)
-            {
-                return null;
-            }
-            var texSize = new Vector2(tex.Width, tex.Height);
-
-            // Cache the size for future lookups
-            iconSizeCache = new Dictionary<uint, Vector2>(iconSizeCache);
-            tex.Dispose();
-            return texSize;
         }
         public bool IconIsIcon(uint iconId) => cachedIconIcons.Contains(iconId);
         public void Dispose()

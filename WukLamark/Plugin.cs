@@ -3,6 +3,8 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using KamiToolKit;
+using KamiToolKit.Overlay.MapOverlay;
 using System;
 using WukLamark.Services;
 using WukLamark.Utils;
@@ -53,6 +55,8 @@ public sealed class Plugin : IDalamudPlugin
     // PLUGIN CONFIGURATION & SERVICES
     // ═══════════════════════════════════════════════════════════════
 
+    private const string PluginName = "WukLamark";
+
     /// <summary>Primary slash command: /wlmark</summary>
     private const string MarkerCommandName = "/wlmark";
     private const string MarkerCommandAlias = "/wuklamark";
@@ -72,7 +76,7 @@ public sealed class Plugin : IDalamudPlugin
     public MarkerStorageService MarkerStorageService { get; init; }
 
     /// <summary>Manages rendering of all plugin windows</summary>
-    public readonly WindowSystem WindowSystem = new("WukLamark");
+    public readonly WindowSystem WindowSystem = new(PluginName);
 
     /// <summary>Settings window for configuring marker display behavior</summary>
     private ConfigWindow ConfigWindow { get; init; }
@@ -82,6 +86,7 @@ public sealed class Plugin : IDalamudPlugin
 
     /// <summary>Service for rendering map markers on the full-screen area map</summary>
     private MarkerMapService MarkerMapService { get; init; }
+    internal MapOverlayController MapOverlayController { get; init; } // KTK overlay controller
 
     /// <summary>Service for rendering map markers on the minimap</summary>
     private MarkerMinimapService MarkerMinimapService { get; init; }
@@ -120,6 +125,10 @@ public sealed class Plugin : IDalamudPlugin
         MainWindow = new MainWindow(this);
         MarkerMapService = new MarkerMapService(this);
         MarkerMinimapService = new MarkerMinimapService(this);
+
+        KamiToolKitLibrary.Initialize(PluginInterface, PluginName);
+        MapOverlayController = new MapOverlayController();
+        Log.Debug("Initialized KTK.");
 
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(MainWindow);
@@ -173,6 +182,9 @@ public sealed class Plugin : IDalamudPlugin
         GameStateReaderService.Dispose();
         IconBrowserService.Dispose();
 
+        MapOverlayController.Dispose();
+        KamiToolKitLibrary.Dispose();
+
         // Unregister the slash command
         CommandManager.RemoveHandler(MarkerCommandName);
         CommandManager.RemoveHandler(MarkerCommandAlias);
@@ -202,7 +214,11 @@ public sealed class Plugin : IDalamudPlugin
     /// Called when the player changes territory (zone) in the game.
     /// -- Updates the current world ID in the LocationHelper to the current world ID.
     /// </summary>
-    private void OnTerritoryChange(ushort _) => LocationHelper.UpdateCurrentWorldId();
+    private void OnTerritoryChange(ushort _)
+    {
+        MapOverlayController.RemoveAllMarkers();
+        LocationHelper.UpdateCurrentWorldId();
+    }
 
     /// <summary>
     /// Handles the /wlmark slash command with optional arguments.

@@ -70,6 +70,14 @@ public class Configuration : IPluginConfiguration
     /// </summary>
     public MarkerShape DefaultWaymarkShape { get; set; } = MarkerShape.Circle;
 
+    /// <summary>
+    /// Enable or disable the use of KTK functions.
+    /// </summary>
+    /// <remarks>
+    /// Disabling will fallback to ImGui while enabling will use KTK+ImGui (Map KTK, Minimap ImGui).
+    /// </remarks>
+    public bool UseKTK { get; set; } = false;
+
     public void Save()
     {
         Plugin.PluginInterface.SavePluginConfig(this);
