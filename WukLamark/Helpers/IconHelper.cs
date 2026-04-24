@@ -7,7 +7,7 @@ namespace WukLamark.Helpers
 {
     public static class IconHelper
     {
-        private static Dictionary<uint, Vector2> IconSizeCache = [];
+        private static readonly Dictionary<uint, Vector2> IconSizeCache = [];
         public static Vector2? GetIconSize(uint iconId)
         {
             // Search cache first
@@ -17,17 +17,19 @@ namespace WukLamark.Helpers
             IDalamudTextureWrap? tex;
             try
             {
-                tex = Plugin.TextureProvider.GetFromGameIcon(iconId).GetWrapOrEmpty();
+                tex = Plugin.TextureProvider.GetFromGameIcon(iconId).GetWrapOrDefault();
             }
             catch (IconNotFoundException)
             {
                 return null;
             }
+            if (tex == null) return null;
+
             var texSize = new Vector2(tex.Width, tex.Height);
+            tex.Dispose();
 
             // Cache the size for future lookups
             IconSizeCache[iconId] = texSize;
-            tex.Dispose();
             return texSize;
         }
     }
