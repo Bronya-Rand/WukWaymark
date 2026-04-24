@@ -5,7 +5,7 @@ using System;
 using System.Numerics;
 using WukLamark.Models;
 
-namespace WukLamark.Windows
+namespace WukLamark.Render
 {
     public static class MarkerRenderer
     {

@@ -1,7 +1,7 @@
 using Lumina.Excel.Sheets;
 using System.Collections.Generic;
 
-namespace WukLamark.Utils;
+namespace WukLamark.Helpers;
 
 public static class LocationHelper
 {

@@ -6,8 +6,8 @@ using Dalamud.Plugin.Services;
 using KamiToolKit;
 using KamiToolKit.Overlay.MapOverlay;
 using System;
+using WukLamark.Helpers;
 using WukLamark.Services;
-using WukLamark.Utils;
 using WukLamark.Windows;
 
 namespace WukLamark;
