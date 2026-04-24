@@ -124,7 +124,7 @@ namespace WukLamark.Services
                 return;
 
             var areaMap = (AtkUnitBase*)areaMapAddonPtr.Address;
-            if (areaMap == null || !areaMap->IsVisible || areaMap->UldManager.LoadedState != AtkLoadState.Loaded)
+            if (areaMap == null || ((!areaMap->IsVisible || areaMap->UldManager.LoadedState != AtkLoadState.Loaded) && !plugin.Configuration.UseKTK))
                 return;
             UIScale = areaMap->Scale;
 
