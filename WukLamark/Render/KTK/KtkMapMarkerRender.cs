@@ -15,9 +15,8 @@ namespace WukLamark.Render.KTK
     /// <param name="plugin">WukLamark's main plugin instance.</param>
     /// <remarks>
     /// Unlike ImGui (rebuilds draw list every frame), XIV native markers are
-    /// persistent. For similar ImGui logic, we'll buffer each frame's desired
-    /// markers, compute a content hash, and only commit (remove + re-add) when the
-    /// data changes.
+    /// persistent. For similar ImGui logic, we track which markers were seen during
+    /// the current render pass.
     /// </remarks>
     internal sealed class KtkMapMarkerRender(Plugin plugin) : IMapMarkerRender
     {
@@ -27,26 +26,32 @@ namespace WukLamark.Render.KTK
         private const uint DefaultIconId = 60575;
 
         /// <summary>
-        /// Hash of the last committed marker state, used to detect changes.
+        /// Stores the currently active markers that have been added to the KTK map overlay.
         /// </summary>
-        private int lastCommittedHash = 0;
-        private bool hasCommitted = false;
+        private readonly Dictionary<Guid, KtkMapMarker> activeMarkers = [];
+        /// <summary>
+        /// Stores the IDs of markers that have been seen during the current render pass.
+        /// </summary>
+        private readonly HashSet<Guid> markersSeen = [];
+
+        public bool IsEnabled => plugin.Configuration.WaymarksMapEnabled
+            && plugin.MapOverlayController != null
+            && plugin.Configuration.UseKTK;
 
         /// <summary>
-        /// Buffer of markers built during the current frame's render pass.
+        /// Clears all cached map markers and resets the internal marker tracking state.
         /// </summary>
-        private readonly List<KtkMapMarker> pendingMarkers = [];
-
-        public bool IsEnabled => plugin.Configuration.WaymarksMapEnabled && plugin.MapOverlayController != null && plugin.Configuration.UseKTK;
-
         internal void InvalidateCache()
         {
-            hasCommitted = false;
-            lastCommittedHash = 0;
+            foreach (var marker in activeMarkers.Values)
+                plugin.MapOverlayController?.RemoveMarker(marker);
+
+            activeMarkers.Clear();
+            markersSeen.Clear();
         }
         public void BeginRender()
         {
-            pendingMarkers.Clear();
+            markersSeen.Clear();
         }
 
         public void RenderMarker(uint selectedMapId, float uiScale, MapMarkerData markerInfo)
@@ -55,11 +60,19 @@ namespace WukLamark.Render.KTK
             var formattedNotes = MapHelper.FormatMapTooltipNotes(markerInfo.Notes);
             var tooltipText = formattedNotes.Length > 0 ? $"{safeName}\n{formattedNotes}" : safeName;
 
-            var markerData = new KtkMapMarker { MarkerKey = markerInfo.Name };
+            var markerId = markerInfo.Id;
             var iconId = markerInfo.IconId ?? DefaultIconId;
-            var markerSize = (markerInfo.MarkerSize * 1.5f) * uiScale * ImGuiHelpers.GlobalScale;
+            var markerSize = markerInfo.MarkerSize * 1.5f * uiScale * ImGuiHelpers.GlobalScale;
 
-            markerData.Apply(
+            // Create a new marker if it doesn't exist, or retrieve the existing one.
+            if (!activeMarkers.TryGetValue(markerId, out var mapMarker))
+            {
+                mapMarker = new KtkMapMarker { MarkerId = markerId };
+                activeMarkers[markerId] = mapMarker;
+                plugin.MapOverlayController!.AddMarker(mapMarker);
+            }
+
+            mapMarker.Apply(
                 selectedMapId,
                 markerInfo.WorldPos,
                 tooltipText,
@@ -69,50 +82,35 @@ namespace WukLamark.Render.KTK
                 Colors.ConvertU32ToVector3(markerInfo.Color)
                 );
 
-            // Buffer the marker — don't commit to KTK yet.
-            pendingMarkers.Add(markerData);
+            markersSeen.Add(markerId);
         }
 
         public void EndRender()
         {
-            var currentHash = ComputePendingHash();
+            List<Guid>? markersToRemove = null;
 
-            // Only rebuild native markers when something actually changed.
-            if (!hasCommitted || currentHash != lastCommittedHash)
+            // Identify markers that were not seen during this render pass
+            foreach (var kv in activeMarkers)
             {
-                plugin.MapOverlayController?.RemoveAllMarkers();
-                foreach (var marker in pendingMarkers)
-                    plugin.MapOverlayController!.AddMarker(marker);
-
-                lastCommittedHash = currentHash;
-                hasCommitted = true;
+                if (markersSeen.Contains(kv.Key)) continue;
+                markersToRemove ??= [];
+                markersToRemove.Add(kv.Key);
             }
-        }
 
-        /// <summary>
-        /// Computes a combined hash of all buffered markers to detect
-        /// whether a rebuild is needed without comparing element-by-element.
-        /// </summary>
-        private int ComputePendingHash()
-        {
-            var hash = new HashCode();
-            hash.Add(pendingMarkers.Count);
-            foreach (var m in pendingMarkers)
+            // Remove markers that were not seen during this render pass
+            // If no markers are to be removed, exit early.
+            if (markersToRemove == null) return;
+
+            foreach (var markerId in markersToRemove)
             {
-                hash.Add(m.mapId);
-                hash.Add(m.worldPos);
-                hash.Add(m.iconId);
-                hash.Add(m.tooltip);
-                hash.Add(m.iconSize);
-                hash.Add(m.useTint);
-                hash.Add(m.tintColor);
+                var marker = activeMarkers[markerId];
+                plugin.MapOverlayController?.RemoveMarker(marker);
+                activeMarkers.Remove(markerId);
             }
-            return hash.ToHashCode();
         }
         public void Dispose()
         {
-            // Clean up any KTK markers when this renderer is disposed.
-            plugin.MapOverlayController?.RemoveAllMarkers();
+            InvalidateCache();
             GC.SuppressFinalize(this);
         }
     }

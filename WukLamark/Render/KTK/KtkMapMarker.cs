@@ -1,11 +1,15 @@
 using KamiToolKit.Overlay.MapOverlay;
+using System;
 using System.Numerics;
 
 namespace WukLamark.Render.KTK
 {
+    /// <summary>
+    /// The map marker node used by KTK (KamiToolKit) to render custom map markers on the in-game map.
+    /// </summary>
     public sealed class KtkMapMarker : MapMarkerNode
     {
-        public required string MarkerKey { get; init; }
+        public required Guid MarkerId { get; init; }
 
         internal uint mapId;
         internal Vector2 worldPos;

@@ -29,6 +29,7 @@ namespace WukLamark.Services
     /// <param name="IconId">The icon ID for the marker.</param>
     /// <param name="UseShapeColorOnIcon">Whether to use the shape color on the icon.</param>
     public record MapMarkerData(
+        Guid Id,
         Vector2 ScreenPos,
         Vector2 WorldPos,
         MarkerShape Shape,
@@ -352,6 +353,7 @@ namespace WukLamark.Services
 
                 MarkersToRender.Add(new MapMarkerData
                 (
+                    marker.Id,
                     new Vector2(markerScreenX, markerScreenY),
                     markerWorldPos,
                     marker.Shape,
