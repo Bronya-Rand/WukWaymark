@@ -27,6 +27,9 @@ namespace WukLamark.Services
         private readonly WindowSystem windowSystem;
         private bool disposed;
 
+        // Default marker size in pixels
+        private const float MinimapMarkerPx = 32.0f;
+
         // Publicly accessible list mapping markers to their PreDraw evaluated locations
         public List<(Vector2 Position, MarkerShape Shape, float Size, Vector4 Color, string Name, string? Notes, uint? IconId, bool useShapeColorOnIcon)> MarkersToRender { get; } = [];
 
@@ -212,21 +215,8 @@ namespace WukLamark.Services
 
                 if (iconId != null)
                 {
-                    var iconGameSize = plugin.IconBrowserService.GetIconSize(iconId.Value);
                     var deSize = 6.0f / naviScale * globalScale;
-                    if (iconGameSize.HasValue)
-                    {
-                        if (plugin.IconBrowserService.IconIsIcon(iconId.Value))
-                            markerSize = iconGameSize.Value.X / deSize * (baseMarkerSize / 8.0f);
-                        else
-                            // Non-map icons are larger than 64.
-                            markerSize = 32.0f / deSize * (baseMarkerSize / 8.0f);
-                    }
-                    else
-                    {
-                        var fallbackBase = plugin.IconBrowserService.IconIsIcon(iconId.Value) ? 64.0f : 32.0f;
-                        markerSize = fallbackBase / deSize * (baseMarkerSize / 8.0f);
-                    }
+                    markerSize = MinimapMarkerPx / deSize * (baseMarkerSize / 8.0f);
                 }
 
                 // Apply visibility radius alpha fade (last 20% of radius)

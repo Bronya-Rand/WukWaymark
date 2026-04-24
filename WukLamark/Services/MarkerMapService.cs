@@ -25,6 +25,9 @@ namespace WukLamark.Services
         private readonly MarkerWindow window;
         private bool disposed;
 
+        // Default marker size in pixels
+        private const float MapMarkerPx = 32.0f;
+
         public readonly List<(Vector2 ScreenPos, MarkerShape Shape, float MarkerSize, uint Color, string Name, string? Notes, uint? IconId, bool useShapeColorOnIcon)> MarkersToRender = [];
 
         // Cached state from Framework.Update for debug / window access
@@ -271,21 +274,8 @@ namespace WukLamark.Services
 
                 if (marker.IconId != null)
                 {
-                    var iconSize = plugin.IconBrowserService.GetIconSize(marker.IconId.Value);
                     var deSize = 6.0f / areaMap->Scale * ImGuiHelpers.GlobalScale;
-                    if (iconSize.HasValue)
-                    {
-                        if (plugin.IconBrowserService.IconIsIcon(marker.IconId.Value))
-                            markerSize = iconSize.Value.X / deSize * (baseMarkerSize / 8.0f);
-                        else
-                            // Non-map icons are larger than real map icons (64px).
-                            markerSize = 32.0f / deSize * (baseMarkerSize / 8.0f);
-                    }
-                    else
-                    {
-                        var fallbackBase = plugin.IconBrowserService.IconIsIcon(marker.IconId.Value) ? 64.0f : 32.0f;
-                        markerSize = fallbackBase / deSize * (baseMarkerSize / 8.0f);
-                    }
+                    markerSize = MapMarkerPx / deSize * (baseMarkerSize / 8.0f);
                 }
 
                 // Apply visibility radius fade (last 20% of radius)
