@@ -25,7 +25,7 @@ namespace WukLamark.Helpers
             }
             if (tex == null) return null;
 
-            var texSize = new Vector2(tex.Width, tex.Height);
+            var texSize = tex.Size;
             tex.Dispose();
 
             // Cache the size for future lookups
