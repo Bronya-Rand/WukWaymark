@@ -4,8 +4,8 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using System;
+using WukLamark.Helpers;
 using WukLamark.Services;
-using WukLamark.Utils;
 using WukLamark.Windows;
 
 namespace WukLamark;
