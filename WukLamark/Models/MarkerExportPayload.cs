@@ -4,7 +4,7 @@ namespace WukLamark.Models
 {
     public sealed class MarkerExportPayload
     {
-        public string Version { get; set; } = "1";
+        public string Version { get; set; } = "2";
         public string Type { get; set; } = "Share";
         public List<MarkerShareEntry> Markers { get; set; } = [];
     }
