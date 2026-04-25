@@ -135,7 +135,7 @@ namespace WukLamark.Windows
         /// <param name="position">Screen-space center position for the icon</param>
         /// <param name="iconId">The game icon ID to load via ITextureProvider</param>
         /// <param name="markerSize">Half-size of the icon in pixels (icon will be 1.5x this value)</param>
-        public static void RenderMarkerIcon(ImDrawListPtr drawList, Vector2 position, uint iconId, float markerSize, uint tintColor = uint.MaxValue)
+        public static bool RenderMarkerIcon(ImDrawListPtr drawList, Vector2 position, uint iconId, float markerSize, uint tintColor = uint.MaxValue)
         {
             IDalamudTextureWrap? iconTex;
             try
@@ -147,13 +147,14 @@ namespace WukLamark.Windows
                 iconTex = null;
             }
             if (iconTex == null || iconTex.Handle == nint.Zero)
-                return;
+                return false;
 
             var halfSize = markerSize * 1.5f; // Slightly larger than shape markers for clarity
             var topLeft = position - new Vector2(halfSize, halfSize);
             var bottomRight = position + new Vector2(halfSize, halfSize);
 
             drawList.AddImage(iconTex.Handle, topLeft, bottomRight, Vector2.Zero, Vector2.One, tintColor);
+            return true;
         }
 
         /// <summary>
@@ -164,15 +165,18 @@ namespace WukLamark.Windows
         /// <param name="customIconName">The name of the custom icon file</param>
         /// <param name="markerSize">Half-size of the icon in pixels (icon will be 1.5x this value)</param>
         /// <param name="tintColor">Tint color to apply to the icon</param>
-        public static void RenderMarkerCustomIcon(ImDrawListPtr drawList, Vector2 position, string customIconName, float markerSize, uint tintColor = uint.MaxValue)
+        /// <param name="colorU32">Fill color for shape rendering if the custom icon is not found</param>
+        /// <param name="shape">Fallback shape to render if the custom icon is not found</param>
+        public static bool RenderMarkerCustomIcon(ImDrawListPtr drawList, Vector2 position, string customIconName, float markerSize, uint tintColor = uint.MaxValue)
         {
             if (!Plugin.CustomIconService.TryGetCustomIcon(customIconName, out var iconTex) || iconTex == null || iconTex.Handle == nint.Zero)
-                return;
+                return false;
 
             var halfSize = markerSize * 1.5f; // Slightly larger than shape markers for clarity
             var topLeft = position - new Vector2(halfSize, halfSize);
             var bottomRight = position + new Vector2(halfSize, halfSize);
             drawList.AddImage(iconTex.Handle, topLeft, bottomRight, Vector2.Zero, Vector2.One, tintColor);
+            return true;
         }
 
         /// <summary>
@@ -195,9 +199,15 @@ namespace WukLamark.Windows
                 tint = colorU32;
 
             if (!customIconName.IsNullOrEmpty())
-                RenderMarkerCustomIcon(drawList, position, customIconName, markerSize, tint);
+            {
+                if (!RenderMarkerCustomIcon(drawList, position, customIconName, markerSize, tint))
+                    RenderMarkerShape(drawList, position, shape, markerSize, colorU32); // Fallback to shape if custom icon not found
+            }
             else if (iconId.HasValue && iconId.Value != 0)
-                RenderMarkerIcon(drawList, position, iconId.Value, markerSize, tint);
+            {
+                if (!RenderMarkerIcon(drawList, position, iconId.Value, markerSize, tint))
+                    RenderMarkerShape(drawList, position, shape, markerSize, colorU32);
+            }
             else
                 RenderMarkerShape(drawList, position, shape, markerSize, colorU32);
         }
