@@ -107,6 +107,9 @@ public sealed class MarkerExportService
                 WorldId = marker.WorldId,
                 Icon = new MarkerIcon
                 {
+                    SourceType = marker.Icon.SourceType == MarkerIconType.Custom
+                    ? (marker.Icon.GameIconId.HasValue ? MarkerIconType.Game : MarkerIconType.Shape)
+                    : MarkerIconType.Shape,
                     GameIconId = marker.Icon.GameIconId,
                     Shape = marker.Icon.Shape,
                     Color = marker.Icon.Color,
@@ -232,7 +235,6 @@ public sealed class MarkerExportService
             var payload = JsonSerializer.Deserialize<MarkerExportPayload>(json, JsonOptions);
             if (payload != null && payload.Markers.Count > 0 && payload.Markers.All(m => m.Icon != null))
                 return payload;
-
         }
         catch (JsonException)
         {
@@ -247,31 +249,38 @@ public sealed class MarkerExportService
     private static MarkerExportPayload? DeserializeSharePayloadCompat(string json)
     {
         // V1 schema: Flat Icon Fields
-        var legacyV1Payload = JsonSerializer.Deserialize<LegacySharePayloadV1>(json, JsonOptions);
-        if (legacyV1Payload != null)
+        try
         {
-            return new MarkerExportPayload
+            var legacyV1Payload = JsonSerializer.Deserialize<LegacySharePayloadV1>(json, JsonOptions);
+            if (legacyV1Payload != null)
             {
-                Version = legacyV1Payload.Version,
-                Type = "Share",
-                Markers = legacyV1Payload.Markers.Select(m => new MarkerShareEntry
+                return new MarkerExportPayload
                 {
-                    SourceId = m.SourceId,
-                    Name = m.Name,
-                    Position = m.Position,
-                    TerritoryId = m.TerritoryId,
-                    WardId = m.WardId,
-                    MapId = m.MapId,
-                    WorldId = m.WorldId,
-                    AppliesToAllWorlds = m.AppliesToAllWorlds,
-                    Icon = new MarkerIcon
+                    Version = legacyV1Payload.Version,
+                    Type = "Share",
+                    Markers = legacyV1Payload.Markers.Select(m => new MarkerShareEntry
                     {
-                        GameIconId = m.IconId ?? 0, // Default to 0 if null
-                        Shape = m.Shape,
-                        Color = m.Color
-                    }
-                }).ToList()
-            };
+                        SourceId = m.SourceId,
+                        Name = m.Name,
+                        Position = m.Position,
+                        TerritoryId = m.TerritoryId,
+                        WardId = m.WardId,
+                        MapId = m.MapId,
+                        WorldId = m.WorldId,
+                        AppliesToAllWorlds = m.AppliesToAllWorlds,
+                        Icon = new MarkerIcon
+                        {
+                            GameIconId = m.IconId ?? 0, // Default to 0 if null
+                            Shape = m.Shape,
+                            Color = m.Color
+                        }
+                    }).ToList()
+                };
+            }
+        }
+        catch (JsonException)
+        {
+            // Ignore and try next schema
         }
         return null;
     }
@@ -344,7 +353,15 @@ public sealed class MarkerExportService
                         WardId = w.WardId,
                         MapId = w.MapId,
                         WorldId = w.WorldId,
-                        Icon = w.Icon,
+#pragma warning disable CS0618 // Type or member is obsolete
+                        Icon = new MarkerIcon
+                        {
+                            GameIconId = w.IconId ?? 0, // Default to 0 if null
+                            Shape = w.Shape,
+                            Color = w.Color,
+                            SourceType = w.IconId.HasValue ? MarkerIconType.Game : MarkerIconType.Shape
+                        },
+#pragma warning restore CS0618 // Type or member is obsolete
                         AppliesToAllWorlds = w.AppliesToAllWorlds
                     }).ToList(),
                 };

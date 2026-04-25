@@ -23,9 +23,9 @@ namespace WukLamark.Services
         Vector4 Color,
         string Name,
         string? Notes,
-        uint? IconId,
+        uint? GameIconId,
         string? CustomIconName,
-        bool UseShapeColorOnIcon
+        bool UseShapeColor
     );
     public sealed record MarkerMinimapCacheRenderData(
         Vector3 WorldPosition,
@@ -33,11 +33,11 @@ namespace WukLamark.Services
         Vector4 Color,
         string Name,
         string? Notes,
-        uint? IconId,
+        uint? GameIconId,
         string? CustomIconName,
-        float? IconSize,
+        float IconSize,
         float VisibilityRadius,
-        bool UseShapeColorOnIcon
+        bool UseShapeColor
     );
 
     /// <summary>
@@ -235,8 +235,8 @@ namespace WukLamark.Services
 
                 var baseMarkerSize = configuration.WaymarkMarkerSize;
                 // Override base size if marker has an explicit size set
-                if (iconSize.HasValue && iconSize.Value > 0)
-                    baseMarkerSize = iconSize.Value;
+                if (iconSize > 0)
+                    baseMarkerSize = iconSize;
                 var markerSize = baseMarkerSize * globalScale;
 
                 if (iconId != null || !customIconName.IsNullOrEmpty())

@@ -20,7 +20,6 @@ namespace WukLamark.Helpers
             if (tex == null) return null;
 
             var texSize = tex.Size;
-            tex.Dispose();
             return texSize;
         }
         public static Vector2? GetCustomIconSize(string customIconName)
