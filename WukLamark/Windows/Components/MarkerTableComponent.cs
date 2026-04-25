@@ -6,13 +6,14 @@ using Dalamud.Utility;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using WukLamark.Helpers;
 using WukLamark.Models;
 using WukLamark.Services;
 using WukLamark.Utils;
 
 namespace WukLamark.Windows.Components;
 
-internal class MarkerTableComponent
+internal sealed class MarkerTableComponent
 {
     private readonly Plugin plugin;
     private readonly GameStateReaderService gameStateReaderService;
@@ -128,16 +129,17 @@ internal class MarkerTableComponent
     {
         ImGui.TableSetColumnIndex(0);
 
-        var colorU32 = ImGui.ColorConvertFloat4ToU32(marker.Color);
+        var colorU32 = ImGui.ColorConvertFloat4ToU32(marker.Icon.Color);
         var globalScale = ImGuiHelpers.GlobalScale;
         MarkerRenderer.RenderMarker(
             ImGui.GetWindowDrawList(),
             ImGui.GetCursorScreenPos() + new Vector2(20 * globalScale, 10 * globalScale),
-            marker.Shape,
+            marker.Icon.Shape,
             8f * globalScale,
             colorU32,
-            marker.IconId,
-            marker.UseShapeColorOnIcon
+            marker.Icon.GameIconId,
+            marker.Icon.CustomIconName,
+            marker.Icon.UseShapeColor
         );
         ImGui.Dummy(new Vector2(40 * globalScale, 20 * globalScale));
     }

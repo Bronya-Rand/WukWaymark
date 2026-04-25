@@ -8,7 +8,7 @@ using WukLamark.Utils;
 
 namespace WukLamark.Windows.Sections.Modals;
 
-public class DeleteGroupModal
+public sealed class DeleteGroupModal
 {
     private bool isOpen = false;
     private MarkerGroup? groupToDelete = null;

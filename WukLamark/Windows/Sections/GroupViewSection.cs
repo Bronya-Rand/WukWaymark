@@ -15,7 +15,7 @@ using WukLamark.Windows.Components;
 
 namespace WukLamark.Windows.Sections;
 
-internal class GroupViewSection(GameStateReaderService gameStateReaderService, MarkerStorageService markerStorageService, MarkerTableComponent tableComponent)
+internal sealed class GroupViewSection(GameStateReaderService gameStateReaderService, MarkerStorageService markerStorageService, MarkerTableComponent tableComponent)
 {
     private readonly GameStateReaderService gameStateReaderService = gameStateReaderService;
     private readonly MarkerStorageService markerStorageService = markerStorageService;

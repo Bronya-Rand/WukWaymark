@@ -8,14 +8,13 @@ using System.Numerics;
 using WukLamark.Helpers;
 using WukLamark.Models;
 using WukLamark.Services;
-using WukLamark.Utils;
 using WukLamark.Windows.Components;
 using WukLamark.Windows.Sections;
 using WukLamark.Windows.Sections.Modals;
 
 namespace WukLamark.Windows;
 
-public class MainWindow : Window, IDisposable
+public sealed class MainWindow : Window, IDisposable
 {
     private readonly Plugin plugin;
 
@@ -205,17 +204,12 @@ public class MainWindow : Window, IDisposable
     {
         var oldScope = marker.Scope;
         marker.Name = result.Name;
-        marker.Color = result.Color;
-        marker.Shape = result.Shape;
         marker.Notes = result.Notes;
         marker.GroupId = result.GroupId;
-        marker.VisibilityRadius = result.VisibilityRadius;
-        marker.IconId = result.IconId;
-        marker.IconSize = result.IconSize;
-        marker.UseShapeColorOnIcon = result.UseShapeColorOnIcon;
         marker.Scope = result.Scope;
         marker.IsReadOnly = result.IsReadOnly;
         marker.AppliesToAllWorlds = result.AppliesToAllWorlds;
+        marker.Icon = result.Icon;
 
         if (oldScope != marker.Scope)
         {
@@ -388,10 +382,7 @@ public class MainWindow : Window, IDisposable
                 existing.MapId = importedMarker.MapId;
                 existing.WorldId = importedMarker.WorldId;
                 existing.AppliesToAllWorlds = importedMarker.AppliesToAllWorlds;
-                existing.Color = importedMarker.Color;
-                existing.Shape = importedMarker.Shape;
-                existing.IconId = importedMarker.IconId;
-                existing.GroupId = importGroup?.Id;
+                existing.Icon = importedMarker.Icon;
                 overwrittenMarkers++;
                 continue;
             }
@@ -406,10 +397,8 @@ public class MainWindow : Window, IDisposable
                 MapId = importedMarker.MapId,
                 WorldId = importedMarker.WorldId,
                 AppliesToAllWorlds = importedMarker.AppliesToAllWorlds,
-                Color = importedMarker.Color,
+                Icon = importedMarker.Icon,
                 CreatedAt = DateTime.Now,
-                Shape = importedMarker.Shape,
-                IconId = importedMarker.IconId,
                 Scope = MarkerScope.Personal,
                 CharacterHash = plugin.MarkerStorageService.CurrentCharacterHash,
                 GroupId = importGroup?.Id ?? null,

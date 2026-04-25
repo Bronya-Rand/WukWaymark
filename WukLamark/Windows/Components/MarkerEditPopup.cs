@@ -10,25 +10,29 @@ using WukLamark.Utils;
 
 namespace WukLamark.Windows.Components;
 
-internal class MarkerEditPopup
+internal sealed class MarkerEditPopup
 {
     private readonly Plugin plugin;
     private readonly IconPickerModal iconPickerModal;
 
     #region Editing State
 
-    private string editingName = string.Empty;
-    private Vector4 editingColor = Vector4.One;
-    private string editingNote = string.Empty;
-    private MarkerShape editingShape = MarkerShape.Circle;
     private Guid? editingGroupId;
-    private float editingVisibilityRadius;
-    private uint? editingIconId = null;
-    private float editingIconSize = 0.0f;
-    private bool editingUseShapeColorOnIcon = false;
+
+    private string editingName = string.Empty;
+    private string editingNote = string.Empty;
+    private Vector4 editingColor = Vector4.One;
     private MarkerScope editingScope = MarkerScope.Personal;
     private bool editingReadOnly = false;
     private bool editingAppliesToAllWorlds = false;
+
+    private MarkerIconType editingIconSourceType = MarkerIconType.Shape;
+    private MarkerShape editingShape = MarkerShape.Circle;
+    private float editingVisibilityRadius = 0.0f;
+    private uint? editingIconId = null;
+    private string? editingCustomIconName = null;
+    private float editingIconSize = 0.0f;
+    private bool editingUseShapeColorOnIcon = false;
 
     #endregion
 
@@ -39,7 +43,21 @@ internal class MarkerEditPopup
         this.plugin = plugin;
         iconPickerModal = new IconPickerModal(plugin)
         {
-            OnIconSelected = iconId => editingIconId = iconId
+            OnIconSelected = iconDataResult =>
+            {
+                if (iconDataResult == null)
+                {
+                    editingIconSourceType = MarkerIconType.Shape;
+                    editingIconId = null;
+                    editingCustomIconName = null;
+                }
+                else
+                {
+                    editingIconSourceType = iconDataResult.SourceType;
+                    editingIconId = iconDataResult.GameIconId;
+                    editingCustomIconName = iconDataResult.CustomIconName;
+                }
+            }
         };
     }
 
@@ -49,18 +67,21 @@ internal class MarkerEditPopup
     /// <remarks>Call this before opening the popup.</remarks>
     public void LoadFromMarker(Marker marker)
     {
-        editingName = marker.Name;
-        editingColor = marker.Color;
-        editingShape = marker.Shape;
-        editingNote = marker.Notes;
         editingGroupId = marker.GroupId;
-        editingVisibilityRadius = marker.VisibilityRadius;
-        editingIconId = marker.IconId;
-        editingIconSize = marker.IconSize ?? plugin.Configuration.WaymarkMarkerSize;
-        editingUseShapeColorOnIcon = marker.UseShapeColorOnIcon;
+        editingName = marker.Name;
+        editingNote = marker.Notes;
         editingScope = marker.Scope;
         editingReadOnly = marker.IsReadOnly;
         editingAppliesToAllWorlds = marker.AppliesToAllWorlds;
+
+        editingIconSourceType = marker.Icon.SourceType;
+        editingShape = marker.Icon.Shape;
+        editingColor = marker.Icon.Color;
+        editingIconId = marker.Icon.GameIconId;
+        editingIconSize = marker.Icon.Size;
+        editingUseShapeColorOnIcon = marker.Icon.UseShapeColor;
+        editingVisibilityRadius = marker.Icon.VisibilityRadius;
+        editingCustomIconName = marker.Icon.CustomIconName;
     }
 
     public void Draw(Marker marker, MarkerGroup? parentGroup = null)
@@ -159,47 +180,39 @@ internal class MarkerEditPopup
         using (ImRaii.Disabled(!canEditGeneralFields))
             ImGui.InputText($"###Name{identifier}", ref editingName, 100);
 
-        ImGui.Text("Color:");
+        ImGui.Text("Marker Type:");
         ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
         using (ImRaii.Disabled(!canEditGeneralFields))
-            ImGui.ColorEdit4($"###Color{identifier}", ref editingColor);
-        if (ImWuk.IsItemHoveredWhenDisabled())
         {
-            var tooltip = "Sets the color of the marker on the minimap/map. This is overridden by the icon if one is selected.";
-            ImGui.SetTooltip(tooltip);
-        }
-
-        ImGui.Text("Shape:");
-        ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
-        var shapeDropPreview = Enum.GetName(editingShape) ?? "Unknown";
-        using (ImRaii.Disabled(!canEditGeneralFields))
-        {
-            using (var shapeDrop = ImRaii.Combo($"###Shape{identifier}", shapeDropPreview))
+            var markerTypeNames = Enum.GetNames<MarkerIconType>();
+            var markerTypePreview = Enum.GetName(editingIconSourceType) ?? "Unknown";
+            using (var markerTypeDrop = ImRaii.Combo($"###MarkerType{identifier}", markerTypePreview))
             {
-                if (shapeDrop.Success)
+                if (markerTypeDrop.Success)
                 {
-                    var shapeNames = Enum.GetNames<MarkerShape>();
-                    foreach (var shapeName in shapeNames)
+                    foreach (var markerTypeName in markerTypeNames)
                     {
-                        if (ImGui.Selectable(shapeName, shapeName == shapeDropPreview))
+                        if (ImGui.Selectable(markerTypeName, markerTypeName == markerTypePreview))
                         {
-                            editingShape = Enum.Parse<MarkerShape>(shapeName);
+                            editingIconSourceType = Enum.Parse<MarkerIconType>(markerTypeName);
+                            switch (editingIconSourceType)
+                            {
+                                case MarkerIconType.Shape:
+                                    editingIconId = null;
+                                    editingCustomIconName = null;
+                                    break;
+                                case MarkerIconType.Game:
+                                    editingCustomIconName = null;
+                                    break;
+                                case MarkerIconType.Custom:
+                                    editingIconId = null;
+                                    break;
+                            }
                         }
                     }
                 }
             }
         }
-        if (ImWuk.IsItemHoveredWhenDisabled())
-        {
-            var tooltip = "Assigns a shape to the marker. This is overridden by the icon if one is selected.";
-            ImGui.SetTooltip(tooltip);
-        }
-
-        // Shape/Icon size slider
-        ImGui.Text("Shape/Icon Size:");
-        ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
-        using (ImRaii.Disabled(!canEditGeneralFields))
-            ImGui.SliderFloat($"###Size{identifier}", ref editingIconSize, 0f, 24.0f, editingIconSize == 0 ? "Global Icon/Shape Size" : "%.1f");
 
         // Group assignment dropdown
         ImGui.Text("Group:");
@@ -241,6 +254,95 @@ internal class MarkerEditPopup
         {
             var tooltip = "Assigns a group to this marker. Markers in a group inherit the group's scope and read-only status.\nOnly personal groups and shared, non-read-only groups are available for assignment.";
             ImGui.SetTooltip(tooltip);
+        }
+
+        // Shape/Icon color picker
+        ImGui.Text("Shape Color:");
+        ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
+        using (ImRaii.Disabled(!canEditGeneralFields))
+            ImGui.ColorEdit4($"###Color{identifier}", ref editingColor);
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            var tooltip = "Sets the color of the marker on the minimap/map.\nThis is overridden if using an icon unless 'Apply Shape Color To Icon' is enabled.";
+            ImGui.SetTooltip(tooltip);
+        }
+
+        // Shape/Icon size slider
+        ImGui.Text("Shape/Icon Size:");
+        ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
+        using (ImRaii.Disabled(!canEditGeneralFields))
+            ImGui.SliderFloat($"###Size{identifier}", ref editingIconSize, 0f, 24.0f, editingIconSize == 0 ? "Global Icon/Shape Size" : "%.1f");
+
+        // Shape dropdown
+        var shapeText = editingIconSourceType == MarkerIconType.Shape ? "Shape:" : "Shape (fallback if no icon):";
+        ImGui.Text(shapeText);
+        ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
+        var shapeDropPreview = Enum.GetName(editingShape) ?? "Unknown";
+        using (ImRaii.Disabled(!canEditGeneralFields))
+        {
+            using (var shapeDrop = ImRaii.Combo($"###Shape{identifier}", shapeDropPreview))
+            {
+                if (shapeDrop.Success)
+                {
+                    var shapeNames = Enum.GetNames<MarkerShape>();
+                    foreach (var shapeName in shapeNames)
+                    {
+                        if (ImGui.Selectable(shapeName, shapeName == shapeDropPreview))
+                        {
+                            editingShape = Enum.Parse<MarkerShape>(shapeName);
+                        }
+                    }
+                }
+            }
+        }
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            var tooltip = "Assigns a shape to the marker. This is overridden by the icon if one is selected.";
+            ImGui.SetTooltip(tooltip);
+        }
+
+        if (editingIconSourceType != MarkerIconType.Shape)
+        {
+            // Icon picker
+            ImGui.Text("Icon:");
+            ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
+
+            using (ImRaii.Disabled(!canEditGeneralFields))
+            {
+                var currentIconName = "Select Icon...";
+                var previewTex = !editingCustomIconName.IsNullOrWhitespace() ? Plugin.CustomIconService.TryGetCustomIcon(editingCustomIconName!, out var tex) ? tex : null
+                    : editingIconId.HasValue && editingIconId.Value > 0 ? Plugin.TextureProvider.GetFromGameIcon(editingIconId.Value).GetWrapOrEmpty() : null;
+
+                if (editingIconSourceType == MarkerIconType.Custom && !editingCustomIconName.IsNullOrWhitespace())
+                    currentIconName = editingCustomIconName!;
+                else if (editingIconSourceType == MarkerIconType.Game && editingIconId.HasValue && editingIconId.Value > 0)
+                    currentIconName = plugin.IconBrowserService.AvailableIcons.FirstOrDefault(i => i.IconId == editingIconId.Value)?.Name ?? $"ID: {editingIconId.Value}";
+
+                if (previewTex != null && previewTex.Handle != nint.Zero)
+                {
+                    ImGui.Image(previewTex.Handle, new Vector2(24, 24));
+                    ImGui.SameLine();
+                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 2);
+                }
+
+                ImGui.SetNextItemWidth((previewTex != null ? 218 : 250) * ImGuiHelpers.GlobalScale);
+                if (ImGui.Button($"{currentIconName}###IconBtn{identifier}", new Vector2((previewTex != null ? 218 : 250) * ImGuiHelpers.GlobalScale, 0)))
+                {
+                    iconPickerModal.OpenPopup(marker.Name, identifier);
+                }
+            }
+            if (ImWuk.IsItemHoveredWhenDisabled())
+            {
+                var tooltip = "Assigns an in-game icon to the marker.\nThis overrides the color of the marker unless 'Apply Shape Color To Icon' is enabled.";
+                ImGui.SetTooltip(tooltip);
+            }
+
+            iconPickerModal.Draw(marker.Name, identifier, editingIconSourceType);
+
+            using (ImRaii.Disabled(!canEditGeneralFields))
+                ImGui.Checkbox($"Apply Shape Color To Icon###UseShapeColorOnIcon{identifier}", ref editingUseShapeColorOnIcon);
+            if (ImWuk.IsItemHoveredWhenDisabled())
+                ImGui.SetTooltip("When enabled, the shape color is applied to the icon rendering.");
         }
 
         ImGui.Text("Notes:");
@@ -321,43 +423,6 @@ internal class MarkerEditPopup
             ImGui.SetTooltip(tooltip);
         }
 
-        // Icon picker
-        ImGui.Text("Icon (Overrides Shape):");
-        ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
-
-        using (ImRaii.Disabled(!canEditGeneralFields))
-        {
-            var currentIconName = "Select Icon...";
-            var previewTex = editingIconId.HasValue && editingIconId.Value > 0 ? Plugin.TextureProvider.GetFromGameIcon(editingIconId.Value).GetWrapOrEmpty() : null;
-            if (editingIconId.HasValue && editingIconId.Value > 0)
-                currentIconName = plugin.IconBrowserService.AvailableIcons.FirstOrDefault(i => i.IconId == editingIconId.Value)?.Name ?? $"ID: {editingIconId.Value}";
-
-            if (previewTex != null && previewTex.Handle != nint.Zero)
-            {
-                ImGui.Image(previewTex.Handle, new Vector2(24, 24));
-                ImGui.SameLine();
-                ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 2);
-            }
-
-            ImGui.SetNextItemWidth((previewTex != null ? 218 : 250) * ImGuiHelpers.GlobalScale);
-            if (ImGui.Button($"{currentIconName}###IconBtn{identifier}", new Vector2((previewTex != null ? 218 : 250) * ImGuiHelpers.GlobalScale, 0)))
-            {
-                iconPickerModal.OpenPopup(marker.Name, identifier);
-            }
-        }
-        if (ImWuk.IsItemHoveredWhenDisabled())
-        {
-            var tooltip = "Assigns an in-game icon to the marker. This overrides the color and shape settings of the marker.";
-            ImGui.SetTooltip(tooltip);
-        }
-
-        iconPickerModal.Draw(marker.Name, identifier);
-
-        using (ImRaii.Disabled(!canEditGeneralFields))
-            ImGui.Checkbox($"Apply Shape Color To Icon###UseShapeColorOnIcon{identifier}", ref editingUseShapeColorOnIcon);
-        if (ImWuk.IsItemHoveredWhenDisabled())
-            ImGui.SetTooltip("When enabled, the shape color is applied to the icon rendering.");
-
         ImGui.Spacing();
 
         using (ImRaii.Disabled(!canSave))
@@ -366,17 +431,22 @@ internal class MarkerEditPopup
                 var result = new MarkerEditResult
                 {
                     Name = editingName,
-                    Color = editingColor,
-                    Shape = editingShape,
                     Notes = editingNote,
                     GroupId = editingGroupId,
-                    VisibilityRadius = editingVisibilityRadius,
-                    IconId = editingIconId,
-                    IconSize = editingIconSize,
-                    UseShapeColorOnIcon = editingUseShapeColorOnIcon,
                     Scope = isGrouped ? parentGroup!.Scope : editingScope,
                     IsReadOnly = selectedScope == MarkerScope.Shared && editingReadOnly,
                     AppliesToAllWorlds = editingAppliesToAllWorlds,
+                    Icon = new MarkerIcon
+                    {
+                        SourceType = editingIconSourceType,
+                        Shape = editingShape,
+                        GameIconId = editingIconId,
+                        CustomIconName = editingCustomIconName,
+                        Color = editingColor,
+                        Size = editingIconSize,
+                        UseShapeColor = editingUseShapeColorOnIcon,
+                        VisibilityRadius = editingVisibilityRadius
+                    }
                 };
                 OnSave?.Invoke(marker, result);
                 ImGui.CloseCurrentPopup();
@@ -394,17 +464,12 @@ internal class MarkerEditPopup
 /// <summary>
 /// Represents the edited values from a marker edit session.
 /// </summary>
-public class MarkerEditResult
+public sealed class MarkerEditResult
 {
     public string Name { get; init; } = string.Empty;
-    public Vector4 Color { get; init; } = Vector4.One;
-    public MarkerShape Shape { get; init; }
     public string Notes { get; init; } = string.Empty;
     public Guid? GroupId { get; init; }
-    public float VisibilityRadius { get; init; }
-    public uint? IconId { get; init; }
-    public float IconSize { get; init; }
-    public bool UseShapeColorOnIcon { get; init; }
+    public required MarkerIcon Icon { get; init; }
     public MarkerScope Scope { get; init; }
     public bool IsReadOnly { get; init; }
     public bool AppliesToAllWorlds { get; init; }

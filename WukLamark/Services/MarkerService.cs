@@ -11,7 +11,7 @@ namespace WukLamark.Services;
 /// Service class containing business logic for marker operations.
 /// Handles marker creation, deletion, undo, and persistence.
 /// </summary>
-public class MarkerService(Configuration configuration, MarkerStorageService storageService)
+public sealed class MarkerService(Configuration configuration, MarkerStorageService storageService)
 {
     private readonly Configuration configuration = configuration;
     private readonly MarkerStorageService storageService = storageService;
@@ -99,8 +99,12 @@ public class MarkerService(Configuration configuration, MarkerStorageService sto
             WorldId = currentWorldId,
             WardId = wardId,
             Name = $"Marker {totalCount + 1}",
-            Color = Colors.GetNextColor(totalCount),
-            Shape = configuration.DefaultWaymarkShape,
+            Icon = new MarkerIcon
+            {
+                Color = Colors.GetNextColor(totalCount),
+                Shape = configuration.DefaultWaymarkShape,
+                SourceType = MarkerIconType.Shape,
+            },
             CreatedAt = DateTime.Now,
             GroupId = group?.Id,
             Scope = scope,

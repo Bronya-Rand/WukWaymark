@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -12,11 +14,31 @@ namespace WukLamark.Services;
 /// Legacy payload wrapper used for import/export operations.
 /// Contains both markers and optional group metadata.
 /// </summary>
-public class LegacyMarkerExportPayload
+internal sealed class LegacyMarkerExportPayload
 {
     public string Version { get; set; } = "1";
     public List<Marker> Waymarks { get; set; } = [];
     public List<MarkerGroup> Groups { get; set; } = [];
+}
+internal sealed class LegacyShareEntryV1
+{
+    public Guid? SourceId { get; set; }
+    public string Name { get; set; } = "Unnamed Location";
+    public Vector3 Position { get; set; }
+    public ushort TerritoryId { get; set; }
+    public sbyte WardId { get; set; }
+    public uint MapId { get; set; }
+    public uint WorldId { get; set; }
+    public bool AppliesToAllWorlds { get; set; }
+    public uint? IconId { get; set; }
+    public MarkerShape Shape { get; set; } = MarkerShape.Circle;
+    public Vector4 Color { get; set; } = new(1.0f, 0.8f, 0.0f, 1.0f);
+}
+internal sealed class LegacySharePayloadV1
+{
+    public string Version { get; set; } = "1";
+    public string Type { get; set; } = "Share";
+    public List<LegacyShareEntryV1> Markers { get; set; } = [];
 }
 
 /// <summary>
@@ -48,7 +70,7 @@ public class ImportResult
 /// for export to the clipboard or file system, and import back.
 /// Format: JSON → UTF-8 → Base64 string (clipboard-safe).
 /// </summary>
-public class MarkerExportService
+public sealed class MarkerExportService
 {
     private enum PayloadKind
     {
@@ -83,9 +105,16 @@ public class MarkerExportService
                 WardId = marker.WardId,
                 MapId = marker.MapId,
                 WorldId = marker.WorldId,
-                Color = marker.Color,
-                Shape = marker.Shape,
-                IconId = marker.IconId,
+                Icon = new MarkerIcon
+                {
+                    SourceType = marker.Icon.SourceType == MarkerIconType.Custom
+                    ? (marker.Icon.GameIconId.HasValue ? MarkerIconType.Game : MarkerIconType.Shape)
+                    : marker.Icon.SourceType == MarkerIconType.Game
+                    ? MarkerIconType.Game : MarkerIconType.Shape,
+                    GameIconId = marker.Icon.GameIconId,
+                    Shape = marker.Icon.Shape,
+                    Color = marker.Icon.Color,
+                },
                 AppliesToAllWorlds = marker.AppliesToAllWorlds
             });
         }
@@ -94,7 +123,19 @@ public class MarkerExportService
             Markers = markersMinimal,
         };
         var json = JsonSerializer.Serialize(payload, JsonOptions);
-        var b64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
+
+        byte[] compressedData;
+        using (var compressedStream = new MemoryStream())
+        {
+            using (var gzipStream = new GZipStream(compressedStream, CompressionLevel.Optimal))
+            {
+                var jsonBytes = Encoding.UTF8.GetBytes(json);
+                gzipStream.Write(jsonBytes, 0, jsonBytes.Length);
+            }
+            compressedData = compressedStream.ToArray();
+        }
+
+        var b64 = Convert.ToBase64String(compressedData);
         ImGuiClipboard.Set(b64);
     }
 
@@ -104,6 +145,19 @@ public class MarkerExportService
         try
         {
             var bytes = Convert.FromBase64String(input);
+
+            // Check if the data is GZip compressed or not (V1/V2+)
+            if (bytes.Length >= 2 && bytes[0] == 0x1F && bytes[1] == 0x8B)
+            {
+                using (var compressedStream = new MemoryStream(bytes))
+                using (var gzipStream = new GZipStream(compressedStream, CompressionMode.Decompress))
+                using (var decompressedStream = new MemoryStream())
+                {
+                    gzipStream.CopyTo(decompressedStream);
+                    bytes = decompressedStream.ToArray();
+                }
+            }
+
             json = Encoding.UTF8.GetString(bytes);
             return true;
         }
@@ -123,12 +177,10 @@ public class MarkerExportService
 
         var hasMarkers = root.TryGetProperty("Markers", out _);
         var hasWaymarks = root.TryGetProperty("Waymarks", out _);
-        var hasType = root.TryGetProperty("Type", out _);
 
-        if (hasMarkers && hasType && !hasWaymarks)
-            return PayloadKind.Share;
-        if (hasWaymarks && !hasType && !hasMarkers)
-            return PayloadKind.Legacy;
+        if (hasMarkers) return PayloadKind.Share;
+        if (hasWaymarks) return PayloadKind.Legacy;
+
         return PayloadKind.Unknown;
     }
     private static Marker? FindDuplicate(MarkerShareEntry imported, List<Marker> existingMarkers)
@@ -147,8 +199,8 @@ public class MarkerExportService
         m.MapId == imported.MapId &&
         m.AppliesToAllWorlds == imported.AppliesToAllWorlds &&
         (imported.AppliesToAllWorlds || m.WorldId == imported.WorldId) && // If applies to all worlds, ignore world ID in matching
-        m.IconId == imported.IconId &&
-        m.Shape == imported.Shape &&
+        m.Icon.GameIconId == imported.Icon.GameIconId &&
+        m.Icon.Shape == imported.Icon.Shape &&
         Vector3.DistanceSquared(m.Position, imported.Position) < 0.01f); // Allow small position differences  
     }
 
@@ -176,6 +228,68 @@ public class MarkerExportService
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
+    private static MarkerExportPayload? DeserializeSharePayload(string json)
+    {
+        MarkerExportPayload? payload = null;
+        try
+        {
+            // If current schema, return as-is
+            payload = JsonSerializer.Deserialize<MarkerExportPayload>(json, JsonOptions);
+            if (payload != null && payload.Markers.Count > 0 && payload.Markers.All(m => m.Icon != null))
+                return payload;
+        }
+        catch (JsonException)
+        {
+            // Ignore and try legacy schemas
+        }
+
+        // Try legacy schemas
+        payload = DeserializeSharePayloadCompat(json);
+        if (payload != null)
+            return payload;
+
+        return null;
+    }
+
+    private static MarkerExportPayload? DeserializeSharePayloadCompat(string json)
+    {
+        // V1 schema: Flat Icon Fields
+        try
+        {
+            var legacyV1Payload = JsonSerializer.Deserialize<LegacySharePayloadV1>(json, JsonOptions);
+            if (legacyV1Payload != null)
+            {
+                return new MarkerExportPayload
+                {
+                    Version = legacyV1Payload.Version,
+                    Type = "Share",
+                    Markers = legacyV1Payload.Markers.Select(m => new MarkerShareEntry
+                    {
+                        SourceId = m.SourceId,
+                        Name = m.Name,
+                        Position = m.Position,
+                        TerritoryId = m.TerritoryId,
+                        WardId = m.WardId,
+                        MapId = m.MapId,
+                        WorldId = m.WorldId,
+                        AppliesToAllWorlds = m.AppliesToAllWorlds,
+                        Icon = new MarkerIcon
+                        {
+                            SourceType = m.IconId != null ? MarkerIconType.Game : MarkerIconType.Shape,
+                            GameIconId = m.IconId,
+                            Shape = m.Shape,
+                            Color = m.Color
+                        }
+                    }).ToList()
+                };
+            }
+        }
+        catch (JsonException)
+        {
+            // Ignore and try next schema
+        }
+        return null;
+    }
     private static ImportResult Deserialize(
         string input,
         List<Marker> existingMarkers,
@@ -197,7 +311,7 @@ public class MarkerExportService
         switch (kind)
         {
             case PayloadKind.Share:
-                var payload = JsonSerializer.Deserialize<MarkerExportPayload>(json, JsonOptions);
+                var payload = DeserializeSharePayload(json);
                 if (payload == null)
                     return new ImportResult { Success = false, ErrorMessage = "Invalid or empty JSON data." };
 
@@ -245,9 +359,15 @@ public class MarkerExportService
                         WardId = w.WardId,
                         MapId = w.MapId,
                         WorldId = w.WorldId,
-                        Color = w.Color,
-                        Shape = w.Shape,
-                        IconId = w.IconId,
+#pragma warning disable CS0618 // Type or member is obsolete
+                        Icon = new MarkerIcon
+                        {
+                            GameIconId = w.IconId,
+                            Shape = w.Shape,
+                            Color = w.Color,
+                            SourceType = w.IconId != null ? MarkerIconType.Game : MarkerIconType.Shape
+                        },
+#pragma warning restore CS0618 // Type or member is obsolete
                         AppliesToAllWorlds = w.AppliesToAllWorlds
                     }).ToList(),
                 };

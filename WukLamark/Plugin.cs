@@ -4,8 +4,8 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using System;
+using WukLamark.Helpers;
 using WukLamark.Services;
-using WukLamark.Utils;
 using WukLamark.Windows;
 
 namespace WukLamark;
@@ -65,6 +65,7 @@ public sealed class Plugin : IDalamudPlugin
 
     /// <summary>Background service for loading and caching game icons</summary>
     public IconBrowserService IconBrowserService { get; init; }
+    public static CustomIconService CustomIconService { get; private set; } = null!;
 
     public GameStateReaderService GameStateReaderService { get; init; } = new();
 
@@ -95,6 +96,7 @@ public sealed class Plugin : IDalamudPlugin
         var pluginConfigDir = PluginInterface.GetPluginConfigDirectory();
         MarkerStorageService = new MarkerStorageService(pluginConfigDir);
         MarkerService = new MarkerService(Configuration, MarkerStorageService);
+        CustomIconService = new CustomIconService(pluginConfigDir);
         IconBrowserService = new IconBrowserService(DataManager);
         GameStateReaderService = new GameStateReaderService();
 
@@ -172,6 +174,8 @@ public sealed class Plugin : IDalamudPlugin
         MarkerMinimapService.Dispose();
         GameStateReaderService.Dispose();
         IconBrowserService.Dispose();
+        CustomIconService.Dispose();
+        CustomIconService = null!;
 
         // Unregister the slash command
         CommandManager.RemoveHandler(MarkerCommandName);

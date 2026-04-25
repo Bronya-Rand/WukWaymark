@@ -5,7 +5,7 @@ using WukLamark.Windows.Components;
 
 namespace WukLamark.Windows.Sections;
 
-internal class TableViewSection(MarkerTableComponent tableComponent)
+internal sealed class TableViewSection(MarkerTableComponent tableComponent)
 {
     private readonly MarkerTableComponent tableComponent = tableComponent;
 

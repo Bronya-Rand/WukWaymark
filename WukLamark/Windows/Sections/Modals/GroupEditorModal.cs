@@ -9,7 +9,7 @@ using WukLamark.Utils;
 
 namespace WukLamark.Windows.Sections.Modals;
 
-public class GroupEditorModal
+public sealed class GroupEditorModal
 {
     #region Fields
 

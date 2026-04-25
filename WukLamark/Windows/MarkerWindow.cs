@@ -12,7 +12,7 @@ namespace WukLamark.Windows
     /// This is a thin rendering layer — all coordinate calculations are done
     /// in <see cref="MarkerMapService"/> during Framework.Update.
     /// </summary>
-    public class MarkerWindow : IDisposable
+    public sealed class MarkerWindow : IDisposable
     {
         private readonly MarkerMapService service;
         private readonly Plugin plugin;
@@ -43,9 +43,9 @@ namespace WukLamark.Windows
             string? hoveredMarkerName = null;
 
             // Iterate through pre-calculated markers from the Service
-            foreach (var (position, shape, size, colorU32, name, notes, iconId, useShapeColorOnIcon) in service.MarkersToRender)
+            foreach (var (position, shape, size, colorU32, name, notes, iconId, customIconName, useShapeColorOnIcon) in service.MarkersToRender)
             {
-                MarkerRenderer.RenderMarker(drawList, position, shape, size, colorU32, iconId, useShapeColorOnIcon);
+                MarkerRenderer.RenderMarker(drawList, position, shape, size, colorU32, iconId, customIconName, useShapeColorOnIcon);
 
                 // Display tooltip if enabled and mouse is hovering within marker bounds
                 if (!plugin.Configuration.ShowWaymarkTooltips) continue;
