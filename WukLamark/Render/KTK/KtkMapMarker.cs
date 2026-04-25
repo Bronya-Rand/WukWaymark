@@ -18,6 +18,7 @@ namespace WukLamark.Render.KTK
         internal Vector2 iconSize = new(12.0f, 12.0f);
         internal bool useTint;
         internal Vector3 tintColor = Vector3.One;
+
         public void Apply(uint mapId, Vector2 worldPosition, string tooltip, uint? gameIconId, Vector2 iconSize, bool useTint, Vector3 tintColor)
         {
             this.mapId = mapId;

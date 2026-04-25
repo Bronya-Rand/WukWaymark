@@ -25,12 +25,5 @@ namespace WukLamark.Utils
 
             return new Vector4(r, g, b, 1.0f);
         }
-        public static Vector3 ConvertU32ToVector3(uint colorU32)
-        {
-            var r = (colorU32 & 0xFF) / 255f;
-            var g = ((colorU32 >> 8) & 0xFF) / 255f;
-            var b = ((colorU32 >> 16) & 0xFF) / 255f;
-            return new Vector3(r, g, b);
-        }
     }
 }
