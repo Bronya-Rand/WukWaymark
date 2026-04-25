@@ -16,41 +16,14 @@ using WukLamark.Windows;
 
 namespace WukLamark.Services
 {
-    public sealed record MarkerMapRenderData(
-        Vector2 ScreenPosition,
-        MarkerShape Shape,
-        float Size,
-        uint ColorU32,
-        string Name,
-        string? Notes,
-        uint? GameIconId,
-        string? CustomIconName,
-        bool UseShapeColor);
-
-    /// <summary>
-    /// Represents the data required to render a single map marker on the Area Map.
-    /// </summary>
-    /// <param name="ScreenPos">The screen position of the marker.</param>
-    /// <param name="WorldPos">The world position of the marker.</param>
-    /// <param name="Shape">The shape of the marker.</param>
-    /// <param name="MarkerSize">The size of the marker.</param>
-    /// <param name="Color">The color of the marker.</param>
-    /// <param name="Name">The name of the marker.</param>
-    /// <param name="Notes">Additional notes for the marker.</param>
-    /// <param name="IconId">The icon ID for the marker.</param>
-    /// <param name="UseShapeColorOnIcon">Whether to use the shape color on the icon.</param>
-    public record MapMarkerData(
+    public sealed record MapMarkerData(
         Guid Id,
-        Vector2 ScreenPos,
-        Vector2 WorldPos,
-        MarkerShape Shape,
+        Vector2 ScreenPosition,
+        Vector2 WorldPosition,
+        MarkerIcon Icon,
         float MarkerSize,
-        uint Color,
         string Name,
-        string? Notes,
-        uint? IconId,
-        bool UseShapeColorOnIcon
-    );
+        string? Notes);
 
     /// <summary>
     /// Service responsible for calculating marker positions on the full Area Map (AreaMap addon).
@@ -66,7 +39,7 @@ namespace WukLamark.Services
         private const float DefaultMapMarkerPx = 48.0f;
         private Vector2 defaultMapMarkerSize = new(DefaultMapMarkerPx, DefaultMapMarkerPx);
 
-        public readonly List<MarkerMapRenderData> MarkersToRender = [];
+        public readonly List<MapMarkerData> MarkersToRender = [];
 
         // Cached state from Framework.Update for debug / window access
         public Vector2? MapCenterScreenPos { get; private set; }
@@ -372,17 +345,14 @@ namespace WukLamark.Services
                     colorU32 = (colorU32 & 0x00FFFFFF) | (a << 24);
                 }
 
-                MarkersToRender.Add(new MarkerMapRenderData(
+                MarkersToRender.Add(new MapMarkerData(
+                    marker.Id,
                     new Vector2(markerScreenX, markerScreenY),
                     markerWorldPos,
-                    marker.Shape,
+                    marker.Icon,
                     markerSize,
-                    colorU32,
                     marker.Name,
-                    marker.Notes.IsNullOrEmpty() ? null : marker.Notes,
-                    marker.Icon.GameIconId,
-                    marker.Icon.CustomIconName,
-                    marker.Icon.UseShapeColor
+                    marker.Notes.IsNullOrEmpty() ? null : marker.Notes
                 ));
             }
         }

@@ -2,10 +2,11 @@ using Dalamud.Interface.Utility;
 using Dalamud.Utility;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Numerics;
 using WukLamark.Helpers;
+using WukLamark.Models;
 using WukLamark.Services;
-using WukLamark.Utils;
 
 namespace WukLamark.Render.KTK
 {
@@ -61,8 +62,18 @@ namespace WukLamark.Render.KTK
             var tooltipText = formattedNotes.Length > 0 ? $"{safeName}\n{formattedNotes}" : safeName;
 
             var markerId = markerInfo.Id;
-            var iconId = markerInfo.IconId ?? DefaultIconId;
             var markerSize = markerInfo.MarkerSize * 1.5f * uiScale * ImGuiHelpers.GlobalScale;
+
+            var iconId = markerInfo.Icon.GameIconId;
+            var useShapeColor = markerInfo.Icon.UseShapeColor;
+            if (iconId == null && markerInfo.Icon.SourceType == MarkerIconType.Shape)
+            {
+                iconId = DefaultIconId;
+                useShapeColor = true;
+            }
+
+            Plugin.CustomIconService.TryGetCustomIcon(markerInfo.Icon.CustomIconName, out var customIconTexture);
+            var texturePath = !markerInfo.Icon.CustomIconName.IsNullOrEmpty() ? Path.Combine(Plugin.PluginInterface.GetPluginConfigDirectory(), "CustomIcons", markerInfo.Icon.CustomIconName) : null;
 
             // Create a new marker if it doesn't exist, or retrieve the existing one.
             if (!activeMarkers.TryGetValue(markerId, out var mapMarker))
@@ -72,14 +83,18 @@ namespace WukLamark.Render.KTK
                 plugin.MapOverlayController!.AddMarker(mapMarker);
             }
 
+            var vector3Color = new Vector3(markerInfo.Icon.Color.X, markerInfo.Icon.Color.Y, markerInfo.Icon.Color.Z);
+
             mapMarker.Apply(
                 selectedMapId,
-                markerInfo.WorldPos,
+                markerInfo.WorldPosition,
                 tooltipText,
                 iconId,
+                customIconTexture,
+                texturePath,
                 new Vector2(markerSize, markerSize),
-                markerInfo.UseShapeColorOnIcon,
-                Colors.ConvertU32ToVector3(markerInfo.Color)
+                useShapeColor,
+                vector3Color
                 );
 
             markersSeen.Add(markerId);

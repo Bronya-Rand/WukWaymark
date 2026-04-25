@@ -30,10 +30,10 @@ namespace WukLamark.Render.IGui
             var formattedNotes = MapHelper.FormatMapTooltipNotes(markerInfo.Notes);
             var tooltipText = formattedNotes.Length > 0 ? $"{safeName}\n{formattedNotes}" : safeName;
 
-            MarkerRenderer.RenderMarker(drawList, markerInfo.ScreenPos, markerInfo.Shape, markerInfo.MarkerSize, markerInfo.Color, markerInfo.IconId, markerInfo.UseShapeColorOnIcon);
+            MarkerRenderer.RenderMarker(drawList, markerInfo.ScreenPosition, markerInfo.Icon, markerInfo.MarkerSize, markerInfo.Icon.Color);
 
             if (!plugin.Configuration.ShowWaymarkTooltips) return;
-            if (Vector2.Distance(mousePos, markerInfo.ScreenPos) > markerInfo.MarkerSize + 2.0f) return;
+            if (Vector2.Distance(mousePos, markerInfo.ScreenPosition) > markerInfo.MarkerSize + 2.0f) return;
 
             ImGui.SetTooltip(tooltipText);
         }
