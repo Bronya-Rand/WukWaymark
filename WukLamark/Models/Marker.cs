@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using System.Text.Json.Serialization;
 
 namespace WukLamark.Models;
 
@@ -51,11 +52,6 @@ public class Marker
     public bool AppliesToAllWorlds { get; set; } = false;
 
     /// <summary>
-    /// Custom color for this marker (RGBA).
-    /// </summary>
-    public Vector4 Color { get; set; } = new Vector4(1.0f, 0.8f, 0.0f, 1.0f); // Gold/yellow default
-
-    /// <summary>
     /// Timestamp when this marker was created.
     /// </summary>
     public DateTime CreatedAt { get; set; } = DateTime.Now;
@@ -66,39 +62,24 @@ public class Marker
     public string Notes { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the geometric shape used to represent the marker.
-    /// </summary>
-    /// <remarks>The selected shape determines how the marker is visually displayed in the user interface or
-    /// on a map. When <see cref="IconId"/> is set, the icon takes precedence over the shape.</remarks>
-    public MarkerShape Shape { get; set; } = MarkerShape.Circle;
-
-    /// <summary>
     /// Group this marker belongs to. Null means ungrouped.
     /// </summary>
     public Guid? GroupId { get; set; }
 
     /// <summary>
-    /// Game icon ID for rendering this marker. Loaded via ITextureProvider.
-    /// When null, the <see cref="Shape"/> and <see cref="Color"/> are used for rendering instead.
+    /// Stores the icon information for this marker, including source type, shape, 
+    /// game/custom icon, size, color, and visibility radius.
     /// </summary>
     /// <remarks>
-    /// Game icons render with their original RGB colors from the game's .tex files; RGB tinting is not applied.
-    /// However, their alpha may be modified by the renderer.
+    /// Priority of icon rendering: Custom Icon -> Game Icon -> Shape.
     /// </remarks>
-    public uint? IconId { get; set; }
-
-    /// <summary>
-    /// The size the icon should be rendered at.
-    /// </summary>
-    /// <remarks>
-    /// If null or 0, the default size from the plugin configuration is used.
-    /// </remarks>
-    public float? IconSize { get; set; } = 0.0f;
-
-    /// <summary>
-    /// Whether to use the shape color when rendering the game icon on the map and minimap. 
-    /// </summary>
-    public bool UseShapeColorOnIcon { get; set; } = false;
+    public MarkerIcon Icon { get; set; } = new MarkerIcon
+    {
+        SourceType = MarkerIconType.Shape,
+        Shape = MarkerShape.Circle,
+        Size = 0.0f,
+        UseShapeColor = false
+    };
 
     /// <summary>
     /// Persistence scope — Personal (character-specific) or Shared (all characters on this install).
@@ -114,14 +95,70 @@ public class Marker
     public string? CharacterHash { get; set; }
 
     /// <summary>
-    /// Maximum distance (in yalms) at which this marker is visible on the map/minimap.
-    /// A value of 0 means the marker is always visible regardless of distance.
-    /// </summary>
-    public float VisibilityRadius { get; set; } = 0f;
-
-    /// <summary>
     /// Determines if this shared marker can only be modified by its creator.
     /// When true, only the character whose hash matches CharacterHash can edit/delete this marker.
     /// </summary>
     public bool IsReadOnly { get; set; } = false;
+
+    #region Obsolete Properties
+
+    /// <summary>
+    /// Maximum distance (in yalms) at which this marker is visible on the map/minimap.
+    /// A value of 0 means the marker is always visible regardless of distance.
+    /// </summary>
+    [Obsolete("Use the Icon property instead.")]
+    [JsonIgnore]
+    [JsonInclude]
+    public float VisibilityRadius { get; set; } = 0f;
+
+    /// <summary>
+    /// Gets or sets the geometric shape used to represent the marker.
+    /// </summary>
+    /// <remarks>The selected shape determines how the marker is visually displayed in the user interface or
+    /// on a map. When <see cref="IconId"/> is set, the icon takes precedence over the shape.</remarks>
+    [Obsolete("Use the Icon property instead.")]
+    [JsonIgnore]
+    [JsonInclude]
+    public MarkerShape Shape { get; set; } = MarkerShape.Circle;
+
+    /// <summary>
+    /// Custom color for this marker (RGBA).
+    /// </summary>
+    [Obsolete("Use the Icon property instead.")]
+    [JsonIgnore]
+    [JsonInclude]
+    public Vector4 Color { get; set; } = new Vector4(1.0f, 0.8f, 0.0f, 1.0f); // Gold/yellow default
+
+    /// <summary>
+    /// Game icon ID for rendering this marker. Loaded via ITextureProvider.
+    /// When null, the <see cref="Shape"/> and <see cref="Color"/> are used for rendering instead.
+    /// </summary>
+    /// <remarks>
+    /// Game icons render with their original RGB colors from the game's .tex files; RGB tinting is not applied.
+    /// However, their alpha may be modified by the renderer.
+    /// </remarks>
+    [Obsolete("Use the Icon property instead.")]
+    [JsonIgnore]
+    [JsonInclude]
+    public uint? IconId { get; set; }
+
+    /// <summary>
+    /// The size the icon should be rendered at.
+    /// </summary>
+    /// <remarks>
+    /// If null or 0, the default size from the plugin configuration is used.
+    /// </remarks>
+    [Obsolete("Use the Icon property instead.")]
+    [JsonIgnore]
+    [JsonInclude]
+    public float? IconSize { get; set; } = 0.0f;
+
+    /// <summary>
+    /// Whether to use the shape color when rendering the game icon on the map and minimap. 
+    /// </summary>
+    [Obsolete("Use the Icon property instead.")]
+    [JsonIgnore]
+    [JsonInclude]
+    public bool UseShapeColorOnIcon { get; set; } = false;
+    #endregion
 }

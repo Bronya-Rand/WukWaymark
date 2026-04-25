@@ -15,16 +15,13 @@ namespace WukLamark.Services
         public string Source { get; init; } = string.Empty;
     }
 
-    public class IconBrowserService : IDisposable
+    public sealed class IconBrowserService : IDisposable
     {
         private readonly IDataManager dataManager;
         private readonly CancellationTokenSource cts = new();
 
         public bool IsLoaded { get; private set; }
         public IReadOnlyList<IconInfo> AvailableIcons { get; private set; } = [];
-
-        // Cache for icon sizes
-        private IReadOnlyList<uint> cachedIconIcons = [];
 
         public IconBrowserService(IDataManager dataManager)
         {
@@ -50,11 +47,7 @@ namespace WukLamark.Services
                         if (string.IsNullOrWhiteSpace(name)) continue;
 
                         if (!uniqueIcons.ContainsKey(iconId))
-                        {
                             uniqueIcons[iconId] = new IconInfo { IconId = iconId, Name = name, Source = source };
-                            if (!cachedIconIcons.Contains(iconId) && isIcon)
-                                cachedIconIcons = cachedIconIcons.Append(iconId).ToArray();
-                        }
                     }
                 }
 
@@ -104,7 +97,6 @@ namespace WukLamark.Services
                     var iconId = (uint)row.Icon;
                     if (iconId == 0 || uniqueIcons.ContainsKey(iconId)) continue;
                     uniqueIcons[iconId] = new IconInfo { IconId = iconId, Name = row.PlaceName.Value.Name.ToString() ?? $"Map Symbol {iconId}", Source = "Map" };
-                    cachedIconIcons = cachedIconIcons.Append(iconId).ToArray();
                 }
 
                 if (token.IsCancellationRequested) return;
@@ -121,7 +113,6 @@ namespace WukLamark.Services
                 Plugin.Log.Error(ex, "Failed to load icon database.");
             }
         }
-        public bool IconIsIcon(uint iconId) => cachedIconIcons.Contains(iconId);
         public void Dispose()
         {
             cts.Cancel();

@@ -11,7 +11,7 @@ using WukLamark.Utils;
 
 namespace WukLamark.Windows.Sections;
 
-internal class HeaderSection(Configuration configuration, GameStateReaderService gameStateReaderService, MarkerStorageService markerStorageService)
+internal sealed class HeaderSection(Configuration configuration, GameStateReaderService gameStateReaderService, MarkerStorageService markerStorageService)
 {
     private readonly Configuration configuration = configuration;
     private readonly GameStateReaderService gameStateReaderService = gameStateReaderService;

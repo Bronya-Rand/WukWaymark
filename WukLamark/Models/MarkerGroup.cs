@@ -7,7 +7,7 @@ namespace WukLamark.Models;
 /// Groups are primarily name-based, with an optional game icon for sidebar display.
 /// </summary>
 [Serializable]
-public class MarkerGroup
+public sealed class MarkerGroup
 {
     /// <summary>Unique identifier for this group.</summary>
     public Guid Id { get; set; } = Guid.NewGuid();

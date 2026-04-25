@@ -8,7 +8,7 @@ using WukLamark.Utils;
 
 namespace WukLamark.Windows.Sections;
 
-internal class SearchBarSection(GameStateReaderService gameStateReaderService, MarkerService markerService)
+internal sealed class SearchBarSection(GameStateReaderService gameStateReaderService, MarkerService markerService)
 {
     private readonly GameStateReaderService gameStateReaderService = gameStateReaderService;
     private readonly MarkerService markerService = markerService;

@@ -17,8 +17,10 @@ namespace WukLamark.Services;
 /// - Shared markers/groups are stored in a shared JSON file accessible to all characters
 /// - The CharacterHash is a truncated SHA-256 of the character's content ID — no raw IDs stored
 /// </summary>
-public class MarkerStorageService
+public sealed class MarkerStorageService
 {
+    private readonly MarkerMigrationService migrationService = new();
+
     private readonly string pluginConfigDir;
     private readonly string sharedMarkersPath;
     private string? personalMarkersPath;
@@ -174,9 +176,16 @@ public class MarkerStorageService
 
             if (data != null)
             {
-                // Data model keeps property named 'Waymarks' for historical JSON compatibility
-                SharedMarkers = data.Waymarks;
+                var migrated = migrationService.MigratePlayerMarkerData(data);
+                SharedMarkers = data.Markers;
                 SharedGroups = data.Groups;
+
+                if (migrated)
+                {
+                    Plugin.Log.Info($"Migrated shared markers to schema version {migrationService.CurrentPlayerDataSchemaVersion}. Saving updated data.");
+                    var migratedJson = JsonSerializer.Serialize(data, JsonOptions);
+                    File.WriteAllText(sharedMarkersPath, migratedJson);
+                }
             }
             else
             {
@@ -203,8 +212,8 @@ public class MarkerStorageService
         {
             var data = new PlayerMarkerData
             {
-                // Keep 'Waymarks' property for JSON schema compatibility
-                Waymarks = SharedMarkers,
+                SchemaVersion = migrationService.CurrentPlayerDataSchemaVersion,
+                Markers = SharedMarkers,
                 Groups = SharedGroups
             };
 
@@ -249,9 +258,16 @@ public class MarkerStorageService
 
             if (data != null)
             {
-                // Keep property names consistent with existing JSON schema
-                PersonalMarkers = data.Waymarks;
+                var migrated = migrationService.MigratePlayerMarkerData(data);
+                PersonalMarkers = data.Markers;
                 PersonalGroups = data.Groups;
+
+                if (migrated)
+                {
+                    Plugin.Log.Info($"Migrated personal markers for character hash {CurrentCharacterHash} to schema version {migrationService.CurrentPlayerDataSchemaVersion}. Saving updated data.");
+                    var migratedJson = JsonSerializer.Serialize(data, JsonOptions);
+                    File.WriteAllText(personalMarkersPath!, migratedJson);
+                }
             }
             else
             {
@@ -284,7 +300,8 @@ public class MarkerStorageService
         {
             var data = new PlayerMarkerData
             {
-                Waymarks = PersonalMarkers,
+                SchemaVersion = migrationService.CurrentPlayerDataSchemaVersion,
+                Markers = PersonalMarkers,
                 Groups = PersonalGroups
             };
 

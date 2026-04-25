@@ -3,7 +3,7 @@ using System;
 
 namespace WukLamark.Services
 {
-    public class GameStateReaderService : IDisposable
+    public sealed class GameStateReaderService : IDisposable
     {
         public bool IsInCombat { get; private set; }
         public bool IsInPvP { get; private set; }

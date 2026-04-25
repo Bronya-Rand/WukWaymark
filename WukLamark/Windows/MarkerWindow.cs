@@ -11,7 +11,7 @@ namespace WukLamark.Windows
     /// This is a thin rendering layer — all coordinate calculations are done
     /// in <see cref="MarkerMapService"/> during Framework.Update.
     /// </summary>
-    public class MarkerWindow : IDisposable
+    public sealed class MarkerWindow : IDisposable
     {
         private readonly MarkerMapService service;
         private readonly IMapMarkerRender imGuiRenderer;

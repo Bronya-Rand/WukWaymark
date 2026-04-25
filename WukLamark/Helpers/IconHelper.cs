@@ -6,7 +6,7 @@ namespace WukLamark.Helpers
 {
     public static class IconHelper
     {
-        public static Vector2? GetIconSize(uint iconId)
+        public static Vector2? GetGameIconSize(uint iconId)
         {
             IDalamudTextureWrap? tex;
             try
@@ -20,7 +20,14 @@ namespace WukLamark.Helpers
             if (tex == null) return null;
 
             var texSize = tex.Size;
-            tex.Dispose();
+            return texSize;
+        }
+        public static Vector2? GetCustomIconSize(string customIconName)
+        {
+            if (!Plugin.CustomIconService.TryGetCustomIcon(customIconName, out var tex) || tex == null)
+                return null;
+
+            var texSize = tex.Size;
             return texSize;
         }
     }

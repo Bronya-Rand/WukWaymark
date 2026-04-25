@@ -9,7 +9,7 @@ using WukLamark.Services;
 
 namespace WukLamark.Windows.Sections.Modals;
 
-public class ImportConflictModal
+public sealed class ImportConflictModal
 {
     private bool isOpen = false;
     private MarkerGroup? importGroup = null;

@@ -10,7 +10,7 @@ namespace WukLamark.Helpers
     /// <summary>
     /// Helper class providing convenient methods for interacting with the in-game map system.
     /// </summary>
-    internal class MapHelper
+    internal static class MapHelper
     {
         private static readonly int TOOLTIP_NOTE_MAX_LINES = 2;
         private static readonly int TOOLTIP_NOTE_MAX_LINE_LENGTH = 40;
