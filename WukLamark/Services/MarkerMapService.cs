@@ -1,4 +1,3 @@
-using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility;
@@ -21,6 +20,7 @@ namespace WukLamark.Services
         Vector2 ScreenPosition,
         Vector2 WorldPosition,
         MarkerIcon Icon,
+        Vector4 FadedColor,
         float MarkerSize,
         string Name,
         string? Notes);
@@ -236,7 +236,7 @@ namespace WukLamark.Services
                     var distSquared = Vector3.DistanceSquared(player.Position, marker.Position);
                     var radiusSquared = marker.Icon.VisibilityRadius * marker.Icon.VisibilityRadius;
 
-                    if (distSquared > radiusSquared)
+                    if (distSquared > radiusSquared && agentMap->SelectedMapId == agentMap->CurrentMapId)
                         continue; // Beyond visibility radius — don't render
                 }
 
@@ -284,7 +284,6 @@ namespace WukLamark.Services
                 if (markerScreenX <= MapMinX || markerScreenX >= MapMaxX || markerScreenY <= MapMinY || markerScreenY >= MapMaxY)
                     isClamped = true;
 
-                var colorU32 = ImGui.ColorConvertFloat4ToU32(marker.Icon.Color);
                 var baseMarkerSize = configuration.WaymarkMarkerSize;
                 // Override base size if marker has an explicit size set
                 if (marker.Icon.Size > 0.0)
@@ -321,8 +320,11 @@ namespace WukLamark.Services
                 var targetAlpha = 1.0f;
                 if (!plugin.Configuration.UseKTK)
                 {
-                    if (configuration.FadeWaymarkOnMapEdge && marker.Icon.VisibilityRadius > 0 && agentMap->SelectedMapId == agentMap->CurrentMapId)
+                    if (configuration.FadeWaymarkOnMapEdge && marker.Icon.VisibilityRadius > 0)
                     {
+                        var visibilityRadius = agentMap->SelectedMapId == agentMap->CurrentMapId
+                            ? marker.Icon.VisibilityRadius : 0f;
+
                         var distSquared = Vector3.DistanceSquared(player.Position, marker.Position);
                         var fadeStart = marker.Icon.VisibilityRadius * 0.8f;
                         var fadeStartSquared = fadeStart * fadeStart;
@@ -330,30 +332,24 @@ namespace WukLamark.Services
                         if (distSquared > fadeStartSquared)
                         {
                             var dist = MathF.Sqrt(distSquared); // Only apply when fading
-                            targetAlpha = 1.0f - ((dist - fadeStart) / (marker.Icon.VisibilityRadius - fadeStart));
+                            targetAlpha = 1.0f - ((dist - fadeStart) / (visibilityRadius - fadeStart));
                         }
                     }
 
-                    if (configuration.FadeWaymarkOnMapEdge && isClamped && agentMap->SelectedMapId == agentMap->CurrentMapId)
+                    if (configuration.FadeWaymarkOnMapEdge && isClamped)
                     {
                         targetAlpha = Math.Min(targetAlpha, configuration.MapEdgeFadeAlpha);
                     }
-
-                    if (targetAlpha < 1.0f)
-                    {
-                        targetAlpha = Math.Clamp(targetAlpha, 0f, 1f);
-                        // Modify the U32 color's alpha channel
-                        var originalAlpha = ((colorU32 >> 24) & 0xFF) / 255f;
-                        var a = (uint)(targetAlpha * originalAlpha * 255f);
-                        colorU32 = (colorU32 & 0x00FFFFFF) | (a << 24);
-                    }
                 }
+
+                var vector4FadedColor = new Vector4(marker.Icon.Color.X, marker.Icon.Color.Y, marker.Icon.Color.Z, targetAlpha);
 
                 MarkersToRender.Add(new MapMarkerData(
                     marker.Id,
                     new Vector2(markerScreenX, markerScreenY),
                     markerWorldPos,
                     marker.Icon,
+                    vector4FadedColor,
                     markerSize,
                     marker.Name,
                     marker.Notes.IsNullOrEmpty() ? null : marker.Notes
