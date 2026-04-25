@@ -4,6 +4,7 @@ using Dalamud.Utility;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace WukLamark.Services
 {
@@ -12,15 +13,26 @@ namespace WukLamark.Services
         public string FileName { get; init; } = string.Empty;
         public IDalamudTextureWrap Texture { get; init; } = null!;
     }
+
     public sealed class CustomIconService : IDisposable
     {
         private FileSystemWatcher? fileWatcher;
         private System.Timers.Timer? reloadDebounceTimer;
         private volatile bool reloadRequested = true;
+        private sealed class PendingIconLoad
+        {
+            public string FilePath { get; init; } = string.Empty;
+            public int Retries { get; set; }
+            public DateTime FirstAttemptUtc { get; init; } = DateTime.UtcNow;
+            public DateTime NextAttemptUtc { get; set; } = DateTime.UtcNow;
+        }
+        private readonly Dictionary<string, PendingIconLoad> pendingIconLoads = [];
+        private const int MaxRetries = 20;
+        private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(100);
+        private static readonly TimeSpan MaxPendingAge = TimeSpan.FromSeconds(5);
 
         public IReadOnlyList<CustomIconInfo> AvailableIcons { get; private set; } = [];
         private const string CustomIconDirectoryName = "CustomIcons";
-        private const float MaxIconSize = 64f;
 
         public bool IsLoaded { get; private set; }
         public string CustomIconDirectory { get; }
@@ -36,9 +48,13 @@ namespace WukLamark.Services
         }
         private void OnFrameworkUpdate(IFramework _)
         {
-            if (!reloadRequested) return;
-            reloadRequested = false;
-            LoadCustomIconsOnFrameworkThread();
+            if (reloadRequested)
+            {
+                reloadRequested = false;
+                LoadCustomIconsOnFrameworkThread();
+            }
+
+            ProcessPendingLoads();
         }
         private void CreateCustomIconDirectoryIfNotExists()
         {
@@ -66,12 +82,11 @@ namespace WukLamark.Services
             fileWatcher.Created += scheduleReload;
             fileWatcher.Changed += scheduleReload;
             fileWatcher.Deleted += scheduleReload;
-            fileWatcher.Renamed += (_, _) => { reloadDebounceTimer?.Stop(); reloadDebounceTimer?.Start(); };
+            fileWatcher.Renamed += scheduleReload;
             fileWatcher.EnableRaisingEvents = true;
         }
         private void LoadCustomIconsOnFrameworkThread()
         {
-
             CreateCustomIconDirectoryIfNotExists();
 
             var files = Directory.EnumerateFiles(CustomIconDirectory, "*.png", SearchOption.TopDirectoryOnly);
@@ -95,9 +110,53 @@ namespace WukLamark.Services
                 }
             }
 
+            // Dispose of old textures 
+            foreach (var oldIcon in AvailableIcons)
+                if (!icons.Contains(oldIcon))
+                    oldIcon.Texture.Dispose();
+
             AvailableIcons = icons;
             IsLoaded = true;
             Plugin.Log.Info($"Loaded {AvailableIcons.Count} custom icons from '{CustomIconDirectory}'.");
+        }
+        private void ProcessPendingLoads()
+        {
+            if (pendingIconLoads.Count == 0) return;
+
+            var now = DateTime.UtcNow;
+            var toRemove = new List<string>();
+
+            foreach (var kv in pendingIconLoads)
+            {
+                var pending = kv.Value;
+                if (now < pending.NextAttemptUtc) continue;
+
+                if (pending.Retries >= MaxRetries || (now - pending.FirstAttemptUtc) > MaxPendingAge)
+                {
+                    Plugin.Log.Warning($"Failed to load custom icon '{pending.FilePath}' after {pending.Retries} retries.");
+                    toRemove.Add(kv.Key);
+                    continue;
+                }
+
+                var request = Plugin.TextureProvider.GetFromFile(pending.FilePath);
+                var wrap = request.GetWrapOrDefault();
+                pending.Retries++;
+                pending.NextAttemptUtc = now + RetryDelay;
+
+                if (wrap == null) continue;
+
+                AvailableIcons = [.. AvailableIcons.Where(i => !i.FileName.Equals(Path.GetFileName(pending.FilePath), StringComparison.OrdinalIgnoreCase)), new CustomIconInfo
+                {
+                    FileName = Path.GetFileName(pending.FilePath),
+                    Texture = wrap
+                }];
+
+                toRemove.Add(kv.Key);
+                Plugin.Log.Debug($"Successfully loaded custom icon '{pending.FilePath}' after {pending.Retries} retries.");
+            }
+
+            foreach (var key in toRemove)
+                pendingIconLoads.Remove(key);
         }
         public bool TryGetCustomIcon(string? fileNameOrPath, out IDalamudTextureWrap? texture)
         {
@@ -121,11 +180,22 @@ namespace WukLamark.Services
             var wrapTex = Plugin.TextureProvider.GetFromFile(fullPath);
             var wrap = wrapTex.GetWrapOrDefault();
 
-            // Sometimes on startup, TextureProvider may not be ready
-            var retryCount = 0;
-            while (retryCount < 3 && wrap == null)
-                wrap = wrapTex.GetWrapOrDefault();
-            if (wrap == null) return false;
+            // Sometimes image loading takes a bit to complete if the size is big
+            // Send to a pending load queue if it fails to load initially.
+            if (wrap == null)
+            {
+                if (!pendingIconLoads.ContainsKey(fullPath))
+                {
+                    pendingIconLoads[fullPath] = new PendingIconLoad
+                    {
+                        FilePath = fullPath,
+                        Retries = 1,
+                        FirstAttemptUtc = DateTime.UtcNow,
+                        NextAttemptUtc = DateTime.UtcNow + RetryDelay
+                    };
+                }
+                return false;
+            }
 
             texture = wrap;
             return true;
