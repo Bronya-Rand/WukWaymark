@@ -1,49 +1,61 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Components;
 using Dalamud.Interface.Textures.Internal;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Utility;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using WukLamark.Services;
+using WukLamark.Models;
 
 namespace WukLamark.Windows.Components;
 
-internal class IconPickerModal(Plugin plugin)
+internal sealed record IconPickerResult(
+    MarkerIconType SourceType = MarkerIconType.Shape,
+    uint? GameIconId = null,
+    string? CustomIconName = null);
+internal sealed class IconPickerModal(Plugin plugin)
 {
-    private static readonly (string? Id, string Name)[] IconCategories =
+    private static readonly (string? Id, string Name)[] GameCategories =
     [
-        (null, "All Icons"),
-        ("Map", "Map Symbols"), ("Quest", "Quest Markers"), ("Item", "Items"), ("Action", "Actions"), ("Status", "Status Effects"),
-        ("Macro", "Macros"), ("Emote", "Emotes"), ("Perform", "Performance"), ("General", "General"),
-        ("Main", "Main Commands"), ("Extra", "Extra")
+        ("Map", "Map Symbols"), ("Quest", "Quest Markers"), ("Item", "Items"), ("Action", "Actions"),
+        ("Status", "Status Effects"), ("Macro", "Macros"), ("Emote", "Emotes"), ("Perform", "Performance"),
+        ("General", "General"), ("Main", "Main Commands"), ("Extra", "Extra")
     ];
+
+    private sealed record PickerEntry(
+        MarkerIconType SourceType,
+        string DisplayName,
+        string SearchText,
+        uint? GameIconId,
+        string? CustomIconName,
+        IDalamudTextureWrap? Texture);
 
     private readonly Plugin plugin = plugin;
     private string searchFilter = string.Empty;
     private bool isOpen;
+    private MarkerIconType preferredTab = MarkerIconType.Game;
 
     // Caches
-    private bool cacheInitialized = false;
-    private string cachedSearchStr = string.Empty;
-    private string? cachedCategory = null;
-    private List<IconInfo> cachedIcons = [];
-    private bool cachedTruncatedIcons;
+    private string cacheKey = string.Empty;
+    private List<PickerEntry> cachedEntries = [];
+    private bool cachedTruncated;
+    public Action<IconPickerResult?>? OnIconSelected { get; set; }
 
-    public Action<uint?>? OnIconSelected { get; set; }
-
-    public void Open()
+    public void OpenPopup(string markerName, string identifier, MarkerIconType preferred)
     {
         isOpen = true;
         searchFilter = string.Empty;
-        cacheInitialized = false;
-        cachedIcons = [];
-        cachedTruncatedIcons = false;
+        preferredTab = preferred;
+        cacheKey = string.Empty;
+        cachedEntries.Clear();
+        cachedTruncated = false;
+        ImGui.OpenPopup($"Marker Icon Picker ({markerName})###{identifier}");
     }
-
-    public void Draw(string markerName, string identifier)
+    public void Draw(string markerName, string identifier, MarkerIconType markerIconType)
     {
         if (!isOpen) return;
 
@@ -54,136 +66,166 @@ internal class IconPickerModal(Plugin plugin)
         using var iconPickerModal = ImRaii.PopupModal($"Marker Icon Picker ({markerName})###{identifier}", ref isOpen, ImGuiWindowFlags.NoSavedSettings);
         if (!iconPickerModal) return;
 
-        if (!plugin.IconBrowserService.IsLoaded)
-        {
-            ImGui.TextDisabled("Loading game icons...");
-            return;
-        }
-
         // Search box
         ImGui.SetNextItemWidth(-1);
         ImGui.InputTextWithHint("##IconSearch", "Search by name or ID...", ref searchFilter, 50);
+        ImGui.SameLine();
+        if (ImGuiComponents.IconButton(Dalamud.Interface.FontAwesomeIcon.Circle))
+            Plugin.CustomIconService.ReloadCustomIcons();
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Reload custom icons from disk.");
+
+        if (!plugin.IconBrowserService.IsLoaded || !Plugin.CustomIconService.IsLoaded)
+        {
+            ImGui.TextDisabled("Loading icons...");
+            return;
+        }
 
         if (ImGui.Button("None (Use Shape)"))
         {
             OnIconSelected?.Invoke(null);
-            isOpen = false;
-            ImGui.CloseCurrentPopup();
+            Close();
+            return;
         }
 
-        ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
-        using var iconCategoryTabBar = ImRaii.TabBar("IconCategoryTabs");
-        if (iconCategoryTabBar)
+        using var iconCategoryTabBar = ImRaii.TabBar("IconCategoryTabs", ImGuiTabBarFlags.FittingPolicyScroll);
+        if (!iconCategoryTabBar) return;
+
+        DrawAllTab();
+        DrawCustomTab();
+        DrawGameTabs();
+    }
+    private void DrawAllTab()
+    {
+        using var allTab = ImRaii.TabItem("All Icons");
+        if (!allTab) return;
+
+        var entries = BuildGameEntries(null).Concat(BuildCustomEntries()).ToList();
+        DrawIconGrid(entries, "all");
+    }
+    private void DrawGameTabs()
+    {
+        foreach (var category in GameCategories)
         {
-            foreach (var category in IconCategories)
-            {
-                using var tabItem = ImRaii.TabItem(category.Name);
-                if (tabItem)
-                {
-                    DrawIconGrid(plugin.IconBrowserService.AvailableIcons, category.Id, searchFilter);
-                }
-            }
+            using var gameTab = ImRaii.TabItem(category.Name);
+            if (!gameTab) continue;
+
+            DrawIconGrid(BuildGameEntries(category.Id), $"game:{category.Id ?? "all"}");
         }
     }
-
-    public void OpenPopup(string markerName, string identifier)
+    private void DrawCustomTab()
     {
-        Open();
-        ImGui.OpenPopup($"Marker Icon Picker ({markerName})###{identifier}");
+        using var tab = ImRaii.TabItem("Custom Icons");
+        if (!tab) return;
+
+        DrawIconGrid(BuildCustomEntries(), "custom");
     }
-
-    private void DrawIconGrid(IEnumerable<IconInfo> allIcons, string? category, string searchStr)
+    private List<PickerEntry> BuildCustomEntries()
     {
-        var searchLower = searchStr.ToLowerInvariant();
+        if (!Plugin.CustomIconService.IsLoaded) return [];
 
-        if (!cacheInitialized || searchLower != cachedSearchStr || category != cachedCategory)
+        return Plugin.CustomIconService.AvailableIcons
+            .Select(icon => new PickerEntry(
+                MarkerIconType.Custom,
+                icon.FileName,
+                icon.FileName.ToLowerInvariant(),
+                null,
+                icon.FileName,
+                null)) // Texture resolved lazily at render time
+            .ToList();
+    }
+    private List<PickerEntry> BuildGameEntries(string? category)
+    {
+        if (!plugin.IconBrowserService.IsLoaded) return [];
+
+        var query = plugin.IconBrowserService.AvailableIcons.AsEnumerable();
+        if (!string.IsNullOrEmpty(category))
+            query = query.Where(i => i.Source == category);
+
+        return query.Select(i => new PickerEntry(
+            MarkerIconType.Game,
+            i.Name,
+            $"{i.Name} {i.IconId}",
+            i.IconId,
+            null,
+            null)).ToList();
+    }
+    private void DrawIconGrid(List<PickerEntry> pickerEntries, string tabKey)
+    {
+        var searchLower = searchFilter.Trim().ToLowerInvariant();
+        var newKey = $"{tabKey}:{searchLower}";
+
+        if (newKey != cacheKey)
         {
-            // Invalidate caches
-            if (searchLower != cachedSearchStr)
-                cachedSearchStr = searchLower;
-            if (category != cachedCategory)
-                cachedCategory = category;
+            cacheKey = newKey;
+            var q = pickerEntries.Where(e =>
+                    searchLower.IsNullOrEmpty() ||
+                    e.SearchText.Contains(searchLower, StringComparison.OrdinalIgnoreCase));
 
-            var icons = allIcons;
-
-            if (category != null)
-                icons = icons
-                .Where(i => i.Source == category);
-
-            var query = icons
-                .Where(i => string.IsNullOrEmpty(searchLower) ||
-                            i.Name.Contains(searchLower, StringComparison.InvariantCultureIgnoreCase) ||
-                            i.IconId.ToString().Contains(searchLower));
-
-            var snapshot = query.Take(201).ToList();
-            cachedTruncatedIcons = snapshot.Count > 200;
-            cachedIcons = snapshot.Take(200).ToList();
-
-            if (!cacheInitialized)
-                cacheInitialized = true;
+            var snapshot = q.Take(201).ToList();
+            cachedTruncated = snapshot.Count > 200;
+            cachedEntries = snapshot.Take(200).ToList();
         }
 
-        if (cachedIcons.Count == 0)
+        if (cachedEntries.Count == 0)
         {
             ImGui.TextDisabled("No matching icons found.");
             return;
         }
 
-        if (cachedTruncatedIcons)
+        if (cachedTruncated)
         {
             ImGui.TextColored(new Vector4(1f, 0.8f, 0.2f, 1f), $"Truncated results to 200 icons. Please refine your search.");
             ImGui.Spacing();
         }
 
-        using var childVisible = ImRaii.Child($"IconGrid_{category}", new Vector2(0, -1), true);
+        using var childVisible = ImRaii.Child($"IconGrid_{tabKey}", new Vector2(0, -1), true);
         if (!childVisible) return;
 
-        var contentRegion = ImGui.GetContentRegionAvail().X;
-        var iconSize = 40f * ImGuiHelpers.GlobalScale;
-        var padding = ImGui.GetStyle().ItemSpacing.X;
-        var columns = Math.Max(1, (int)(contentRegion / (iconSize + padding)));
+        var size = 40f * ImGuiHelpers.GlobalScale;
+        var cols = Math.Max(1, (int)(ImGui.GetContentRegionAvail().X / (size + ImGui.GetStyle().ItemSpacing.X)));
 
-        using var iconTable = ImRaii.Table($"IconTable_{category}", columns);
-        if (!iconTable) return;
+        using var table = ImRaii.Table($"table_{tabKey}", cols);
+        if (!table) return;
 
-        foreach (var icon in cachedIcons)
+        foreach (var e in cachedEntries)
         {
             ImGui.TableNextColumn();
 
-            IDalamudTextureWrap? tex;
-            try
+            var tex = e.SourceType == MarkerIconType.Custom
+                ? (Plugin.CustomIconService.TryGetCustomIcon(e.CustomIconName, out var customTex) ? customTex : null)
+                : GetGameTexture(e.GameIconId);
+            if (tex == null || tex.Handle == nint.Zero) continue;
+
+            using var id = ImRaii.PushId($"{e.SourceType}_{e.GameIconId}_{e.CustomIconName}");
+            if (ImGui.ImageButton(tex.Handle, new Vector2(size, size)))
             {
-                tex = Plugin.TextureProvider.GetFromGameIcon(icon.IconId).GetWrapOrEmpty();
-            }
-            catch (IconNotFoundException)
-            {
-                continue;
+                OnIconSelected?.Invoke(new IconPickerResult(e.SourceType, e.GameIconId, e.CustomIconName));
+                Close();
+                return;
             }
 
-            if (tex != null && tex.Handle != nint.Zero)
+            if (ImGui.IsItemHovered())
             {
-                using (ImRaii.PushId($"IconBtn_{icon.IconId}"))
-                {
-                    if (ImGui.ImageButton(tex.Handle, new Vector2(iconSize, iconSize)))
-                    {
-                        OnIconSelected?.Invoke(icon.IconId);
-                        isOpen = false;
-                        ImGui.CloseCurrentPopup();
-                    }
-                    if (ImGui.IsItemHovered())
-                    {
-                        using var tooltip = ImRaii.Tooltip();
-                        if (tooltip)
-                        {
-                            ImGui.TextUnformatted(icon.Name);
-                            ImGui.TextDisabled($"ID: {icon.IconId}");
-                        }
-                    }
-                }
+                using var tt = ImRaii.Tooltip();
+                ImGui.TextUnformatted(e.DisplayName);
+                if (e.GameIconId is uint idVal) ImGui.TextDisabled($"ID: {idVal}");
             }
         }
+    }
+    private static IDalamudTextureWrap? GetGameTexture(uint? id)
+    {
+        if (id is null or 0) return null;
+        try { return Plugin.TextureProvider.GetFromGameIcon(id.Value).GetWrapOrEmpty(); }
+        catch (IconNotFoundException) { return null; }
+    }
+
+    private void Close()
+    {
+        isOpen = false;
+        ImGui.CloseCurrentPopup();
     }
 }

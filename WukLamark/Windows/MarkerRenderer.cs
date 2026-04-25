@@ -1,6 +1,7 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Textures.Internal;
 using Dalamud.Interface.Textures.TextureWraps;
+using Dalamud.Utility;
 using System;
 using System.Numerics;
 using WukLamark.Models;
@@ -156,6 +157,25 @@ namespace WukLamark.Windows
         }
 
         /// <summary>
+        /// Renders a marker using a custom icon loaded from the plugin's CustomIcons folder.
+        /// </summary>
+        /// <param name="drawList">The ImGui draw list to render to</param>
+        /// <param name="position">Screen-space center position for the icon</param>
+        /// <param name="customIconName">The name of the custom icon file</param>
+        /// <param name="markerSize">Half-size of the icon in pixels (icon will be 1.5x this value)</param>
+        /// <param name="tintColor">Tint color to apply to the icon</param>
+        public static void RenderMarkerCustomIcon(ImDrawListPtr drawList, Vector2 position, string customIconName, float markerSize, uint tintColor = uint.MaxValue)
+        {
+            if (!Plugin.CustomIconService.TryGetCustomIcon(customIconName, out var iconTex) || iconTex == null || iconTex.Handle == nint.Zero)
+                return;
+
+            var halfSize = markerSize * 1.5f; // Slightly larger than shape markers for clarity
+            var topLeft = position - new Vector2(halfSize, halfSize);
+            var bottomRight = position + new Vector2(halfSize, halfSize);
+            drawList.AddImage(iconTex.Handle, topLeft, bottomRight, Vector2.Zero, Vector2.One, tintColor);
+        }
+
+        /// <summary>
         /// Renders a marker using either an icon (if IconId is set) or a shape fallback.
         /// This is the primary entry point for rendering markers.
         /// </summary>
@@ -165,23 +185,21 @@ namespace WukLamark.Windows
         /// <param name="markerSize">Marker size in pixels</param>
         /// <param name="colorU32">Fill color for shape rendering</param>
         /// <param name="iconId">Optional game icon ID; if set, renders icon instead of shape</param>
-        public static void RenderMarker(ImDrawListPtr drawList, Vector2 position, MarkerShape shape, float markerSize, uint colorU32, uint? iconId, bool useShapeColorOnIcon)
+        public static void RenderMarker(ImDrawListPtr drawList, Vector2 position, MarkerShape shape, float markerSize, uint colorU32, uint? iconId, string? customIconName, bool useShapeColorOnIcon)
         {
-            if (iconId.HasValue && iconId.Value != 0)
-            {
-                // Pass the fill color as tint so icon respects alpha fade
-                var tint = 0x00FFFFFFu | (colorU32 & 0xFF000000u); // white RGB + alpha from colorU32
+            // Pass the fill color as tint so icon respects alpha fade
+            var tint = 0x00FFFFFFu | (colorU32 & 0xFF000000u); // white RGB + alpha from colorU32
 
-                // Apply shape color as tint if 'useShapeColorOnIcon' is true.
-                if (useShapeColorOnIcon)
-                    tint = colorU32;
+            // Apply shape color as tint if 'useShapeColorOnIcon' is true.
+            if (useShapeColorOnIcon)
+                tint = colorU32;
 
+            if (!customIconName.IsNullOrEmpty())
+                RenderMarkerCustomIcon(drawList, position, customIconName, markerSize, tint);
+            else if (iconId.HasValue && iconId.Value != 0)
                 RenderMarkerIcon(drawList, position, iconId.Value, markerSize, tint);
-            }
             else
-            {
                 RenderMarkerShape(drawList, position, shape, markerSize, colorU32);
-            }
         }
     }
 }

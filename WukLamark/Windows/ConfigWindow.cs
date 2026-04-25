@@ -11,7 +11,7 @@ namespace WukLamark.Windows;
 /// <summary>
 /// Configuration window for customizing marker display behavior and managing data.
 /// </summary>
-public class ConfigWindow : Window, IDisposable
+public sealed class ConfigWindow : Window, IDisposable
 {
     private readonly Configuration configuration;
     private readonly Plugin plugin;

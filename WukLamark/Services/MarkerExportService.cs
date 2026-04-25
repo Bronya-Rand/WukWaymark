@@ -48,7 +48,7 @@ public class ImportResult
 /// for export to the clipboard or file system, and import back.
 /// Format: JSON → UTF-8 → Base64 string (clipboard-safe).
 /// </summary>
-public class MarkerExportService
+public sealed class MarkerExportService
 {
     private enum PayloadKind
     {
@@ -83,9 +83,7 @@ public class MarkerExportService
                 WardId = marker.WardId,
                 MapId = marker.MapId,
                 WorldId = marker.WorldId,
-                Color = marker.Color,
-                Shape = marker.Shape,
-                IconId = marker.IconId,
+                Icon = marker.Icon,
                 AppliesToAllWorlds = marker.AppliesToAllWorlds
             });
         }
@@ -147,8 +145,8 @@ public class MarkerExportService
         m.MapId == imported.MapId &&
         m.AppliesToAllWorlds == imported.AppliesToAllWorlds &&
         (imported.AppliesToAllWorlds || m.WorldId == imported.WorldId) && // If applies to all worlds, ignore world ID in matching
-        m.IconId == imported.IconId &&
-        m.Shape == imported.Shape &&
+        m.Icon.GameIconId == imported.Icon.GameIconId &&
+        m.Icon.Shape == imported.Icon.Shape &&
         Vector3.DistanceSquared(m.Position, imported.Position) < 0.01f); // Allow small position differences  
     }
 
@@ -245,9 +243,7 @@ public class MarkerExportService
                         WardId = w.WardId,
                         MapId = w.MapId,
                         WorldId = w.WorldId,
-                        Color = w.Color,
-                        Shape = w.Shape,
-                        IconId = w.IconId,
+                        Icon = w.Icon,
                         AppliesToAllWorlds = w.AppliesToAllWorlds
                     }).ToList(),
                 };

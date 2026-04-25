@@ -10,16 +10,41 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using WukLamark.Helpers;
 using WukLamark.Models;
 using WukLamark.Windows;
 
 namespace WukLamark.Services
 {
+    public sealed record MarkerMinimapRenderData(
+        Vector2 ScreenPosition,
+        MarkerShape Shape,
+        float Size,
+        Vector4 Color,
+        string Name,
+        string? Notes,
+        uint? IconId,
+        string? CustomIconName,
+        bool UseShapeColorOnIcon
+    );
+    public sealed record MarkerMinimapCacheRenderData(
+        Vector3 WorldPosition,
+        MarkerShape Shape,
+        Vector4 Color,
+        string Name,
+        string? Notes,
+        uint? IconId,
+        string? CustomIconName,
+        float? IconSize,
+        float VisibilityRadius,
+        bool UseShapeColorOnIcon
+    );
+
     /// <summary>
     /// Service responsible for calculating marker positions on the Minimap.
     /// Following the Service + Window paradigm to decouple logic and rendering.
     /// </summary>
-    internal class MarkerMinimapService : IDisposable
+    internal sealed class MarkerMinimapService : IDisposable
     {
         private readonly Plugin plugin;
         private readonly Configuration configuration;
@@ -28,13 +53,14 @@ namespace WukLamark.Services
         private bool disposed;
 
         // Default marker size in pixels
-        private const float MinimapMarkerPx = 32.0f;
+        private const float DefaultMapMarkerPx = 48.0f;
+        private Vector2 defaultMapMarkerSize = new(DefaultMapMarkerPx, DefaultMapMarkerPx);
 
         // Publicly accessible list mapping markers to their PreDraw evaluated locations
-        public List<(Vector2 Position, MarkerShape Shape, float Size, Vector4 Color, string Name, string? Notes, uint? IconId, bool useShapeColorOnIcon)> MarkersToRender { get; } = [];
+        public List<MarkerMinimapRenderData> MarkersToRender { get; } = [];
 
         // Player data gathered during Framework.Update
-        private readonly List<(Vector3 WorldPos, MarkerShape Shape, Vector4 Color, string Name, string? Notes, uint? IconId, float? IconScale, float VisibilityRadius, bool useShapeColorOnIcon)> markersToRenderCache = [];
+        private readonly List<MarkerMinimapCacheRenderData> markersToRenderCache = [];
 
         // Minimap state cached per frame
         private float minimapRadius;
@@ -157,25 +183,25 @@ namespace WukLamark.Services
                     continue; // Wrong ward (for housing areas)
 
                 // Visibility radius check using squared distance (avoids sqrt)
-                if (configuration.FadeWaymarkOnMinimapEdge && marker.VisibilityRadius > 0)
+                if (configuration.FadeWaymarkOnMinimapEdge && marker.Icon.VisibilityRadius > 0)
                 {
                     var distSquared = Vector3.DistanceSquared(localPlayer.Position, marker.Position);
-                    var radiusSquared = marker.VisibilityRadius * marker.VisibilityRadius;
+                    var radiusSquared = marker.Icon.VisibilityRadius * marker.Icon.VisibilityRadius;
                     if (distSquared > radiusSquared)
                         continue;
                 }
 
-                // Store world position - will convert to screen coords in PreDraw
-                markersToRenderCache.Add((
+                markersToRenderCache.Add(new MarkerMinimapCacheRenderData(
                     marker.Position,
-                    marker.Shape,
-                    marker.Color,
+                    marker.Icon.Shape,
+                    marker.Icon.Color,
                     marker.Name,
                     marker.Notes.IsNullOrEmpty() ? null : marker.Notes,
-                    marker.IconId,
-                    marker.IconSize,
-                    marker.VisibilityRadius,
-                    marker.UseShapeColorOnIcon
+                    marker.Icon.GameIconId,
+                    marker.Icon.CustomIconName,
+                    marker.Icon.Size,
+                    marker.Icon.VisibilityRadius,
+                    marker.Icon.UseShapeColor
                 ));
             }
         }
@@ -203,7 +229,7 @@ namespace WukLamark.Services
             mapCenterScreenPos.Y -= 5f * globalScale;
 
             // Pass pre-computed cos/sin to avoid recomputing per marker
-            foreach (var (worldPos, shape, color, name, notes, iconId, iconSize, visibilityRadius, useShapeColorOnIcon) in markersToRenderCache)
+            foreach (var (worldPos, shape, color, name, notes, iconId, customIconName, iconSize, visibilityRadius, useShapeColorOnIcon) in markersToRenderCache)
             {
                 var circlePos = CalculateCirclePosition(worldPos, cosRotation, sinRotation);
 
@@ -213,10 +239,29 @@ namespace WukLamark.Services
                     baseMarkerSize = iconSize.Value;
                 var markerSize = baseMarkerSize * globalScale;
 
-                if (iconId != null)
+                if (iconId != null || !customIconName.IsNullOrEmpty())
                 {
                     var deSize = 6.0f / naviScale * globalScale;
-                    markerSize = MinimapMarkerPx / deSize * (baseMarkerSize / 8.0f);
+
+                    Vector2 iconTrueSize;
+                    if (!customIconName.IsNullOrEmpty())
+                        iconTrueSize = IconHelper.GetCustomIconSize(customIconName) ?? defaultMapMarkerSize;
+                    else if (iconId.HasValue)
+                        iconTrueSize = IconHelper.GetGameIconSize(iconId.Value) ?? defaultMapMarkerSize;
+                    else
+                    {
+                        Plugin.Log.Warning($"Marker {name} has no valid icon size, using default.");
+                        iconTrueSize = defaultMapMarkerSize;
+                    }
+
+                    if (iconTrueSize.X > 64f || iconTrueSize.Y > 64f)
+                        markerSize = DefaultMapMarkerPx / deSize * (baseMarkerSize / 8.0f);
+                    else
+                    {
+                        // Scale the marker size based on the lowest dimension of the icon
+                        var minIconSize = Math.Min(iconTrueSize.X, iconTrueSize.Y);
+                        markerSize = minIconSize / deSize * (baseMarkerSize / 8.0f);
+                    }
                 }
 
                 // Apply visibility radius alpha fade (last 20% of radius)
@@ -247,7 +292,7 @@ namespace WukLamark.Services
                     fadedColor.W *= Math.Clamp(edgeFade, 0.4f, 1.0f);
                 }
 
-                MarkersToRender.Add((
+                MarkersToRender.Add(new MarkerMinimapRenderData(
                     circlePos,
                     shape,
                     markerSize,
@@ -255,6 +300,7 @@ namespace WukLamark.Services
                     name,
                     notes.IsNullOrEmpty() ? null : notes,
                     iconId,
+                    customIconName,
                     useShapeColorOnIcon
                 ));
             }

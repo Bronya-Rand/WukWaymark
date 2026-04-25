@@ -9,7 +9,7 @@ using WukLamark.Utils;
 
 namespace WukLamark.Windows.Sections.Modals;
 
-public class DeleteMarkerModal
+public sealed class DeleteMarkerModal
 {
     private bool isOpen = false;
     private List<Marker>? markersToDelete = null;

@@ -15,7 +15,7 @@ namespace WukLamark.Services
         public string Source { get; init; } = string.Empty;
     }
 
-    public class IconBrowserService : IDisposable
+    public sealed class IconBrowserService : IDisposable
     {
         private readonly IDataManager dataManager;
         private readonly CancellationTokenSource cts = new();

@@ -9,7 +9,7 @@ using WukLamark.Utils;
 
 namespace WukLamark.Windows.Sections;
 
-internal class EmptyStateSection(GameStateReaderService gameStateReaderService)
+internal sealed class EmptyStateSection(GameStateReaderService gameStateReaderService)
 {
     private readonly GameStateReaderService gameStateReaderService = gameStateReaderService;
     public Action<bool>? OnSaveLocation { get; set; }

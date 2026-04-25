@@ -14,7 +14,7 @@ namespace WukLamark.Windows
     /// This window overlays markers on the small corner minimap that appears
     /// during gameplay, allowing players to see marker locations without opening the full map.
     /// </summary>
-    internal class MarkerMinimapWindow : Window
+    internal sealed class MarkerMinimapWindow : Window
     {
         private readonly MarkerMinimapService service;
         private readonly Plugin plugin;
@@ -54,12 +54,11 @@ namespace WukLamark.Windows
             var mousePos = ImGui.GetMousePos();
             string? hoveredMarkerName = null;
 
-            foreach (var (position, shape, size, color, name, notes, iconId, useShapeColorOnIcon) in service.MarkersToRender)
+            foreach (var (position, shape, size, color, name, notes, iconId, customIconName, useShapeColorOnIcon) in service.MarkersToRender)
             {
                 var colorU32 = ImGui.ColorConvertFloat4ToU32(color);
 
-                MarkerRenderer.RenderMarker(drawList, position, shape, size, colorU32, iconId, useShapeColorOnIcon);
-
+                MarkerRenderer.RenderMarker(drawList, position, shape, size, colorU32, iconId, customIconName, useShapeColorOnIcon);
                 if (!plugin.Configuration.ShowWaymarkTooltips) continue;
                 if (Vector2.Distance(mousePos, position) > size + (2.0f * ImGuiHelpers.GlobalScale)) continue;
 

@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace WukLamark.Models
 {
-    public class MarkerShareEntry
+    public sealed class MarkerShareEntry
     {
         public Guid? SourceId { get; set; }
         public string Name { get; set; } = "Unnamed Location";
@@ -12,9 +12,7 @@ namespace WukLamark.Models
         public sbyte WardId { get; set; }
         public uint MapId { get; set; }
         public uint WorldId { get; set; }
-        public Vector4 Color { get; set; }
-        public MarkerShape Shape { get; set; }
-        public uint? IconId { get; set; }
         public bool AppliesToAllWorlds { get; set; }
+        public required MarkerIcon Icon { get; set; }
     }
 }
