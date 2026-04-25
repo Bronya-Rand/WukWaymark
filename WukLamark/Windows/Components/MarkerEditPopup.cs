@@ -320,7 +320,7 @@ internal sealed class MarkerEditPopup
                 ImGui.SetNextItemWidth((previewTex != null ? 218 : 250) * ImGuiHelpers.GlobalScale);
                 if (ImGui.Button($"{currentIconName}###IconBtn{identifier}", new Vector2((previewTex != null ? 218 : 250) * ImGuiHelpers.GlobalScale, 0)))
                 {
-                    iconPickerModal.OpenPopup(marker.Name, identifier, editingIconSourceType);
+                    iconPickerModal.OpenPopup(marker.Name, identifier);
                 }
             }
             if (ImWuk.IsItemHoveredWhenDisabled())

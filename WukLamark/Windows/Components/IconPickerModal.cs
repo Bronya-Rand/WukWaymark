@@ -38,7 +38,6 @@ internal sealed class IconPickerModal(Plugin plugin)
     private readonly Plugin plugin = plugin;
     private string searchFilter = string.Empty;
     private bool isOpen;
-    private MarkerIconType preferredTab = MarkerIconType.Game;
 
     // Caches
     private string cacheKey = string.Empty;
@@ -46,11 +45,10 @@ internal sealed class IconPickerModal(Plugin plugin)
     private bool cachedTruncated;
     public Action<IconPickerResult?>? OnIconSelected { get; set; }
 
-    public void OpenPopup(string markerName, string identifier, MarkerIconType preferred)
+    public void OpenPopup(string markerName, string identifier)
     {
         isOpen = true;
         searchFilter = string.Empty;
-        preferredTab = preferred;
         cacheKey = string.Empty;
         cachedEntries.Clear();
         cachedTruncated = false;
@@ -68,17 +66,30 @@ internal sealed class IconPickerModal(Plugin plugin)
         if (!iconPickerModal) return;
 
         // Search box
-        ImGui.SetNextItemWidth(-1);
+        var isCustomMode = markerIconType == MarkerIconType.Custom;
+        var refreshButtonSize = ImGui.GetFrameHeight();
+        var searchWidth = isCustomMode
+            ? ImGui.GetContentRegionAvail().X - refreshButtonSize - ImGui.GetStyle().ItemSpacing.X
+            : -1f;
 
-        var searchPlaceholder = preferredTab == MarkerIconType.Game
+        if (searchWidth > 0f)
+            ImGui.SetNextItemWidth(MathF.Max(80f, searchWidth));
+        else
+            ImGui.SetNextItemWidth(-1f);
+
+        var searchPlaceholder = markerIconType == MarkerIconType.Game
             ? "Search by name or ID..."
             : "Search by name...";
         ImGui.InputTextWithHint("##IconSearch", searchPlaceholder, ref searchFilter, 50);
-        ImGui.SameLine();
-        if (ImGuiComponents.IconButton(Dalamud.Interface.FontAwesomeIcon.Circle))
-            Plugin.CustomIconService.ReloadCustomIcons();
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Reload custom icons from disk.");
+
+        if (isCustomMode)
+        {
+            ImGui.SameLine();
+            if (ImGuiComponents.IconButton(Dalamud.Interface.FontAwesomeIcon.Undo))
+                Plugin.CustomIconService.ReloadCustomIcons();
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Reload custom icons from disk.");
+        }
 
         if (!plugin.IconBrowserService.IsLoaded || !Plugin.CustomIconService.IsLoaded)
         {
@@ -96,14 +107,14 @@ internal sealed class IconPickerModal(Plugin plugin)
         ImGui.Separator();
         ImGui.Spacing();
 
-        if (preferredTab == MarkerIconType.Game)
+        if (markerIconType == MarkerIconType.Game)
         {
             using var iconCategoryTabBar = ImRaii.TabBar("IconCategoryTabs", ImGuiTabBarFlags.FittingPolicyScroll);
             if (!iconCategoryTabBar) return;
 
             DrawGameTabs();
         }
-        else if (preferredTab == MarkerIconType.Custom)
+        else if (isCustomMode)
         {
             DrawIconGrid(BuildCustomEntries(), "custom");
         }
