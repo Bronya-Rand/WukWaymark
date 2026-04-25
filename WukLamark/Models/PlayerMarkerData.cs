@@ -28,6 +28,7 @@ public class PlayerMarkerData
     /// </summary>
     [Obsolete("Use Markers property instead.")]
     [JsonPropertyName("Waymarks")]
+    [JsonIgnore]
     public List<Marker> Waymarks
     {
 #pragma warning disable CS8603 // Possible null reference return.

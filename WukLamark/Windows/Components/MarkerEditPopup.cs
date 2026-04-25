@@ -45,10 +45,18 @@ internal sealed class MarkerEditPopup
         {
             OnIconSelected = iconDataResult =>
             {
-                if (iconDataResult == null) return;
-                editingIconSourceType = iconDataResult.SourceType;
-                editingIconId = iconDataResult.GameIconId;
-                editingCustomIconName = iconDataResult.CustomIconName;
+                if (iconDataResult == null)
+                {
+                    editingIconSourceType = MarkerIconType.Shape;
+                    editingIconId = null;
+                    editingCustomIconName = null;
+                }
+                else
+                {
+                    editingIconSourceType = iconDataResult.SourceType;
+                    editingIconId = iconDataResult.GameIconId;
+                    editingCustomIconName = iconDataResult.CustomIconName;
+                }
             }
         };
     }

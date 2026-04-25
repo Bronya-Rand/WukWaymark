@@ -107,6 +107,7 @@ public class Marker
     /// A value of 0 means the marker is always visible regardless of distance.
     /// </summary>
     [Obsolete("Use the Icon property instead.")]
+    [JsonIgnore]
     [JsonInclude]
     public float VisibilityRadius { get; set; } = 0f;
 
@@ -116,6 +117,7 @@ public class Marker
     /// <remarks>The selected shape determines how the marker is visually displayed in the user interface or
     /// on a map. When <see cref="IconId"/> is set, the icon takes precedence over the shape.</remarks>
     [Obsolete("Use the Icon property instead.")]
+    [JsonIgnore]
     [JsonInclude]
     public MarkerShape Shape { get; set; } = MarkerShape.Circle;
 
@@ -123,6 +125,7 @@ public class Marker
     /// Custom color for this marker (RGBA).
     /// </summary>
     [Obsolete("Use the Icon property instead.")]
+    [JsonIgnore]
     [JsonInclude]
     public Vector4 Color { get; set; } = new Vector4(1.0f, 0.8f, 0.0f, 1.0f); // Gold/yellow default
 
@@ -135,6 +138,7 @@ public class Marker
     /// However, their alpha may be modified by the renderer.
     /// </remarks>
     [Obsolete("Use the Icon property instead.")]
+    [JsonIgnore]
     [JsonInclude]
     public uint? IconId { get; set; }
 
@@ -145,6 +149,7 @@ public class Marker
     /// If null or 0, the default size from the plugin configuration is used.
     /// </remarks>
     [Obsolete("Use the Icon property instead.")]
+    [JsonIgnore]
     [JsonInclude]
     public float? IconSize { get; set; } = 0.0f;
 
@@ -152,6 +157,7 @@ public class Marker
     /// Whether to use the shape color when rendering the game icon on the map and minimap. 
     /// </summary>
     [Obsolete("Use the Icon property instead.")]
+    [JsonIgnore]
     [JsonInclude]
     public bool UseShapeColorOnIcon { get; set; } = false;
     #endregion

@@ -109,7 +109,8 @@ public sealed class MarkerExportService
                 {
                     SourceType = marker.Icon.SourceType == MarkerIconType.Custom
                     ? (marker.Icon.GameIconId.HasValue ? MarkerIconType.Game : MarkerIconType.Shape)
-                    : MarkerIconType.Shape,
+                    : marker.Icon.SourceType == MarkerIconType.Game
+                    ? MarkerIconType.Game : MarkerIconType.Shape,
                     GameIconId = marker.Icon.GameIconId,
                     Shape = marker.Icon.Shape,
                     Color = marker.Icon.Color,
@@ -229,20 +230,24 @@ public sealed class MarkerExportService
 
     private static MarkerExportPayload? DeserializeSharePayload(string json)
     {
+        MarkerExportPayload? payload = null;
         try
         {
             // If current schema, return as-is
-            var payload = JsonSerializer.Deserialize<MarkerExportPayload>(json, JsonOptions);
+            payload = JsonSerializer.Deserialize<MarkerExportPayload>(json, JsonOptions);
             if (payload != null && payload.Markers.Count > 0 && payload.Markers.All(m => m.Icon != null))
                 return payload;
         }
         catch (JsonException)
         {
-            // Try legacy schemas
-            var payload = DeserializeSharePayloadCompat(json);
-            if (payload != null)
-                return payload;
+            // Ignore and try legacy schemas
         }
+
+        // Try legacy schemas
+        payload = DeserializeSharePayloadCompat(json);
+        if (payload != null)
+            return payload;
+
         return null;
     }
 
@@ -270,7 +275,8 @@ public sealed class MarkerExportService
                         AppliesToAllWorlds = m.AppliesToAllWorlds,
                         Icon = new MarkerIcon
                         {
-                            GameIconId = m.IconId ?? 0, // Default to 0 if null
+                            SourceType = m.IconId != null ? MarkerIconType.Game : MarkerIconType.Shape,
+                            GameIconId = m.IconId,
                             Shape = m.Shape,
                             Color = m.Color
                         }
@@ -356,10 +362,10 @@ public sealed class MarkerExportService
 #pragma warning disable CS0618 // Type or member is obsolete
                         Icon = new MarkerIcon
                         {
-                            GameIconId = w.IconId ?? 0, // Default to 0 if null
+                            GameIconId = w.IconId,
                             Shape = w.Shape,
                             Color = w.Color,
-                            SourceType = w.IconId.HasValue ? MarkerIconType.Game : MarkerIconType.Shape
+                            SourceType = w.IconId != null ? MarkerIconType.Game : MarkerIconType.Shape
                         },
 #pragma warning restore CS0618 // Type or member is obsolete
                         AppliesToAllWorlds = w.AppliesToAllWorlds

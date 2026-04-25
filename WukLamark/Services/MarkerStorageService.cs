@@ -180,8 +180,6 @@ public sealed class MarkerStorageService
                 SharedMarkers = data.Markers;
                 SharedGroups = data.Groups;
 
-                Plugin.Log.Debug($"Migrated Data?: {migrated}");
-
                 if (migrated)
                 {
                     Plugin.Log.Info($"Migrated shared markers to schema version {migrationService.CurrentPlayerDataSchemaVersion}. Saving updated data.");

@@ -27,6 +27,7 @@ namespace WukLamark.Services
             public DateTime NextAttemptUtc { get; set; } = DateTime.UtcNow;
         }
         private readonly Dictionary<string, PendingIconLoad> pendingIconLoads = [];
+        private IReadOnlyList<CustomIconInfo> iconsToDispose = [];
         private const int MaxRetries = 20;
         private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(100);
         private static readonly TimeSpan MaxPendingAge = TimeSpan.FromSeconds(5);
@@ -55,6 +56,14 @@ namespace WukLamark.Services
             }
 
             ProcessPendingLoads();
+
+            // Dispose old icons after processing pending loads
+            if (iconsToDispose.Count > 0)
+            {
+                foreach (var icon in iconsToDispose)
+                    icon.Texture.Dispose();
+                iconsToDispose = [];
+            }
         }
         private void CreateCustomIconDirectoryIfNotExists()
         {
@@ -90,14 +99,15 @@ namespace WukLamark.Services
             CreateCustomIconDirectoryIfNotExists();
 
             var files = Directory.EnumerateFiles(CustomIconDirectory, "*.png", SearchOption.TopDirectoryOnly);
-            var icons = new List<CustomIconInfo>();
+            var newIcons = new List<CustomIconInfo>();
             foreach (var file in files)
             {
                 try
                 {
-                    if (TryGetCustomIcon(file, out var texture) && texture != null)
+                    var texture = GetCustomIconOrDefault(file);
+                    if (texture != null)
                     {
-                        icons.Add(new CustomIconInfo
+                        newIcons.Add(new CustomIconInfo
                         {
                             FileName = Path.GetFileName(file),
                             Texture = texture
@@ -110,13 +120,15 @@ namespace WukLamark.Services
                 }
             }
 
-            // Dispose of old textures 
-            foreach (var oldIcon in AvailableIcons)
-                if (!icons.Contains(oldIcon))
-                    oldIcon.Texture.Dispose();
+            // If pending, don't clear existing icons yet
+            if (newIcons.Count == 0 && pendingIconLoads.Count > 0 && AvailableIcons.Count > 0)
+                return;
 
-            AvailableIcons = icons;
+            var oldIcons = AvailableIcons;
+            AvailableIcons = newIcons;
             IsLoaded = true;
+
+            iconsToDispose = oldIcons;
             Plugin.Log.Info($"Loaded {AvailableIcons.Count} custom icons from '{CustomIconDirectory}'.");
         }
         private void ProcessPendingLoads()
@@ -158,23 +170,20 @@ namespace WukLamark.Services
             foreach (var key in toRemove)
                 pendingIconLoads.Remove(key);
         }
-        public bool TryGetCustomIcon(string? fileNameOrPath, out IDalamudTextureWrap? texture)
+        private IDalamudTextureWrap? GetCustomIconOrDefault(string? fileName)
         {
-            texture = null;
-            if (fileNameOrPath.IsNullOrWhitespace()) return false;
+            if (fileName.IsNullOrWhitespace()) return null;
 
             // Accept either a full path or just the file name
-            var candidatePath = Path.IsPathRooted(fileNameOrPath)
-                ? fileNameOrPath
-                : Path.Combine(CustomIconDirectory, fileNameOrPath);
+            var candidatePath = Path.Combine(CustomIconDirectory, fileName);
 
             var fullPath = Path.GetFullPath(candidatePath);
             var fullCustomDir = Path.GetFullPath(CustomIconDirectory);
 
             // Ensure the path is within the custom icon directory
-            if (!fullPath.StartsWith(fullCustomDir, StringComparison.OrdinalIgnoreCase)) return false;
+            if (!fullPath.StartsWith(fullCustomDir, StringComparison.OrdinalIgnoreCase)) return null;
 
-            if (!File.Exists(fullPath) || !fullPath.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) return false;
+            if (!File.Exists(fullPath) || !fullPath.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) return null;
 
             Plugin.Log.Verbose($"Attempting to load custom icon from '{fullPath}'.");
             var wrapTex = Plugin.TextureProvider.GetFromFile(fullPath);
@@ -194,16 +203,17 @@ namespace WukLamark.Services
                         NextAttemptUtc = DateTime.UtcNow + RetryDelay
                     };
                 }
-                return false;
+                return null;
             }
-
-            texture = wrap;
-            return true;
+            return wrap;
+        }
+        public bool TryGetCustomIcon(string? fileName, out IDalamudTextureWrap? texture)
+        {
+            texture = GetCustomIconOrDefault(fileName);
+            return texture != null;
         }
         public void ReloadCustomIcons()
         {
-
-            AvailableIcons = [];
             IsLoaded = false;
             reloadRequested = true;
 
@@ -213,6 +223,10 @@ namespace WukLamark.Services
             Plugin.Framework.Update -= OnFrameworkUpdate;
             fileWatcher?.Dispose();
             reloadDebounceTimer?.Dispose();
+
+            foreach (var icon in AvailableIcons)
+                icon.Texture.Dispose();
+
             AvailableIcons = [];
             GC.SuppressFinalize(this);
         }

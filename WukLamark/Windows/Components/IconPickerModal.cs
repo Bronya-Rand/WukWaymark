@@ -86,21 +86,25 @@ internal sealed class IconPickerModal(Plugin plugin)
         {
             ImGui.SameLine();
             if (ImGuiComponents.IconButton(Dalamud.Interface.FontAwesomeIcon.Undo))
+            {
                 Plugin.CustomIconService.ReloadCustomIcons();
+                cacheKey = string.Empty;
+                cachedEntries.Clear();
+            }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Reload custom icons from disk.");
-        }
-
-        if (!plugin.IconBrowserService.IsLoaded || !Plugin.CustomIconService.IsLoaded)
-        {
-            ImGui.TextDisabled("Loading icons...");
-            return;
         }
 
         if (ImGui.Button("None (Use Shape)"))
         {
             OnIconSelected?.Invoke(null);
             Close();
+            return;
+        }
+
+        if ((markerIconType == MarkerIconType.Game && !plugin.IconBrowserService.IsLoaded) || (markerIconType == MarkerIconType.Custom && !Plugin.CustomIconService.IsLoaded))
+        {
+            ImGui.TextDisabled("Loading icons...");
             return;
         }
 

@@ -165,11 +165,9 @@ namespace WukLamark.Windows
         /// <param name="customIconName">The name of the custom icon file</param>
         /// <param name="markerSize">Half-size of the icon in pixels (icon will be 1.5x this value)</param>
         /// <param name="tintColor">Tint color to apply to the icon</param>
-        /// <param name="colorU32">Fill color for shape rendering if the custom icon is not found</param>
-        /// <param name="shape">Fallback shape to render if the custom icon is not found</param>
         public static bool RenderMarkerCustomIcon(ImDrawListPtr drawList, Vector2 position, string customIconName, float markerSize, uint tintColor = uint.MaxValue)
         {
-            if (!Plugin.CustomIconService.TryGetCustomIcon(customIconName, out var iconTex) || iconTex == null || iconTex.Handle == nint.Zero)
+            if (!Plugin.CustomIconService.TryGetCustomIcon(customIconName, out var iconTex) || iconTex == null)
                 return false;
 
             var halfSize = markerSize * 1.5f; // Slightly larger than shape markers for clarity
