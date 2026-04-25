@@ -21,6 +21,7 @@ internal sealed class IconPickerModal(Plugin plugin)
 {
     private static readonly (string? Id, string Name)[] GameCategories =
     [
+        (null, "All Icons"),
         ("Map", "Map Symbols"), ("Quest", "Quest Markers"), ("Item", "Items"), ("Action", "Actions"),
         ("Status", "Status Effects"), ("Macro", "Macros"), ("Emote", "Emotes"), ("Perform", "Performance"),
         ("General", "General"), ("Main", "Main Commands"), ("Extra", "Extra")
@@ -68,7 +69,11 @@ internal sealed class IconPickerModal(Plugin plugin)
 
         // Search box
         ImGui.SetNextItemWidth(-1);
-        ImGui.InputTextWithHint("##IconSearch", "Search by name or ID...", ref searchFilter, 50);
+
+        var searchPlaceholder = preferredTab == MarkerIconType.Game
+            ? "Search by name or ID..."
+            : "Search by name...";
+        ImGui.InputTextWithHint("##IconSearch", searchPlaceholder, ref searchFilter, 50);
         ImGui.SameLine();
         if (ImGuiComponents.IconButton(Dalamud.Interface.FontAwesomeIcon.Circle))
             Plugin.CustomIconService.ReloadCustomIcons();
@@ -91,20 +96,17 @@ internal sealed class IconPickerModal(Plugin plugin)
         ImGui.Separator();
         ImGui.Spacing();
 
-        using var iconCategoryTabBar = ImRaii.TabBar("IconCategoryTabs", ImGuiTabBarFlags.FittingPolicyScroll);
-        if (!iconCategoryTabBar) return;
+        if (preferredTab == MarkerIconType.Game)
+        {
+            using var iconCategoryTabBar = ImRaii.TabBar("IconCategoryTabs", ImGuiTabBarFlags.FittingPolicyScroll);
+            if (!iconCategoryTabBar) return;
 
-        DrawAllTab();
-        DrawCustomTab();
-        DrawGameTabs();
-    }
-    private void DrawAllTab()
-    {
-        using var allTab = ImRaii.TabItem("All Icons");
-        if (!allTab) return;
-
-        var entries = BuildGameEntries(null).Concat(BuildCustomEntries()).ToList();
-        DrawIconGrid(entries, "all");
+            DrawGameTabs();
+        }
+        else if (preferredTab == MarkerIconType.Custom)
+        {
+            DrawIconGrid(BuildCustomEntries(), "custom");
+        }
     }
     private void DrawGameTabs()
     {
@@ -115,13 +117,6 @@ internal sealed class IconPickerModal(Plugin plugin)
 
             DrawIconGrid(BuildGameEntries(category.Id), $"game:{category.Id ?? "all"}");
         }
-    }
-    private void DrawCustomTab()
-    {
-        using var tab = ImRaii.TabItem("Custom Icons");
-        if (!tab) return;
-
-        DrawIconGrid(BuildCustomEntries(), "custom");
     }
     private List<PickerEntry> BuildCustomEntries()
     {
@@ -222,7 +217,6 @@ internal sealed class IconPickerModal(Plugin plugin)
         try { return Plugin.TextureProvider.GetFromGameIcon(id.Value).GetWrapOrEmpty(); }
         catch (IconNotFoundException) { return null; }
     }
-
     private void Close()
     {
         isOpen = false;
