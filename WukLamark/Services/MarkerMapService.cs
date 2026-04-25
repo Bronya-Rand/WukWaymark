@@ -231,7 +231,7 @@ namespace WukLamark.Services
                 markerWorldPos = new Vector2(marker.Position.X, marker.Position.Z);
 
                 // Visibility radius check
-                if (configuration.FadeWaymarkOnMapEdge && marker.Icon.VisibilityRadius > 0)
+                if (configuration.FadeWaymarkOnMapEdge && marker.Icon.VisibilityRadius > 0 && !plugin.Configuration.UseKTK)
                 {
                     var distSquared = Vector3.DistanceSquared(player.Position, marker.Position);
                     var radiusSquared = marker.Icon.VisibilityRadius * marker.Icon.VisibilityRadius;
@@ -317,32 +317,36 @@ namespace WukLamark.Services
                 }
 
                 // Apply visibility radius fade (last 20% of radius)
+                // Only for ImGui rendering
                 var targetAlpha = 1.0f;
-                if (configuration.FadeWaymarkOnMapEdge && marker.Icon.VisibilityRadius > 0)
+                if (!plugin.Configuration.UseKTK)
                 {
-                    var distSquared = Vector3.DistanceSquared(player.Position, marker.Position);
-                    var fadeStart = marker.Icon.VisibilityRadius * 0.8f;
-                    var fadeStartSquared = fadeStart * fadeStart;
-
-                    if (distSquared > fadeStartSquared)
+                    if (configuration.FadeWaymarkOnMapEdge && marker.Icon.VisibilityRadius > 0 && agentMap->SelectedMapId == agentMap->CurrentMapId)
                     {
-                        var dist = MathF.Sqrt(distSquared); // Only apply when fading
-                        targetAlpha = 1.0f - ((dist - fadeStart) / (marker.Icon.VisibilityRadius - fadeStart));
+                        var distSquared = Vector3.DistanceSquared(player.Position, marker.Position);
+                        var fadeStart = marker.Icon.VisibilityRadius * 0.8f;
+                        var fadeStartSquared = fadeStart * fadeStart;
+
+                        if (distSquared > fadeStartSquared)
+                        {
+                            var dist = MathF.Sqrt(distSquared); // Only apply when fading
+                            targetAlpha = 1.0f - ((dist - fadeStart) / (marker.Icon.VisibilityRadius - fadeStart));
+                        }
                     }
-                }
 
-                if (configuration.FadeWaymarkOnMapEdge && isClamped)
-                {
-                    targetAlpha = Math.Min(targetAlpha, configuration.MapEdgeFadeAlpha);
-                }
+                    if (configuration.FadeWaymarkOnMapEdge && isClamped && agentMap->SelectedMapId == agentMap->CurrentMapId)
+                    {
+                        targetAlpha = Math.Min(targetAlpha, configuration.MapEdgeFadeAlpha);
+                    }
 
-                if (targetAlpha < 1.0f)
-                {
-                    targetAlpha = Math.Clamp(targetAlpha, 0f, 1f);
-                    // Modify the U32 color's alpha channel
-                    var originalAlpha = ((colorU32 >> 24) & 0xFF) / 255f;
-                    var a = (uint)(targetAlpha * originalAlpha * 255f);
-                    colorU32 = (colorU32 & 0x00FFFFFF) | (a << 24);
+                    if (targetAlpha < 1.0f)
+                    {
+                        targetAlpha = Math.Clamp(targetAlpha, 0f, 1f);
+                        // Modify the U32 color's alpha channel
+                        var originalAlpha = ((colorU32 >> 24) & 0xFF) / 255f;
+                        var a = (uint)(targetAlpha * originalAlpha * 255f);
+                        colorU32 = (colorU32 & 0x00FFFFFF) | (a << 24);
+                    }
                 }
 
                 MarkersToRender.Add(new MapMarkerData(

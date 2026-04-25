@@ -1,4 +1,3 @@
-using Dalamud.Interface.Textures.TextureWraps;
 using KamiToolKit.Overlay.MapOverlay;
 using System;
 using System.Numerics;
@@ -16,20 +15,16 @@ namespace WukLamark.Render.KTK
         internal Vector2 worldPosition;
         internal string tooltip = string.Empty;
         internal uint? gameIconId = null;
-        internal IDalamudTextureWrap? customIconTexture = null;
-        internal string? customIconTexturePath = null;
         internal Vector2 iconSize = new(12.0f, 12.0f);
         internal bool useTint;
         internal Vector3 tintColor = Vector3.One;
-        public void Apply(uint mapId, Vector2 worldPosition, string tooltip, uint? gameIconId, IDalamudTextureWrap? customIconTexture, string? customIconTexturePath, Vector2 iconSize, bool useTint, Vector3 tintColor)
+        public void Apply(uint mapId, Vector2 worldPosition, string tooltip, uint? gameIconId, Vector2 iconSize, bool useTint, Vector3 tintColor)
         {
             this.mapId = mapId;
             this.worldPosition = worldPosition;
             this.tooltip = tooltip;
             this.gameIconId = gameIconId;
             this.iconSize = iconSize;
-            this.customIconTexture = customIconTexture;
-            this.customIconTexturePath = customIconTexturePath;
             this.useTint = useTint;
             this.tintColor = tintColor;
         }
@@ -40,8 +35,6 @@ namespace WukLamark.Render.KTK
             TextTooltip = tooltip;
             IconId = gameIconId;
             Size = iconSize;
-            Texture = customIconTexture;
-            TexturePath = customIconTexturePath;
             MultiplyColor = useTint ? tintColor : Vector3.One;
             IsVisible = true;
         }

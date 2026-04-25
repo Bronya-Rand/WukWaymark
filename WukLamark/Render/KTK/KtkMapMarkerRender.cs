@@ -72,13 +72,13 @@ namespace WukLamark.Render.KTK
                 useShapeColor = true;
             }
 
-            Plugin.CustomIconService.TryGetCustomIcon(markerInfo.Icon.CustomIconName, out var customIconTexture);
+            // For some reason, texture path works best than using Texture?
             var texturePath = !markerInfo.Icon.CustomIconName.IsNullOrEmpty() ? Path.Combine(Plugin.PluginInterface.GetPluginConfigDirectory(), "CustomIcons", markerInfo.Icon.CustomIconName) : null;
 
             // Create a new marker if it doesn't exist, or retrieve the existing one.
             if (!activeMarkers.TryGetValue(markerId, out var mapMarker))
             {
-                mapMarker = new KtkMapMarker { MarkerId = markerId };
+                mapMarker = new KtkMapMarker { MarkerId = markerId, TexturePath = texturePath };
                 activeMarkers[markerId] = mapMarker;
                 plugin.MapOverlayController!.AddMarker(mapMarker);
             }
@@ -90,8 +90,6 @@ namespace WukLamark.Render.KTK
                 markerInfo.WorldPosition,
                 tooltipText,
                 iconId,
-                customIconTexture,
-                texturePath,
                 new Vector2(markerSize, markerSize),
                 useShapeColor,
                 vector3Color
