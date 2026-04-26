@@ -5,6 +5,7 @@ using Dalamud.Interface.Windowing;
 using System;
 using System.Numerics;
 using WukLamark.Models;
+using WukLamark.Utils;
 
 namespace WukLamark.Windows;
 
@@ -148,7 +149,7 @@ public sealed class ConfigWindow : Window, IDisposable
                 plugin.MarkerStorageService.EraseCreatedSharedMarkers();
                 plugin.MarkerStorageService.SavePersonalMarkers();
                 plugin.MarkerStorageService.SaveSharedMarkers();
-                Plugin.ChatGui.Print("[WukLamark] All markers have been deleted.");
+                Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage("[WukLamark] All markers have been deleted."));
                 ImGui.CloseCurrentPopup();
             }
 
