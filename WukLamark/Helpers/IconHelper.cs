@@ -24,8 +24,16 @@ namespace WukLamark.Helpers
         }
         public static Vector2? GetCustomIconSize(string customIconName)
         {
-            if (!Plugin.CustomIconService.TryGetCustomIcon(customIconName, out var tex) || tex == null)
+            IDalamudTextureWrap? tex;
+            try
+            {
+                tex = Plugin.CustomIconService.GetWrapOrEmpty(customIconName);
+            }
+            catch (IconNotFoundException)
+            {
                 return null;
+            }
+            if (tex == null) return null;
 
             var texSize = tex.Size;
             return texSize;

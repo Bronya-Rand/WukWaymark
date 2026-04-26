@@ -23,6 +23,7 @@ internal sealed class HeaderSection(Configuration configuration, GameStateReader
     public Action<bool>? OnSaveLocation { get; set; }
     public Action? OnToggleView { get; set; }
     public Action? OnSettingsClicked { get; set; }
+    public Action? OnImageUploadClicked { get; set; }
 
     public void Draw()
     {
@@ -41,6 +42,20 @@ internal sealed class HeaderSection(Configuration configuration, GameStateReader
         var buttonSpacing = (float)buttonCount * ImGuiHelpers.GlobalScale;
         var totalButtonWidth = (buttonWidth * buttonCount) + (buttonSpacing * (buttonCount + 1));
         ImGui.SameLine(ImGui.GetWindowContentRegionMax().X - totalButtonWidth);
+
+        // Upload custom icon button (image icon)
+        using (ImRaii.Disabled(!isLoggedIn))
+        {
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.FileImage))
+                OnImageUploadClicked?.Invoke();
+        }
+        if (ImWuk.IsItemHoveredWhenDisabled())
+        {
+            {
+                var tooltip = !isLoggedIn ? "Log in to upload markers" : "Upload a new custom icon (PNG only).";
+                ImGui.SetTooltip(tooltip);
+            }
+        }
 
         // Import from clipboard
         using (ImRaii.Disabled(!isLoggedIn))

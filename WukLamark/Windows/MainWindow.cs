@@ -35,6 +35,7 @@ public sealed class MainWindow : Window, IDisposable
     private readonly DeleteGroupModal deleteGroupModal;
     private readonly ImportConflictModal importConflictModal;
     private readonly GroupEditorModal groupEditorModal;
+    private readonly CustomIconImageUploadModal customIconImageUploadModal;
 
     #endregion
 
@@ -119,6 +120,11 @@ public sealed class MainWindow : Window, IDisposable
             },
         };
 
+        customIconImageUploadModal = new CustomIconImageUploadModal
+        {
+            OnImageUpload = HandleImageUpload,
+        };
+
         // Initialize components
         markerTableComponent = new MarkerTableComponent(plugin, plugin.GameStateReaderService)
         {
@@ -155,6 +161,7 @@ public sealed class MainWindow : Window, IDisposable
                 plugin.Configuration.Save();
             },
             OnSettingsClicked = () => plugin.ToggleConfigUi(),
+            OnImageUploadClicked = () => customIconImageUploadModal.Open(),
         };
 
         searchBarSection = new SearchBarSection(plugin.GameStateReaderService, plugin.MarkerService);
@@ -418,6 +425,20 @@ public sealed class MainWindow : Window, IDisposable
         importFeedbackTicks = 240;
         Plugin.Log.Information(importFeedback);
     }
+    private void HandleImageUpload(string path)
+    {
+        // If valid, add to custom icons directory
+        (var success, var message) = Plugin.CustomIconService.SavePNGToCustomIconsDir(path);
+        if (!success)
+        {
+            importFeedback = $"Failed to upload image: {message}";
+            importFeedbackTicks = 180;
+            return;
+        }
+
+        importFeedback = $"Successfully uploaded custom icon.";
+        importFeedbackTicks = 180;
+    }
 
     #endregion
     public void Dispose()
@@ -432,6 +453,7 @@ public sealed class MainWindow : Window, IDisposable
         deleteGroupModal.Draw(plugin);
         importConflictModal.Draw();
         groupEditorModal.Draw(plugin);
+        customIconImageUploadModal.Draw();
 
         // Import feedback banner
         if (importFeedbackTicks > 0)
