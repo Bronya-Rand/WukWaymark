@@ -12,7 +12,7 @@
 Features:
 - Customizable game icons and shapes for map markers (with optional icon tinting).
 - Custom map marker icons.
-   &gt; To add a custom icon, place a PNG file in the "WukLamark/CustomIcons" folder. Go to WukLamark Settings -&gt; 'Open Custom Icon Folder' to access it.
+   &gt; To add a custom icon, open the WukLamark window and click on 'Upload a new custom icon'.
 - Per-marker icon/shape sizes.
 - Organize map markers into groups (with map marker import/export).
 - Cross-character sharing configurations.
