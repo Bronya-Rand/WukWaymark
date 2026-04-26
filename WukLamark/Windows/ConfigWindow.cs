@@ -1,14 +1,9 @@
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface;
-using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
-using Dalamud.Utility;
 using System;
-using System.IO;
 using System.Numerics;
-using System.Runtime.InteropServices;
 using WukLamark.Models;
 using WukLamark.Windows.Sections.Modals;
 
@@ -135,35 +130,6 @@ public sealed class ConfigWindow : Window, IDisposable
         {
             configuration.ShowWaymarkTooltips = showTooltips;
             configuration.Save();
-        }
-
-        ImGui.Spacing();
-        ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.0f, 1.0f), "Custom Icon Settings");
-        if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Folder, "Open Custom Icon Folder"))
-        {
-            try
-            {
-                var customMarkerFolder = Path.Combine(Plugin.PluginInterface.GetPluginConfigDirectory(), "CustomIcons");
-                if (!customMarkerFolder.IsNullOrEmpty())
-                {
-                    string osFileExplorer = string.Empty;
-                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                        osFileExplorer = "explorer.exe";
-                    else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                        osFileExplorer = "open";
-                    else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                        osFileExplorer = "xdg-open";
-
-                    if (!osFileExplorer.IsNullOrEmpty())
-                        System.Diagnostics.Process.Start(osFileExplorer, $"{customMarkerFolder}");
-                }
-
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error($"Failed to open 'CustomIcon' folder: {ex.Message}");
-                Plugin.ChatGui.PrintError($"[WukLamark] Failed to open custom marker folder: {ex.Message}");
-            }
         }
 
         ImGui.Spacing();

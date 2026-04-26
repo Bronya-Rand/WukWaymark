@@ -310,7 +310,7 @@ internal sealed class MarkerEditPopup
             using (ImRaii.Disabled(!canEditGeneralFields))
             {
                 var currentIconName = "Select Icon...";
-                var previewTex = !editingCustomIconName.IsNullOrWhitespace() ? Plugin.CustomIconService.TryGetCustomIcon(editingCustomIconName!, out var tex) ? tex : null
+                var previewTex = !editingCustomIconName.IsNullOrWhitespace() ? Plugin.CustomIconService.GetWrapOrEmpty(editingCustomIconName)
                     : editingIconId.HasValue && editingIconId.Value > 0 ? Plugin.TextureProvider.GetFromGameIcon(editingIconId.Value).GetWrapOrEmpty() : null;
 
                 if (editingIconSourceType == MarkerIconType.Custom && !editingCustomIconName.IsNullOrWhitespace())

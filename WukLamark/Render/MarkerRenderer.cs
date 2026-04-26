@@ -167,7 +167,16 @@ namespace WukLamark.Render
         /// <param name="tintColor">Tint color to apply to the icon</param>
         public static bool RenderMarkerCustomIcon(ImDrawListPtr drawList, Vector2 position, string customIconName, float markerSize, uint tintColor = uint.MaxValue)
         {
-            if (!Plugin.CustomIconService.TryGetCustomIcon(customIconName, out var iconTex) || iconTex == null)
+            IDalamudTextureWrap? iconTex;
+            try
+            {
+                iconTex = Plugin.CustomIconService.GetWrapOrEmpty(customIconName);
+            }
+            catch (IconNotFoundException)
+            {
+                iconTex = null;
+            }
+            if (iconTex == null || iconTex.Handle == nint.Zero)
                 return false;
 
             var halfSize = markerSize * 1.5f; // Slightly larger than shape markers for clarity

@@ -1,12 +1,13 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
 using Dalamud.Interface.Components;
-using Dalamud.Interface.Textures.Internal;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Utility;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using WukLamark.Models;
@@ -65,11 +66,11 @@ internal sealed class IconPickerModal(Plugin plugin)
         using var iconPickerModal = ImRaii.PopupModal($"Marker Icon Picker ({markerName})###{identifier}", ref isOpen, ImGuiWindowFlags.NoSavedSettings);
         if (!iconPickerModal) return;
 
-        // Search box
+        // Search box + optional upload/reload buttons
         var isCustomMode = markerIconType == MarkerIconType.Custom;
-        var refreshButtonSize = ImGui.GetFrameHeight();
+        var buttonSize = ImGui.GetFrameHeight();
         var searchWidth = isCustomMode
-            ? ImGui.GetContentRegionAvail().X - refreshButtonSize - ImGui.GetStyle().ItemSpacing.X
+            ? ImGui.GetContentRegionAvail().X - (buttonSize * 2.5f) - ImGui.GetStyle().ItemSpacing.X
             : -1f;
 
         if (searchWidth > 0f)
@@ -84,8 +85,15 @@ internal sealed class IconPickerModal(Plugin plugin)
 
         if (isCustomMode)
         {
+            //ImGui.SameLine();
+            //if (ImGuiComponents.IconButton(FontAwesomeIcon.FileImage))
+            //{
+
+            //}
+            //if (ImGui.IsItemHovered())
+            //    ImGui.SetTooltip("Upload a new custom icon (PNG only).");
             ImGui.SameLine();
-            if (ImGuiComponents.IconButton(Dalamud.Interface.FontAwesomeIcon.Undo))
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.Undo))
             {
                 Plugin.CustomIconService.ReloadCustomIcons();
                 cacheKey = string.Empty;
@@ -206,8 +214,8 @@ internal sealed class IconPickerModal(Plugin plugin)
             ImGui.TableNextColumn();
 
             var tex = e.SourceType == MarkerIconType.Custom
-                ? (Plugin.CustomIconService.TryGetCustomIcon(e.CustomIconName, out var customTex) ? customTex : null)
-                : GetGameTexture(e.GameIconId);
+                ? Plugin.TextureProvider.GetFromFile(Path.Combine(Plugin.CustomIconService.CustomIconDirectory, e.CustomIconName!)).GetWrapOrEmpty()
+                : Plugin.TextureProvider.GetFromGameIcon((uint)e.GameIconId!).GetWrapOrEmpty();
             if (tex == null || tex.Handle == nint.Zero) continue;
 
             using var id = ImRaii.PushId($"{e.SourceType}_{e.GameIconId}_{e.CustomIconName}");
@@ -225,12 +233,6 @@ internal sealed class IconPickerModal(Plugin plugin)
                 if (e.GameIconId is uint idVal) ImGui.TextDisabled($"ID: {idVal}");
             }
         }
-    }
-    private static IDalamudTextureWrap? GetGameTexture(uint? id)
-    {
-        if (id is null or 0) return null;
-        try { return Plugin.TextureProvider.GetFromGameIcon(id.Value).GetWrapOrEmpty(); }
-        catch (IconNotFoundException) { return null; }
     }
     private void Close()
     {
