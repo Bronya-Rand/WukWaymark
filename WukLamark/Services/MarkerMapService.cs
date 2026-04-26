@@ -216,7 +216,6 @@ namespace WukLamark.Services
 
             var multiplierForMarkers = GetMultiplier(zoomIndex, areaMap->Scale);
             var mapCenterWorldPos = Vector3.Zero;
-            var markerWorldPos = Vector2.Zero;
 
             foreach (var marker in plugin.MarkerStorageService.GetVisibleMarkers())
             {
@@ -228,7 +227,7 @@ namespace WukLamark.Services
                 if (marker.WardId != -1 && marker.WardId != wardId)
                     continue; // Wrong ward (for housing areas)
 
-                markerWorldPos = new Vector2(marker.Position.X, marker.Position.Z);
+                var markerWorldPos = new Vector2(marker.Position.X, marker.Position.Z);
 
                 // Visibility radius check
                 if (configuration.FadeWaymarkOnMapEdge && marker.Icon.VisibilityRadius > 0 && !plugin.Configuration.UseKTK)

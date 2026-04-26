@@ -1,10 +1,11 @@
+using Dalamud.Interface.Textures.Internal;
 using Dalamud.Plugin.Services;
+using Dalamud.Utility;
 using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace WukLamark.Services
 {
@@ -26,7 +27,7 @@ namespace WukLamark.Services
         public IconBrowserService(IDataManager dataManager)
         {
             this.dataManager = dataManager;
-            Task.Run(() => LoadIconsAsync(cts.Token));
+            Plugin.Framework.RunOnFrameworkThread(() => LoadIconsAsync(cts.Token));
         }
         private void LoadIconsAsync(CancellationToken token)
         {
@@ -44,7 +45,17 @@ namespace WukLamark.Services
                         if (iconId == 0) continue;
 
                         var name = getName(row);
-                        if (string.IsNullOrWhiteSpace(name)) continue;
+                        if (name.IsNullOrEmpty()) continue;
+
+                        // Check if loadable
+                        try
+                        {
+                            Plugin.TextureProvider.GetFromGameIcon(iconId).GetWrapOrEmpty();
+                        }
+                        catch (IconNotFoundException)
+                        {
+                            Plugin.Log.Debug($"Icon {iconId} ({name}) from {source} is not loadable, skipping.");
+                        }
 
                         if (!uniqueIcons.ContainsKey(iconId))
                             uniqueIcons[iconId] = new IconInfo { IconId = iconId, Name = name, Source = source };
