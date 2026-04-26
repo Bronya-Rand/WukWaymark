@@ -55,6 +55,7 @@ namespace WukLamark.Services
                         catch (IconNotFoundException)
                         {
                             Plugin.Log.Debug($"Icon {iconId} ({name}) from {source} is not loadable, skipping.");
+                            continue;
                         }
 
                         if (!uniqueIcons.ContainsKey(iconId))
