@@ -5,19 +5,19 @@ namespace WukLamark.Utils
 {
     public sealed class ResultNotifications
     {
-        public static SeString BuildChatSuccessMessage(string message)
+        public static SeString BuildChatSuccessMessage(string message, bool omitPluginName = false)
         {
             var builder = new SeStringBuilder()
                 .AddUiForeground(45)
-                .AddText(message)
+                .AddText(omitPluginName ? message : $"[WukLamark] {message}")
                 .AddUiForegroundOff();
             return builder.Build();
         }
-        public static SeString BuildChatErrorMessage(string message)
+        public static SeString BuildChatErrorMessage(string message, bool omitPluginName = false)
         {
             var builder = new SeStringBuilder()
                 .AddUiForeground(17)
-                .AddText(message)
+                .AddText(omitPluginName ? message : $"[WukLamark] {message}")
                 .AddUiForegroundOff();
             return builder.Build();
         }

@@ -61,14 +61,14 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
         var territoryId = Plugin.ClientState.TerritoryType;
         if (territoryId == 0)
         {
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage("[WukLamark] Unable to determine current location."));
+            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage("Unable to determine current location."));
             return null;
         }
 
         var housingManager = HousingManager.Instance();
         if (housingManager == null)
         {
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage("[WukLamark] Unable to access housing manager for location data."));
+            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage("Unable to access housing manager for location data."));
             return null;
         }
         var wardId = housingManager->GetCurrentWard();
@@ -77,7 +77,7 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
         var mapId = Plugin.ClientState.MapId;
         if (mapId == 0)
         {
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage("[WukLamark] Unable to determine current map."));
+            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage("Unable to determine current map."));
             return null;
         }
 
@@ -85,7 +85,7 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
         var currentWorldId = player.CurrentWorld.RowId;
         if (currentWorldId == 0)
         {
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage("[WukLamark] Unable to determine current world."));
+            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage("Unable to determine current world."));
             return null;
         }
 
@@ -128,11 +128,11 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
         // Provide user feedback
         if (group != null)
         {
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage($"[WukLamark] Saved marker '{marker.Name}' at current location in group '{group.Name}'."));
+            Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage($"Saved marker '{marker.Name}' at current location in group '{group.Name}'."));
         }
         else
         {
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage($"[WukLamark] Saved marker '{marker.Name}' at current location."));
+            Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage($"Saved marker '{marker.Name}' at current location."));
         }
         Plugin.Log.Information($"Saved marker: {marker.Name} at {marker.Position} (Territory: {territoryId}, Map: {mapId}, Scope: {scope})");
 
@@ -148,12 +148,12 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
         // Validate permissions before allowing deletion
         if (marker.IsReadOnly)
         {
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage($"[WukLamark] Marker '{marker.Name}' is read-only and cannot be deleted."));
+            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage($"Marker '{marker.Name}' is read-only and cannot be deleted."));
             return;
         }
         if (marker.Scope == MarkerScope.Personal && marker.CharacterHash != storageService.CurrentCharacterHash)
         {
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage($"[WukLamark] You do not have permission to delete marker '{marker.Name}'."));
+            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage($"You do not have permission to delete marker '{marker.Name}'."));
             return;
         }
 
@@ -203,7 +203,7 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
             storageService.SavePersonalMarkers();
         }
 
-        Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage($"[WukLamark] Restored map marker '{marker.Name}'."));
+        Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage($"Restored map marker '{marker.Name}'."));
         Plugin.Log.Information($"Undo delete: restored map marker '{marker.Name}' (Scope: {marker.Scope})");
 
         return marker;
