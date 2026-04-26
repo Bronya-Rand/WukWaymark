@@ -37,7 +37,7 @@ internal sealed class HeaderSection(Configuration configuration, GameStateReader
         ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.0f, 1.0f), "Custom Marker Locations");
 
         // Position buttons on the right side of the header
-        var buttonCount = 5;
+        var buttonCount = 6;
         var buttonWidth = ImGui.GetFrameHeight();
         var buttonSpacing = (float)buttonCount * ImGuiHelpers.GlobalScale;
         var totalButtonWidth = (buttonWidth * buttonCount) + (buttonSpacing * (buttonCount + 1));
@@ -56,6 +56,8 @@ internal sealed class HeaderSection(Configuration configuration, GameStateReader
                 ImGui.SetTooltip(tooltip);
             }
         }
+
+        ImGui.SameLine(0, buttonSpacing);
 
         // Import from clipboard
         using (ImRaii.Disabled(!isLoggedIn))

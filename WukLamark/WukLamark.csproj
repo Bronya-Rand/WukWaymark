@@ -13,16 +13,17 @@ Features:
 - Customizable game icons and shapes for map markers (with optional icon tinting)
 - Per-marker icon/shape sizes
 - Custom map marker icons.
-   &gt; To add a custom icon, place a PNG file in the "WukLamark/CustomIcons" folder. Go to WukLamark Settings -&gt; 'Open Custom Icon Folder' to access it.
+   &gt; To add a custom icon, open the WukLamark window and click on 'Upload a new custom icon'.
 - Organize map markers into groups (with map marker import/export)
 - Cross-character sharing configurations
 - Crossworld markers
 - Add personal notes for context
 - Import/export one or multiple map markers with friends
 - Partial support for Native markers*
-  &gt; * - Only applicable to the map, not the minimap.
+&gt; * - Only applicable to the map, not the minimap.
 
-Think of it as dropping a flag on the map but persistent.</Description>
+Think of it as dropping a flag on the map but persistent.
+    </Description>
     <Tags>custom;marker;map;flag;wuk;ww;wl;wuklamark;wukwaymark;utility;ui;other</Tags>
     <CategoryTags>utility;ui;other</CategoryTags>
     <PackageProjectUrl>https://github.com/Bronya-Rand/WukLamark</PackageProjectUrl>
