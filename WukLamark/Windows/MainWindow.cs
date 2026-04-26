@@ -1,13 +1,17 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using WukLamark.Helpers;
 using WukLamark.Models;
 using WukLamark.Services;
+using WukLamark.Utils;
 using WukLamark.Windows.Components;
 using WukLamark.Windows.Sections;
 using WukLamark.Windows.Sections.Modals;
@@ -36,13 +40,6 @@ public sealed class MainWindow : Window, IDisposable
     private readonly ImportConflictModal importConflictModal;
     private readonly GroupEditorModal groupEditorModal;
     private readonly CustomIconImageUploadModal customIconImageUploadModal;
-
-    #endregion
-
-    #region UI States
-
-    private string importFeedback = string.Empty;
-    private int importFeedbackTicks;
 
     #endregion
 
@@ -139,11 +136,14 @@ public sealed class MainWindow : Window, IDisposable
             OnExportRequested = marker =>
             {
                 MarkerExportService.ExportShareToClipboard(marker);
+
+                SeString message;
                 if (marker.Count == 1)
-                    importFeedback = $"Copied marker to clipboard!";
+                    message = ResultNotifications.BuildChatSuccessMessage($"Copied marker '{marker.First().Name}' to clipboard!");
                 else
-                    importFeedback = $"Copied {marker.Count} markers to clipboard!";
-                importFeedbackTicks = 180;
+                    message = ResultNotifications.BuildChatSuccessMessage($"Copied {marker.Count} markers to clipboard!");
+
+                Plugin.ChatGui.Print(message);
             },
             OnSaveRequested = HandleMarkerSave,
         };
@@ -191,8 +191,7 @@ public sealed class MainWindow : Window, IDisposable
             OnExportGroupMarkers = markers =>
             {
                 MarkerExportService.ExportShareToClipboard(markers);
-                importFeedback = $"Copied {markers.Count} marker(s) from group to clipboard!";
-                importFeedbackTicks = 180;
+                Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage($"Copied {markers.Count} marker(s) to clipboard!"));
             }
         };
 
@@ -326,8 +325,7 @@ public sealed class MainWindow : Window, IDisposable
     {
         if (!result.Success)
         {
-            importFeedback = $"Import failed: {result.ErrorMessage}";
-            importFeedbackTicks = 240;
+            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage($"Failed to import map markers: {result.ErrorMessage}"));
         }
         else if (result.Conflicts.Count > 0)
         {
@@ -345,14 +343,12 @@ public sealed class MainWindow : Window, IDisposable
 
         if (selected.Count == 0)
         {
-            importFeedback = "No markers selected for export.";
-            importFeedbackTicks = 180;
+            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage("No markers selected for export."));
             return;
         }
 
         MarkerExportService.ExportShareToClipboard(selected);
-        importFeedback = $"Copied {selected.Count} marker(s) to clipboard.";
-        importFeedbackTicks = 180;
+        Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage($"Copied {selected.Count} marker(s) to clipboard."));
     }
 
     /// <summary>
@@ -418,12 +414,25 @@ public sealed class MainWindow : Window, IDisposable
         plugin.MarkerStorageService.SavePersonalMarkers();
         plugin.MarkerStorageService.SaveSharedMarkers();
 
+        SeString chatGuiMessage;
+        Notification notificationMessage;
         if (overwrittenMarkers > 0)
-            importFeedback = $"Imported {addedMarkers} marker(s), overwritten {overwrittenMarkers} marker(s) to WukLamark.";
+        {
+            var msg = $"Imported {addedMarkers} marker(s), overwritten {overwrittenMarkers} marker(s) to WukLamark.";
+            chatGuiMessage = ResultNotifications.BuildChatSuccessMessage(msg);
+            notificationMessage = ResultNotifications.BuildDalamudSuccessMessage(msg);
+
+        }
         else
-            importFeedback = $"Imported {addedMarkers} marker(s) to WukLamark.";
-        importFeedbackTicks = 240;
-        Plugin.Log.Information(importFeedback);
+        {
+            var msg = $"Imported {addedMarkers} marker(s) to WukLamark.";
+            chatGuiMessage = ResultNotifications.BuildChatSuccessMessage(msg);
+            notificationMessage = ResultNotifications.BuildDalamudSuccessMessage(msg);
+        }
+
+        Plugin.ChatGui.Print(chatGuiMessage);
+        Plugin.NotificationManager.AddNotification(notificationMessage);
+
     }
     private void HandleImageUpload(string path)
     {
@@ -431,13 +440,10 @@ public sealed class MainWindow : Window, IDisposable
         (var success, var message) = Plugin.CustomIconService.SavePNGToCustomIconsDir(path);
         if (!success)
         {
-            importFeedback = $"Failed to upload image: {message}";
-            importFeedbackTicks = 180;
+            Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage($"Failed to upload custom icon: {message}"));
             return;
         }
-
-        importFeedback = $"Successfully uploaded custom icon.";
-        importFeedbackTicks = 180;
+        Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage($"Successfully uploaded custom icon: {Path.GetFileName(path)}"));
     }
 
     #endregion
@@ -454,13 +460,6 @@ public sealed class MainWindow : Window, IDisposable
         importConflictModal.Draw();
         groupEditorModal.Draw(plugin);
         customIconImageUploadModal.Draw();
-
-        // Import feedback banner
-        if (importFeedbackTicks > 0)
-        {
-            importFeedbackTicks--;
-            ImGui.TextColored(new Vector4(0.2f, 1f, 0.4f, 1f), importFeedback);
-        }
 
         // Header
         headerSection.Draw();
