@@ -49,6 +49,10 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Provides access to the player's state (content ID, etc.)</summary>
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
 
+    /// <summary>Provides access to Dalamud's notification system</summary>
+    [PluginService]
+    internal static INotificationManager NotificationManager { get; private set; } = null!;
+
     // ═══════════════════════════════════════════════════════════════
     // PLUGIN CONFIGURATION & SERVICES
     // ═══════════════════════════════════════════════════════════════
