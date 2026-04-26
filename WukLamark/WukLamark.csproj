@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/14.0.2">
   <PropertyGroup>
-    <Version>1.0.4.1</Version>
+    <Version>1.0.5.0</Version>
     <Author>Bronya Rand</Author>
     <Company>Bronya Rand</Company>
     <Name>WukLamark</Name>
@@ -12,13 +12,15 @@
 Features:
 - Customizable game icons and shapes for map markers (with optional icon tinting)
 - Per-marker icon/shape sizes
+- Custom map marker icons.
+   &gt; To add a custom icon, place a PNG file in the "WukLamark/CustomIcons" folder. Go to WukLamark Settings -&gt; 'Open Custom Icon Folder' to access it.
 - Organize map markers into groups (with map marker import/export)
 - Cross-character sharing configurations
 - Crossworld markers
 - Add personal notes for context
 - Import/export one or multiple map markers with friends
 - Partial support for Native markers*
-  &gt; * - With a reduced feature set. Only applicable to the map, not the minimap.
+  &gt; * - Only applicable to the map, not the minimap.
 
 Think of it as dropping a flag on the map but persistent.</Description>
     <Tags>custom;marker;map;flag;wuk;ww;wl;wuklamark;wukwaymark;utility;ui;other</Tags>
