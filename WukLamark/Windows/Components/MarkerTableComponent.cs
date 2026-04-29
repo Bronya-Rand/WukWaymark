@@ -182,8 +182,7 @@ internal sealed class MarkerTableComponent
         ImGui.Text(locationText);
         if (ImGui.IsItemHovered())
         {
-            using var tooltip = ImRaii.Tooltip();
-            if (tooltip)
+            using (ImRaii.Tooltip())
             {
                 ImGui.Text($"Position: X: {marker.Position.X:F2}, Y: {marker.Position.Y:F2}, Z: {marker.Position.Z:F2}");
                 ImGui.Text($"Territory ID: {marker.TerritoryId}");

@@ -28,7 +28,7 @@ public class Marker
     /// <summary>
     /// Territory ID where this marker is located.
     /// </summary>
-    public ushort TerritoryId { get; set; }
+    public uint TerritoryId { get; set; }
 
     /// <summary>
     /// Ward ID for this marker location. (Only relevant for residential areas)
