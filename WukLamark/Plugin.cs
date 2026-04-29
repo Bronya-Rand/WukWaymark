@@ -222,7 +222,7 @@ public sealed class Plugin : IDalamudPlugin
     /// Called when the player changes territory (zone) in the game.
     /// -- Updates the current world ID in the LocationHelper to the current world ID.
     /// </summary>
-    private void OnTerritoryChange(ushort _)
+    private void OnTerritoryChange(uint _)
     {
         MapOverlayController.RemoveAllMarkers();
         LocationHelper.UpdateCurrentWorldId();

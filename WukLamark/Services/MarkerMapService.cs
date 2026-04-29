@@ -227,8 +227,6 @@ namespace WukLamark.Services
                 if (marker.WardId != -1 && marker.WardId != wardId)
                     continue; // Wrong ward (for housing areas)
 
-                var markerWorldPos = new Vector2(marker.Position.X, marker.Position.Z);
-
                 // Visibility radius check
                 if (configuration.FadeWaymarkOnMapEdge && marker.Icon.VisibilityRadius > 0 && !plugin.Configuration.UseKTK)
                 {
