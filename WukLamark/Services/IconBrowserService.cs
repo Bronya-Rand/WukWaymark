@@ -35,87 +35,25 @@ namespace WukLamark.Services
             {
                 var uniqueIcons = new Dictionary<uint, IconInfo>();
 
-                void AddIcons<T>(IEnumerable<T> sheet, Func<T, uint> getIcon, Func<T, string> getName, string source, bool isIcon = false)
-                {
-                    foreach (var row in sheet)
-                    {
-                        if (token.IsCancellationRequested) return;
+                // Load from sheets with uint icon IDs
+                LoadIconsFromLumina(dataManager.GetExcelSheet<Item>()!, row => row.Icon, row => row.Name.ToString(), "Item", uniqueIcons, token);
+                LoadIconsFromLumina(dataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>()!, row => row.Icon, row => row.Name.ToString(), "Action", uniqueIcons, token);
+                LoadIconsFromLumina(dataManager.GetExcelSheet<Emote>()!, row => row.Icon, row => row.Name.ToString(), "Emote", uniqueIcons, token);
+                LoadIconsFromLumina(dataManager.GetExcelSheet<Status>()!, row => row.Icon, row => row.Name.ToString(), "Status", uniqueIcons, token);
+                LoadIconsFromLumina(dataManager.GetExcelSheet<QuestLinkMarkerIcon>()!, row => row.Icon, row => $"Quest Icon {row.RowId}", "Quest", uniqueIcons, token);
+                // Load from sheets with int icon IDs   
+                LoadIconsFromLuminaInt(dataManager.GetExcelSheet<Perform>()!, row => row.Icon, row => row.Name.ToString(), "Perform", uniqueIcons, token);
+                LoadIconsFromLuminaInt(dataManager.GetExcelSheet<GeneralAction>()!, row => row.Icon, row => row.Name.ToString(), "General", uniqueIcons, token);
+                LoadIconsFromLuminaInt(dataManager.GetExcelSheet<MainCommand>()!, row => row.Icon, row => row.Name.ToString(), "Main", uniqueIcons, token);
+                LoadIconsFromLuminaInt(dataManager.GetExcelSheet<ExtraCommand>()!, row => row.Icon, row => row.Name.ToString(), "Extra", uniqueIcons, token);
 
-                        var iconId = getIcon(row);
-                        if (iconId == 0) continue;
-
-                        var name = getName(row);
-                        if (name.IsNullOrEmpty()) continue;
-
-                        // Check if loadable
-                        try
-                        {
-                            Plugin.TextureProvider.GetFromGameIcon(iconId).GetWrapOrEmpty();
-                        }
-                        catch (IconNotFoundException)
-                        {
-                            Plugin.Log.Debug($"Icon {iconId} ({name}) from {source} is not loadable, skipping.");
-                            continue;
-                        }
-
-                        if (!uniqueIcons.ContainsKey(iconId))
-                            uniqueIcons[iconId] = new IconInfo { IconId = iconId, Name = name, Source = source };
-                    }
-                }
-
-                var macroSheet = dataManager.GetExcelSheet<MacroIcon>()!;
-                foreach (var row in macroSheet)
-                {
-                    if (token.IsCancellationRequested) return;
-
-                    var iconId = (uint)row.Icon;
-                    if (iconId == 0 || uniqueIcons.ContainsKey(iconId)) continue;
-                    uniqueIcons[iconId] = new IconInfo { IconId = iconId, Name = $"Macro Icon {iconId}", Source = "Macro" };
-                }
-
-                var items = dataManager.GetExcelSheet<Item>()!;
-                AddIcons(items, i => i.Icon, i => i.Name.ToString(), "Item");
-
-                var actions = dataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>()!;
-                AddIcons(actions, a => a.Icon, a => a.Name.ToString(), "Action");
-
-                var emotes = dataManager.GetExcelSheet<Emote>()!;
-                AddIcons(emotes, e => e.Icon, e => e.Name.ToString(), "Emote");
-
-                // Sheets with int icon IDs - filter out negatives before casting to uint to prevent crashes
-                var perform = dataManager.GetExcelSheet<Perform>()!;
-                AddIcons(perform, p => p.Icon >= 0 ? (uint)p.Icon : 0, p => p.Name.ToString(), "Perform");
-
-                var generalActions = dataManager.GetExcelSheet<GeneralAction>()!;
-                AddIcons(generalActions, a => a.Icon >= 0 ? (uint)a.Icon : 0, a => a.Name.ToString(), "General");
-
-                var mainCommands = dataManager.GetExcelSheet<MainCommand>()!;
-                AddIcons(mainCommands, m => m.Icon >= 0 ? (uint)m.Icon : 0, m => m.Name.ToString(), "Main");
-
-                var extras = dataManager.GetExcelSheet<ExtraCommand>()!;
-                AddIcons(extras, e => e.Icon >= 0 ? (uint)e.Icon : 0, e => e.Name.ToString(), "Extra");
-
-                var statuses = dataManager.GetExcelSheet<Status>()!;
-                AddIcons(statuses, s => s.Icon, s => s.Name.ToString(), "Status", true);
-
-                var questMarkers = dataManager.GetExcelSheet<QuestLinkMarkerIcon>()!;
-                AddIcons(questMarkers, q => q.Icon, q => $"Quest Icon {q.RowId}", "Quest", true);
-
-                var mapSymbols = dataManager.GetExcelSheet<MapSymbol>()!;
-                foreach (var row in mapSymbols)
-                {
-                    if (token.IsCancellationRequested) return;
-
-                    var iconId = (uint)row.Icon;
-                    if (iconId == 0 || uniqueIcons.ContainsKey(iconId)) continue;
-                    uniqueIcons[iconId] = new IconInfo { IconId = iconId, Name = row.PlaceName.Value.Name.ToString() ?? $"Map Symbol {iconId}", Source = "Map" };
-                }
+                LoadMacroIcons(dataManager.GetExcelSheet<MacroIcon>()!, uniqueIcons, token);
+                LoadMapSymbols(dataManager.GetExcelSheet<MapSymbol>()!, uniqueIcons, token);
 
                 if (token.IsCancellationRequested) return;
 
                 // Atomically assign collections here to prevent race conditions with main thread readers
                 AvailableIcons = uniqueIcons.Values.OrderBy(i => i.IconId).ToList();
-
                 IsLoaded = true;
                 Plugin.Log.Information($"Loaded {AvailableIcons.Count} unique icons for the UI picker.");
             }
@@ -123,6 +61,86 @@ namespace WukLamark.Services
             {
                 if (ex is OperationCanceledException) return;
                 Plugin.Log.Error(ex, "Failed to load icon database.");
+            }
+        }
+        private static void LoadIconsFromLumina<T>(IEnumerable<T> excelSheet, Func<T, uint> getIconId, Func<T, string> getName, string source, Dictionary<uint, IconInfo> uniqueIcons, CancellationToken token)
+        {
+            foreach (var row in excelSheet)
+            {
+                if (token.IsCancellationRequested) return;
+
+                var iconId = getIconId(row);
+                if (iconId == 0 || uniqueIcons.ContainsKey(iconId)) continue;
+
+                var name = getName(row);
+                if (name.IsNullOrEmpty()) continue;
+
+                // Check if loadable
+                if (!TryAddIcon(iconId, name, source, uniqueIcons))
+                    Plugin.Log.Debug($"Icon {iconId} ({name}) from {source} is not loadable, skipping.");
+            }
+        }
+        private static void LoadIconsFromLuminaInt<T>(IEnumerable<T> excelSheet, Func<T, int> getIconId, Func<T, string> getName, string source, Dictionary<uint, IconInfo> uniqueIcons, CancellationToken token)
+        {
+            foreach (var row in excelSheet)
+            {
+                if (token.IsCancellationRequested) return;
+
+                var iconIdInt = getIconId(row);
+                if (iconIdInt < 0) continue;
+
+                var iconId = (uint)iconIdInt;
+                if (iconId == 0 || uniqueIcons.ContainsKey(iconId)) continue;
+
+                var name = getName(row);
+                if (name.IsNullOrEmpty()) continue;
+
+                // Check if loadable
+                if (!TryAddIcon(iconId, name, source, uniqueIcons))
+                    Plugin.Log.Debug($"Icon {iconId} ({name}) from {source} is not loadable, skipping.");
+            }
+        }
+        private static void LoadMacroIcons(IEnumerable<MacroIcon> macroSheet, Dictionary<uint, IconInfo> uniqueIcons, CancellationToken token)
+        {
+            foreach (var row in macroSheet)
+            {
+                if (token.IsCancellationRequested) return;
+                var iconId = (uint)row.Icon;
+
+                if (iconId == 0 || uniqueIcons.ContainsKey(iconId)) continue;
+                var name = $"Macro Icon {iconId}";
+
+                // Check if loadable
+                if (!TryAddIcon(iconId, name, "Macro", uniqueIcons))
+                    Plugin.Log.Debug($"Macro Icon {iconId} is not loadable, skipping.");
+            }
+        }
+        private static void LoadMapSymbols(IEnumerable<MapSymbol> mapSymbols, Dictionary<uint, IconInfo> uniqueIcons, CancellationToken token)
+        {
+            foreach (var row in mapSymbols)
+            {
+                if (token.IsCancellationRequested) return;
+                var iconId = (uint)row.Icon;
+
+                if (iconId == 0 || uniqueIcons.ContainsKey(iconId)) continue;
+                var name = row.PlaceName.Value.Name.ToString() ?? $"Map Symbol {iconId}";
+
+                // Check if loadable
+                if (!TryAddIcon(iconId, name, "Map", uniqueIcons))
+                    Plugin.Log.Debug($"Map Symbol {iconId} is not loadable, skipping.");
+            }
+        }
+        private static bool TryAddIcon(uint iconId, string name, string source, Dictionary<uint, IconInfo> uniqueIcons)
+        {
+            try
+            {
+                Plugin.TextureProvider.GetFromGameIcon(iconId).GetWrapOrEmpty();
+                uniqueIcons[iconId] = new IconInfo { IconId = iconId, Name = name, Source = source };
+                return true;
+            }
+            catch (IconNotFoundException)
+            {
+                return false;
             }
         }
         public void Dispose()
