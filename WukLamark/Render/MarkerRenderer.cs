@@ -6,7 +6,7 @@ using System;
 using System.Numerics;
 using WukLamark.Models;
 
-namespace WukLamark.Windows
+namespace WukLamark.Render
 {
     public static class MarkerRenderer
     {
@@ -192,31 +192,36 @@ namespace WukLamark.Windows
         /// </summary>
         /// <param name="drawList">The ImGui draw list to render to</param>
         /// <param name="position">Screen-space center position</param>
-        /// <param name="shape">Fallback shape if no icon</param>
+        /// <param name="markerIcon">The marker icon data</param>
         /// <param name="markerSize">Marker size in pixels</param>
-        /// <param name="colorU32">Fill color for shape rendering</param>
-        /// <param name="iconId">Optional game icon ID; if set, renders icon instead of shape</param>
-        public static void RenderMarker(ImDrawListPtr drawList, Vector2 position, MarkerShape shape, float markerSize, uint colorU32, uint? iconId, string? customIconName, bool useShapeColorOnIcon)
+        /// <param name="color">Fill color for shape rendering</param>
+        public static void RenderMarker(ImDrawListPtr drawList, Vector2 position, MarkerIcon markerIcon, float markerSize, Vector4? color)
         {
+            uint colorU32;
+            if (color != null)
+                colorU32 = ImGui.ColorConvertFloat4ToU32(color.Value);
+            else
+                colorU32 = ImGui.ColorConvertFloat4ToU32(markerIcon.Color);
+
             // Pass the fill color as tint so icon respects alpha fade
             var tint = 0x00FFFFFFu | (colorU32 & 0xFF000000u); // white RGB + alpha from colorU32
 
             // Apply shape color as tint if 'useShapeColorOnIcon' is true.
-            if (useShapeColorOnIcon)
+            if (markerIcon.UseShapeColor)
                 tint = colorU32;
 
-            if (!customIconName.IsNullOrEmpty())
+            if (!markerIcon.CustomIconName.IsNullOrEmpty())
             {
-                if (!RenderMarkerCustomIcon(drawList, position, customIconName, markerSize, tint))
-                    RenderMarkerShape(drawList, position, shape, markerSize, colorU32); // Fallback to shape if custom icon not found
+                if (!RenderMarkerCustomIcon(drawList, position, markerIcon.CustomIconName, markerSize, tint))
+                    RenderMarkerShape(drawList, position, markerIcon.Shape, markerSize, colorU32); // Fallback to shape if custom icon not found
             }
-            else if (iconId.HasValue && iconId.Value != 0)
+            else if (markerIcon.GameIconId != null)
             {
-                if (!RenderMarkerIcon(drawList, position, iconId.Value, markerSize, tint))
-                    RenderMarkerShape(drawList, position, shape, markerSize, colorU32);
+                if (!RenderMarkerIcon(drawList, position, markerIcon.GameIconId.Value, markerSize, tint))
+                    RenderMarkerShape(drawList, position, markerIcon.Shape, markerSize, colorU32);
             }
             else
-                RenderMarkerShape(drawList, position, shape, markerSize, colorU32);
+                RenderMarkerShape(drawList, position, markerIcon.Shape, markerSize, colorU32);
         }
     }
 }

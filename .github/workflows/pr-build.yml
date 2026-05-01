@@ -15,6 +15,14 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+        submodules: recursive
+
+    - name: Sync submodules
+      run: |
+        git submodule sync --recursive
+        git submodule update --init --recursive
 
     - name: Install .NET
       uses: actions/setup-dotnet@v5

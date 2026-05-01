@@ -1,4 +1,5 @@
 using Dalamud.Bindings.ImGui;
+using System.Numerics;
 
 namespace WukLamark.Utils
 {
@@ -26,6 +27,15 @@ namespace WukLamark.Utils
                 ImGui.SetCursorPosX(ImGui.GetCursorPosX() + x);
 
             ImGui.Text(text);
+        }
+        public static void CenteredTextColored(Vector4 color, string text)
+        {
+            var textWidth = ImGui.CalcTextSize(text).X;
+            var avail = ImGui.GetContentRegionAvail().X;
+            var x = (avail - textWidth) / 2;
+            if (x > 0f)
+                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + x);
+            ImGui.TextColored(color, text);
         }
     }
 }

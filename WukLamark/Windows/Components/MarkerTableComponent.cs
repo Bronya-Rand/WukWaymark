@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using WukLamark.Helpers;
 using WukLamark.Models;
+using WukLamark.Render;
 using WukLamark.Services;
 using WukLamark.Utils;
 
@@ -18,6 +19,7 @@ internal sealed class MarkerTableComponent
     private readonly Plugin plugin;
     private readonly GameStateReaderService gameStateReaderService;
     private readonly MarkerEditPopup editPopup;
+    private const float MaxIconHeight = 7f;
 
     #region Selection State
     private Marker? pendingEditMarker;
@@ -129,17 +131,13 @@ internal sealed class MarkerTableComponent
     {
         ImGui.TableSetColumnIndex(0);
 
-        var colorU32 = ImGui.ColorConvertFloat4ToU32(marker.Icon.Color);
         var globalScale = ImGuiHelpers.GlobalScale;
         MarkerRenderer.RenderMarker(
             ImGui.GetWindowDrawList(),
             ImGui.GetCursorScreenPos() + new Vector2(20 * globalScale, 10 * globalScale),
-            marker.Icon.Shape,
-            8f * globalScale,
-            colorU32,
-            marker.Icon.GameIconId,
-            marker.Icon.CustomIconName,
-            marker.Icon.UseShapeColor
+            marker.Icon,
+            MaxIconHeight * globalScale,
+            marker.Icon.Color
         );
         ImGui.Dummy(new Vector2(40 * globalScale, 20 * globalScale));
     }
