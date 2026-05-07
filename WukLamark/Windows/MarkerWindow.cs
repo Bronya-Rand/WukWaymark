@@ -1,8 +1,7 @@
-using Dalamud.Bindings.ImGui;
-using Dalamud.Utility;
 using System;
-using System.Numerics;
-using WukLamark.Helpers;
+using WukLamark.Render;
+using WukLamark.Render.IGui;
+using WukLamark.Render.KTK;
 using WukLamark.Services;
 
 namespace WukLamark.Windows
@@ -15,12 +14,15 @@ namespace WukLamark.Windows
     public sealed class MarkerWindow : IDisposable
     {
         private readonly MarkerMapService service;
-        private readonly Plugin plugin;
+        private readonly IMapMarkerRender imGuiRenderer;
+        private readonly IMapMarkerRender ktkRenderer;
+        private IMapMarkerRender? previousRenderer;
 
         internal MarkerWindow(MarkerMapService service, Plugin plugin)
         {
             this.service = service;
-            this.plugin = plugin;
+            imGuiRenderer = new ImGuiMapMarkerRender(plugin);
+            ktkRenderer = new KtkMapMarkerRender(plugin);
             Plugin.PluginInterface.UiBuilder.Draw += Draw;
         }
 
@@ -31,42 +33,35 @@ namespace WukLamark.Windows
         private void Draw()
         {
             if (!Plugin.ClientState.IsLoggedIn) return;
-            if (!plugin.Configuration.WaymarksMapEnabled) return;
+            var mapRenderDisabled = !imGuiRenderer.IsEnabled && !ktkRenderer.IsEnabled;
+            if (mapRenderDisabled) return;
 
             // Do not render if UI is fading (handles the "Gridania | New Gridania" 
             // screen transition when teleporting).
             if (NaviMapStateReader.IsUIFading()) return;
             if (service.MapCenterScreenPos == null) return; // AreaMap not fully loaded/visible
 
-            var drawList = ImGui.GetBackgroundDrawList();
-            var mousePos = ImGui.GetMousePos();
-            string? hoveredMarkerName = null;
+            var renderer = ktkRenderer.IsEnabled ? ktkRenderer : imGuiRenderer;
 
-            // Iterate through pre-calculated markers from the Service
-            foreach (var (position, shape, size, colorU32, name, notes, iconId, customIconName, useShapeColorOnIcon) in service.MarkersToRender)
+            // Invalidate KTK cache if switching between renderers
+            if (!ReferenceEquals(previousRenderer, renderer))
             {
-                MarkerRenderer.RenderMarker(drawList, position, shape, size, colorU32, iconId, customIconName, useShapeColorOnIcon);
+                if (renderer is KtkMapMarkerRender ktk)
+                    ktk.InvalidateCache();
 
-                // Display tooltip if enabled and mouse is hovering within marker bounds
-                if (!plugin.Configuration.ShowWaymarkTooltips) continue;
-                if (Vector2.Distance(mousePos, position) > size + 2.0f) continue; // Add small padding for easier hovering
-
-                var safeName = name.IsNullOrEmpty() ? "Unnamed Marker" : name;
-                var formattedNotes = MapHelper.FormatMapTooltipNotes(notes);
-
-                if (formattedNotes.Length > 0)
-                    hoveredMarkerName = $"{safeName}\n{formattedNotes}";
-                else
-                    hoveredMarkerName = safeName;
+                previousRenderer = renderer;
             }
 
-            // Display tooltip for hovered marker
-            if (hoveredMarkerName != null)
-                ImGui.SetTooltip(hoveredMarkerName);
+            renderer.BeginRender();
+            foreach (var marker in service.MarkersToRender)
+                renderer.RenderMarker(service.SelectedMapId, service.UIScale, marker);
+            renderer.EndRender();
         }
 
         public void Dispose()
         {
+            imGuiRenderer.Dispose();
+            ktkRenderer.Dispose();
             Plugin.PluginInterface.UiBuilder.Draw -= Draw;
             GC.SuppressFinalize(this);
         }

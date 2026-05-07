@@ -37,7 +37,6 @@ namespace WukLamark.Helpers
             agent->SetFlagMapMarker(territoryId, mapId, position);
             agent->OpenMap(mapId, territoryId, title, MapType.FlagMarker);
         }
-        //
         public static string FormatMapTooltipNotes(string? markerNotes)
         {
             if (markerNotes.IsNullOrEmpty()) return string.Empty;

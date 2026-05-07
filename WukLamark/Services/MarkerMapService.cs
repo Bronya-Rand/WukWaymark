@@ -1,4 +1,3 @@
-using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility;
@@ -16,16 +15,15 @@ using WukLamark.Windows;
 
 namespace WukLamark.Services
 {
-    public sealed record MarkerMapRenderData(
+    public sealed record MapMarkerData(
+        Guid Id,
         Vector2 ScreenPosition,
-        MarkerShape Shape,
-        float Size,
-        uint ColorU32,
+        Vector2 WorldPosition,
+        MarkerIcon Icon,
+        Vector4 FadedColor,
+        float MarkerSize,
         string Name,
-        string? Notes,
-        uint? GameIconId,
-        string? CustomIconName,
-        bool UseShapeColor);
+        string? Notes);
 
     /// <summary>
     /// Service responsible for calculating marker positions on the full Area Map (AreaMap addon).
@@ -41,10 +39,12 @@ namespace WukLamark.Services
         private const float DefaultMapMarkerPx = 48.0f;
         private Vector2 defaultMapMarkerSize = new(DefaultMapMarkerPx, DefaultMapMarkerPx);
 
-        public readonly List<MarkerMapRenderData> MarkersToRender = [];
+        public readonly List<MapMarkerData> MarkersToRender = [];
 
         // Cached state from Framework.Update for debug / window access
         public Vector2? MapCenterScreenPos { get; private set; }
+        public uint SelectedMapId { get; private set; }
+        public float UIScale { get; private set; }
 
         // Map clip bounds for the window layer
         public float MapMinX { get; private set; }
@@ -112,12 +112,16 @@ namespace WukLamark.Services
                 return;
 
             var areaMap = (AtkUnitBase*)areaMapAddonPtr.Address;
-            if (areaMap == null || !areaMap->IsVisible || areaMap->UldManager.LoadedState != AtkLoadState.Loaded)
+            if (areaMap == null || ((!areaMap->IsVisible || areaMap->UldManager.LoadedState != AtkLoadState.Loaded) && !plugin.Configuration.UseKTK))
                 return;
+            UIScale = areaMap->Scale;
 
             var agentMap = AgentMap.Instance();
-            if (agentMap == null || agentMap->CurrentMapId == 0)
+            if (agentMap == null || agentMap->CurrentMapId == 0 || agentMap->SelectedMapId == 0)
                 return;
+            // Update the cached SelectedMapId if it has changed
+            if (agentMap->SelectedMapId != SelectedMapId)
+                SelectedMapId = agentMap->SelectedMapId;
 
             // ═══════════════════════════════════════════════════════════════
             // STEP 2: Locate critical UI nodes
@@ -212,25 +216,26 @@ namespace WukLamark.Services
 
             var multiplierForMarkers = GetMultiplier(zoomIndex, areaMap->Scale);
             var mapCenterWorldPos = Vector3.Zero;
-            var currentMapId = agentMap->SelectedMapId;
 
             foreach (var marker in plugin.MarkerStorageService.GetVisibleMarkers())
             {
                 // Early culling
                 if (!marker.AppliesToAllWorlds && marker.WorldId != currentWorldId)
                     continue; // Wrong world
-                if (marker.MapId != currentMapId)
+                if (marker.MapId != SelectedMapId)
                     continue; // Wrong map
                 if (marker.WardId != -1 && marker.WardId != wardId)
                     continue; // Wrong ward (for housing areas)
 
+                var markerWorldPos = new Vector2(marker.Position.X, marker.Position.Z);
+
                 // Visibility radius check
-                if (configuration.FadeWaymarkOnMapEdge && marker.Icon.VisibilityRadius > 0)
+                if (configuration.FadeWaymarkOnMapEdge && marker.Icon.VisibilityRadius > 0 && !plugin.Configuration.UseKTK)
                 {
                     var distSquared = Vector3.DistanceSquared(player.Position, marker.Position);
                     var radiusSquared = marker.Icon.VisibilityRadius * marker.Icon.VisibilityRadius;
 
-                    if (distSquared > radiusSquared)
+                    if (distSquared > radiusSquared && agentMap->SelectedMapId == agentMap->CurrentMapId)
                         continue; // Beyond visibility radius — don't render
                 }
 
@@ -278,7 +283,6 @@ namespace WukLamark.Services
                 if (markerScreenX <= MapMinX || markerScreenX >= MapMaxX || markerScreenY <= MapMinY || markerScreenY >= MapMaxY)
                     isClamped = true;
 
-                var colorU32 = ImGui.ColorConvertFloat4ToU32(marker.Icon.Color);
                 var baseMarkerSize = configuration.WaymarkMarkerSize;
                 // Override base size if marker has an explicit size set
                 if (marker.Icon.Size > 0.0)
@@ -311,44 +315,43 @@ namespace WukLamark.Services
                 }
 
                 // Apply visibility radius fade (last 20% of radius)
+                // Only for ImGui rendering
                 var targetAlpha = 1.0f;
-                if (configuration.FadeWaymarkOnMapEdge && marker.Icon.VisibilityRadius > 0)
+                if (!plugin.Configuration.UseKTK)
                 {
-                    var distSquared = Vector3.DistanceSquared(player.Position, marker.Position);
-                    var fadeStart = marker.Icon.VisibilityRadius * 0.8f;
-                    var fadeStartSquared = fadeStart * fadeStart;
-
-                    if (distSquared > fadeStartSquared)
+                    if (configuration.FadeWaymarkOnMapEdge && marker.Icon.VisibilityRadius > 0)
                     {
-                        var dist = MathF.Sqrt(distSquared); // Only apply when fading
-                        targetAlpha = 1.0f - ((dist - fadeStart) / (marker.Icon.VisibilityRadius - fadeStart));
+                        var visibilityRadius = agentMap->SelectedMapId == agentMap->CurrentMapId
+                            ? marker.Icon.VisibilityRadius : 0f;
+
+                        var distSquared = Vector3.DistanceSquared(player.Position, marker.Position);
+                        var fadeStart = marker.Icon.VisibilityRadius * 0.8f;
+                        var fadeStartSquared = fadeStart * fadeStart;
+
+                        if (distSquared > fadeStartSquared)
+                        {
+                            var dist = MathF.Sqrt(distSquared); // Only apply when fading
+                            targetAlpha = 1.0f - ((dist - fadeStart) / (visibilityRadius - fadeStart));
+                        }
+                    }
+
+                    if (configuration.FadeWaymarkOnMapEdge && isClamped)
+                    {
+                        targetAlpha = Math.Min(targetAlpha, configuration.MapEdgeFadeAlpha);
                     }
                 }
 
-                if (configuration.FadeWaymarkOnMapEdge && isClamped)
-                {
-                    targetAlpha = Math.Min(targetAlpha, configuration.MapEdgeFadeAlpha);
-                }
+                var vector4FadedColor = new Vector4(marker.Icon.Color.X, marker.Icon.Color.Y, marker.Icon.Color.Z, targetAlpha);
 
-                if (targetAlpha < 1.0f)
-                {
-                    targetAlpha = Math.Clamp(targetAlpha, 0f, 1f);
-                    // Modify the U32 color's alpha channel
-                    var originalAlpha = ((colorU32 >> 24) & 0xFF) / 255f;
-                    var a = (uint)(targetAlpha * originalAlpha * 255f);
-                    colorU32 = (colorU32 & 0x00FFFFFF) | (a << 24);
-                }
-
-                MarkersToRender.Add(new MarkerMapRenderData(
+                MarkersToRender.Add(new MapMarkerData(
+                    marker.Id,
                     new Vector2(markerScreenX, markerScreenY),
-                    marker.Icon.Shape,
+                    markerWorldPos,
+                    marker.Icon,
+                    vector4FadedColor,
                     markerSize,
-                    colorU32,
                     marker.Name,
-                    marker.Notes.IsNullOrEmpty() ? null : marker.Notes,
-                    marker.Icon.GameIconId,
-                    marker.Icon.CustomIconName,
-                    marker.Icon.UseShapeColor
+                    marker.Notes.IsNullOrEmpty() ? null : marker.Notes
                 ));
             }
         }
