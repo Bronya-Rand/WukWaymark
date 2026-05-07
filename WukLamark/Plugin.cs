@@ -9,6 +9,7 @@ using System;
 using WukLamark.Helpers;
 using WukLamark.Services;
 using WukLamark.Windows;
+using WukLamark.Windows.Native;
 
 namespace WukLamark;
 
@@ -85,6 +86,7 @@ public sealed class Plugin : IDalamudPlugin
 
     /// <summary>Settings window for configuring marker display behavior</summary>
     private ConfigWindow ConfigWindow { get; init; }
+    private WukLamarkConfigAddon ConfigNativeWindow { get; init; }
 
     /// <summary>Main window displaying list of saved map markers and management UI</summary>
     private MainWindow MainWindow { get; init; }
@@ -128,6 +130,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Initialize UI windows
         ConfigWindow = new ConfigWindow(this);
+        ConfigNativeWindow = new WukLamarkConfigAddon(this);
         MainWindow = new MainWindow(this);
         MarkerMapService = new MarkerMapService(this);
         MarkerMinimapService = new MarkerMinimapService(this);
@@ -284,7 +287,11 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     /// <summary>Toggles the visibility of the configuration window</summary>
-    public void ToggleConfigUi() => ConfigWindow.Toggle();
+    public void ToggleConfigUi()
+    {
+        ConfigWindow.Toggle();
+        ConfigNativeWindow.Toggle();
+    }
 
     /// <summary>Toggles the visibility of the main map marker management window</summary>
     public void ToggleMainUi() => MainWindow.Toggle();

@@ -27,8 +27,8 @@ public sealed class ConfigWindow : Window, IDisposable
     {
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(400, 450),
-            MaximumSize = new Vector2(450, 550)
+            MinimumSize = WindowConstants.ConfigWindowMinSize,
+            MaximumSize = WindowConstants.ConfigWindowMaxSize
         };
         this.plugin = plugin;
         configuration = plugin.Configuration;
