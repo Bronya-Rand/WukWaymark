@@ -53,6 +53,7 @@ internal sealed class MarkerTableComponent
             ImGuiTableFlags.ScrollX | ImGuiTableFlags.Resizable);
         if (!markerTableMode) return;
 
+        // Setup columns
         ImGui.TableSetupColumn("Marker", ImGuiTableColumnFlags.WidthFixed, 50);
         ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 100);
         ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.WidthStretch, 160);
@@ -74,12 +75,41 @@ internal sealed class MarkerTableComponent
                 var isSelected = SelectedMarkerIds.Contains(marker.Id);
                 var rowClicked = ImGui.Selectable($"##row_{marker.Id}",
                     isSelected,
-                    ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap,
+                    ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap | ImGuiSelectableFlags.AllowDoubleClick,
                     new Vector2(0, rowHeight));
 
                 ImGui.SetItemAllowOverlap();
 
-                ImGui.OpenPopupOnItemClick($"MarkerContextMenu##{marker.Id}", ImGuiPopupFlags.MouseButtonRight);
+                // Mouse interactions
+                if (ImGui.IsItemHovered())
+                {
+                    var io = ImGui.GetIO();
+
+                    // 1. Double-Click for Editing
+                    if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
+                    {
+                        GetPermissionsForMarker(marker, parentGroup, out _, out _, out var canEdit, out _);
+                        if (canEdit)
+                            HandleOnEditMarker(marker, parentGroup);
+                    }
+                    else if (ImGui.IsMouseReleased(ImGuiMouseButton.Right))
+                    {
+                        // 2. Shift + Right-Click for Flag on Map
+                        if (io.KeyShift)
+                        {
+                            GetPermissionsForMarker(marker, parentGroup, out var isLoggedIn, out _, out _, out _);
+                            if (isLoggedIn)
+                                OnFlagRequested?.Invoke(marker);
+                        }
+                        else
+                        {
+                            // 3. Right-Click for Context Menu
+                            ImGui.OpenPopup($"MarkerContextMenu##{marker.Id}");
+                        }
+                    }
+                }
+
+                // Context Menu
                 using (var popup = ImRaii.Popup($"MarkerContextMenu##{marker.Id}"))
                 {
                     if (popup)
@@ -212,12 +242,8 @@ internal sealed class MarkerTableComponent
 
         using (ImRaii.Disabled(!canEdit))
             if (ImGui.MenuItem("Edit Marker"))
-            {
-                pendingEditMarker = marker;
-                pendingEditParentGroup = parentGroup;
-                pendingEditPopupOpenRequested = true;
-                editPopup.LoadFromMarker(marker);
-            }
+                HandleOnEditMarker(marker, parentGroup);
+
         if (!canEdit)
         {
             var tooltip = GetEditMarkerTooltipText(marker, parentGroup);
@@ -318,6 +344,13 @@ internal sealed class MarkerTableComponent
         SelectedMarkerIds.Clear();
         SelectedMarkerIds.Add(clickedId);
         selectionAnchorIndex = clickedIndex;
+    }
+    private void HandleOnEditMarker(Marker marker, MarkerGroup? parentGroup)
+    {
+        pendingEditMarker = marker;
+        pendingEditParentGroup = parentGroup;
+        pendingEditPopupOpenRequested = true;
+        editPopup.LoadFromMarker(marker);
     }
     private void GetPermissionsForMarker(Marker marker, MarkerGroup? parentGroup, out bool isLoggedIn, out bool isCreator, out bool canEdit, out bool canDelete)
     {
