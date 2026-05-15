@@ -1,4 +1,5 @@
 using Dalamud.Configuration;
+using Newtonsoft.Json;
 using System;
 using WukLamark.Models;
 
@@ -25,11 +26,19 @@ public class Configuration : IPluginConfiguration
 
     /// <summary>
     /// Radius (in pixels) of markers displayed on the map.
-    /// Valid range: 4.0 to 20.0 pixels.
-    /// Affects all markers uniformly via this global setting.
-    /// Property name kept as 'WaymarkMarkerSize' for compatibility.
     /// </summary>
-    public float WaymarkMarkerSize { get; set; } = 8.0f;
+    /// <remarks>
+    /// Ranges from 1.0 to 20.0 pixels. Affects all markers set to use the global size.
+    /// </remarks>
+    public float MapMarkerMapSize { get; set; } = 8.0f;
+
+    /// <summary>
+    /// Radius (in pixels) of markers displayed on the minimap.
+    /// </summary>
+    /// <remarks>
+    /// Same range and behavior as <cref="MapMarkerMapSize"/>, but applied to minimap markers.
+    /// </remarks>
+    public float MapMarkerMinimapSize { get; set; } = 6.0f;
 
     /// <summary>
     /// Show tooltips displaying marker names when hovering over markers on the map.
@@ -69,6 +78,23 @@ public class Configuration : IPluginConfiguration
     /// Property name kept as 'DefaultWaymarkShape' for compatibility.
     /// </summary>
     public MarkerShape DefaultWaymarkShape { get; set; } = MarkerShape.Circle;
+
+    #region Legacy Properties
+
+    /// <summary>
+    /// Sets the map marker size for both map and minimap markers from the legacy 'WaymarkMarkerSize' property.
+    /// </summary>
+    [JsonProperty("WaymarkMarkerSize")]
+    private float LegacyWaymarkMarkerSize
+    {
+        set
+        {
+            MapMarkerMapSize = value;
+            MapMarkerMinimapSize = value;
+        }
+    }
+
+    #endregion
 
     public void Save()
     {

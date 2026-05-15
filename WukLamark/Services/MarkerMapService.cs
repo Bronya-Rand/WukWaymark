@@ -279,7 +279,7 @@ namespace WukLamark.Services
                     isClamped = true;
 
                 var colorU32 = ImGui.ColorConvertFloat4ToU32(marker.Icon.Color);
-                var baseMarkerSize = configuration.WaymarkMarkerSize;
+                var baseMarkerSize = configuration.MapMarkerMapSize;
                 // Override base size if marker has an explicit size set
                 if (marker.Icon.Size > 0.0)
                     baseMarkerSize = marker.Icon.Size;

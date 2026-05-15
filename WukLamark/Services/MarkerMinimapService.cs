@@ -233,7 +233,7 @@ namespace WukLamark.Services
             {
                 var circlePos = CalculateCirclePosition(worldPos, cosRotation, sinRotation);
 
-                var baseMarkerSize = configuration.WaymarkMarkerSize;
+                var baseMarkerSize = configuration.MapMarkerMinimapSize;
                 // Override base size if marker has an explicit size set
                 if (iconSize > 0)
                     baseMarkerSize = iconSize;

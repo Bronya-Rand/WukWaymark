@@ -1,4 +1,6 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
+using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
@@ -16,6 +18,8 @@ public sealed class ConfigWindow : Window, IDisposable
 {
     private readonly Configuration configuration;
     private readonly Plugin plugin;
+
+    private const float DefaultMapMarkerSize = 8.0f;
 
     /// <summary>Tracks whether the "Clear All" confirmation dialog is shown</summary>
     private bool showClearConfirmation = false;
@@ -60,15 +64,45 @@ public sealed class ConfigWindow : Window, IDisposable
 
         ImGui.Spacing();
 
-        // Marker size slider
-        var markerSize = configuration.WaymarkMarkerSize;
-        ImGui.Text("Default Marker Icon/Shape Size:");
+        // Map marker size slider (for Map)
+        var mapMarkerSize = configuration.MapMarkerMapSize;
+        ImGui.Text("Default Marker Size on Map:");
         ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
-        if (ImGui.SliderFloat("##MarkerSize", ref markerSize, 1.0f, 24.0f, "%.1f"))
+        if (ImGui.SliderFloat("##MapMarkerSize", ref mapMarkerSize, 1.0f, 24.0f, "%.1f"))
         {
-            configuration.WaymarkMarkerSize = markerSize;
+            if (mapMarkerSize < 1.0f) mapMarkerSize = 1.0f;
+            if (mapMarkerSize > 24.0f) mapMarkerSize = 24.0f;
+
+            configuration.MapMarkerMapSize = mapMarkerSize;
             configuration.Save();
         }
+        ImGui.SameLine();
+        // Reset to default button for map marker size
+        if (ImGuiComponents.IconButton(FontAwesomeIcon.Undo))
+            configuration.MapMarkerMapSize = DefaultMapMarkerSize; // Default size
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Reset to default size");
+
+        ImGui.Spacing();
+
+        // Map marker size slider (for Minimap)
+        var minimapMarkerSize = configuration.MapMarkerMinimapSize;
+        ImGui.Text("Default Marker Size on Minimap:");
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        if (ImGui.SliderFloat("##MinimapMarkerSize", ref minimapMarkerSize, 1.0f, 24.0f, "%.1f"))
+        {
+            if (minimapMarkerSize < 1.0f) minimapMarkerSize = 1.0f;
+            if (minimapMarkerSize > 24.0f) minimapMarkerSize = 24.0f;
+
+            configuration.MapMarkerMinimapSize = minimapMarkerSize;
+            configuration.Save();
+        }
+        ImGui.SameLine();
+        // Reset to default button for map marker size
+        if (ImGuiComponents.IconButton(FontAwesomeIcon.Undo))
+            configuration.MapMarkerMinimapSize = DefaultMapMarkerSize; // Default size
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Reset to default size");
 
         ImGui.Spacing();
 
@@ -95,6 +129,9 @@ public sealed class ConfigWindow : Window, IDisposable
             ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
             if (ImGui.SliderFloat("##EdgeFadeAlpha", ref edgeFadeAlpha, 0.3f, 1.0f, "%.2f"))
             {
+                if (edgeFadeAlpha < 0.3f) edgeFadeAlpha = 0.3f;
+                if (edgeFadeAlpha > 1.0f) edgeFadeAlpha = 1.0f;
+
                 configuration.MapEdgeFadeAlpha = edgeFadeAlpha;
                 configuration.Save();
             }
