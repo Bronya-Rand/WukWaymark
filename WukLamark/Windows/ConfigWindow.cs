@@ -1,11 +1,12 @@
+using System;
+using System.Linq;
+using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
-using System;
-using System.Numerics;
 using WukLamark.Models;
 using WukLamark.Utils;
 
@@ -174,7 +175,7 @@ public sealed class ConfigWindow : Window, IDisposable
         using var eraseMarkersModal = ImRaii.PopupModal("Erase All Created Markers##WWClearConfirmation", ref showClearConfirmation, ImGuiWindowFlags.AlwaysAutoResize);
         if (eraseMarkersModal)
         {
-            var totalMarkers = plugin.MarkerStorageService.PersonalMarkers.Count +
+            var totalMarkers = plugin.MarkerStorageService.GetVisibleMarkers().Count(m => m.Scope == MarkerScope.Personal) +
                                plugin.MarkerStorageService.GetSharedCreatedMarkersCount();
             ImGui.Text($"Are you sure you want to delete all {totalMarkers} markers?");
             ImGui.Text("This action cannot be undone!");
@@ -182,10 +183,8 @@ public sealed class ConfigWindow : Window, IDisposable
 
             if (ImGui.Button("Yes, Delete All", new Vector2(150, 0)))
             {
-                plugin.MarkerStorageService.PersonalMarkers.Clear();
+                plugin.MarkerStorageService.ErasePersonalMarkers();
                 plugin.MarkerStorageService.EraseCreatedSharedMarkers();
-                plugin.MarkerStorageService.SavePersonalMarkers();
-                plugin.MarkerStorageService.SaveSharedMarkers();
                 Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage("All markers have been deleted."));
                 ImGui.CloseCurrentPopup();
             }

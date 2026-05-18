@@ -1,5 +1,5 @@
-using Dalamud.Bindings.ImGui;
 using System.Collections.Generic;
+using Dalamud.Bindings.ImGui;
 using WukLamark.Models;
 using WukLamark.Windows.Components;
 

@@ -1,5 +1,5 @@
-using Dalamud.Utility;
 using System.Numerics;
+using Dalamud.Utility;
 using WukLamark.Models;
 
 namespace WukLamark.Migration.PMarkerData

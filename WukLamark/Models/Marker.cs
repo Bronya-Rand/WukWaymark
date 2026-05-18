@@ -10,6 +10,7 @@ namespace WukLamark.Models;
 [Serializable]
 public class Marker
 {
+    public int FileVersion { get; set; } = 1;
     /// <summary>
     /// Unique identifier for this marker.
     /// </summary>
@@ -18,7 +19,7 @@ public class Marker
     /// <summary>
     /// User-defined name for this marker.
     /// </summary>
-    public string Name { get; set; } = "Unnamed Location";
+    public string Name { get; set; } = "New Marker";
 
     /// <summary>
     /// World position where the marker was created (X, Y, Z coordinates).
@@ -64,6 +65,7 @@ public class Marker
     /// <summary>
     /// Group this marker belongs to. Null means ungrouped.
     /// </summary>
+    [JsonIgnore]
     public Guid? GroupId { get; set; }
 
     /// <summary>

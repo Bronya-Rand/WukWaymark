@@ -1,13 +1,13 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Utility;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
 using WukLamark.Models;
 using WukLamark.Services;
 using WukLamark.Utils;
@@ -34,6 +34,7 @@ internal sealed class GroupViewSection(GameStateReaderService gameStateReaderSer
     public void Draw(List<Marker> filteredMarkers, string searchFilter, bool filterCurrentZone)
     {
         var groups = markerStorageService.GetVisibleGroups();
+        var ungroupedMarkers = markerStorageService.GetUngroupedMarkers();
 
         // "+ New Group" button
         if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus))
@@ -49,14 +50,13 @@ internal sealed class GroupViewSection(GameStateReaderService gameStateReaderSer
 
         foreach (var group in groups)
         {
-            var groupMarkers = filteredMarkers.Where(m => m.GroupId == group.Id).ToList();
-
+            var groupMarkers = filteredMarkers.Where(m => group.MarkerIds.Contains(m.Id)).ToList();
             if (groupMarkers.Count == 0 && filterCurrentZone) continue;
 
             if (!string.IsNullOrEmpty(searchFilter))
             {
-                var groupNameMatches = group.Name.Contains(searchFilter, StringComparison.OrdinalIgnoreCase);
-                if (groupMarkers.Count == 0 && !groupNameMatches)
+                var groupNameMatches = markerStorageService.FindGroupByName(searchFilter);
+                if (groupMarkers.Count == 0 && groupNameMatches == null)
                     continue;
             }
 
@@ -85,15 +85,14 @@ internal sealed class GroupViewSection(GameStateReaderService gameStateReaderSer
             }
         }
 
-        // Ungrouped markers section
-        var ungroupedMarkers = filteredMarkers.Where(m => m.GroupId == null).ToList();
-
+        // Ungrouped markers section (markers that don't belong to any group)
+        var noGroupMarkers = filteredMarkers.Where(ungroupedMarkers.Contains).ToList();
         if (!string.IsNullOrEmpty(searchFilter) && ungroupedMarkers.Count == 0)
             return;
 
-        if (ungroupedMarkers.Count > 0 || string.IsNullOrEmpty(searchFilter))
+        if (noGroupMarkers.Count > 0 || string.IsNullOrEmpty(searchFilter))
         {
-            var ungroupedOpen = ImGui.CollapsingHeader($"Ungrouped ({ungroupedMarkers.Count})###ungrouped", ImGuiTreeNodeFlags.DefaultOpen);
+            var ungroupedOpen = ImGui.CollapsingHeader($"Ungrouped ({noGroupMarkers.Count})###ungrouped", ImGuiTreeNodeFlags.DefaultOpen);
             if (ungroupedOpen)
             {
                 if (ungroupedMarkers.Count == 0)

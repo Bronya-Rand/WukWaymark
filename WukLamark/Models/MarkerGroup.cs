@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace WukLamark.Models;
 
@@ -9,17 +10,24 @@ namespace WukLamark.Models;
 [Serializable]
 public sealed class MarkerGroup
 {
+    public int FileVersion { get; set; } = 1;
+
     /// <summary>Unique identifier for this group.</summary>
     public Guid Id { get; set; } = Guid.NewGuid();
 
     /// <summary>User-defined name for this group (e.g., "GPose Spots", "Venues").</summary>
-    public string Name { get; set; } = "Unnamed Group";
+    public string Name { get; set; } = "New Group";
 
     /// <summary>
     /// Optional game icon ID for sidebar display. Loaded via ITextureProvider.
     /// Null means no icon — the group shows a text-only label in the sidebar.
     /// </summary>
     public uint? IconId { get; set; }
+
+    /// <summary>
+    /// Store the IDs of markers that belong to this group. The actual Marker objects are stored separately in <see cref="Marker"/>
+    /// </summary>
+    public List<Guid> MarkerIds { get; set; } = [];
 
     /// <summary>Persistence scope for this group and its waymarks.</summary>
     public MarkerScope Scope { get; set; } = MarkerScope.Personal;

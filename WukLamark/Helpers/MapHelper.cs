@@ -1,9 +1,9 @@
-using Dalamud.Utility;
-using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
+using Dalamud.Utility;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 
 namespace WukLamark.Helpers
 {

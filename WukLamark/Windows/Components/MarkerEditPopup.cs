@@ -1,10 +1,10 @@
+using System;
+using System.Linq;
+using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Utility;
-using System;
-using System.Linq;
-using System.Numerics;
 using WukLamark.Models;
 using WukLamark.Utils;
 
@@ -65,9 +65,10 @@ internal sealed class MarkerEditPopup
     /// Loads editing state from the given marker.
     /// </summary>
     /// <remarks>Call this before opening the popup.</remarks>
-    public void LoadFromMarker(Marker marker)
+    public void LoadFromMarker(Marker marker, MarkerGroup? markerGroup)
     {
-        editingGroupId = marker.GroupId;
+        editingGroupId = markerGroup?.Id;
+
         editingName = marker.Name;
         editingNote = marker.Notes;
         editingScope = marker.Scope;

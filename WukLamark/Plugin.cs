@@ -1,9 +1,9 @@
+using System;
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using System;
 using WukLamark.Helpers;
 using WukLamark.Services;
 using WukLamark.Windows;
@@ -50,8 +50,9 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
 
     /// <summary>Provides access to Dalamud's notification system</summary>
-    [PluginService]
-    internal static INotificationManager NotificationManager { get; private set; } = null!;
+    [PluginService] internal static INotificationManager NotificationManager { get; private set; } = null!;
+
+    [PluginService] internal static IReliableFileStorage ReliableFileStorage { get; private set; } = null!;
 
     // ═══════════════════════════════════════════════════════════════
     // PLUGIN CONFIGURATION & SERVICES
@@ -98,7 +99,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Initialize services
         var pluginConfigDir = PluginInterface.GetPluginConfigDirectory();
-        MarkerStorageService = new MarkerStorageService(pluginConfigDir);
+        MarkerStorageService = new MarkerStorageService(pluginConfigDir, ReliableFileStorage);
         MarkerService = new MarkerService(Configuration, MarkerStorageService);
         CustomIconService = new CustomIconService(pluginConfigDir);
         IconBrowserService = new IconBrowserService(DataManager);

@@ -4,229 +4,478 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
+using Dalamud.Plugin.Services;
 using WukLamark.Models;
+using WukLamark.Store;
 
 namespace WukLamark.Services;
 
 /// <summary>
-/// Service responsible for managing map marker persistence across characters.
-/// 
-/// Architecture:
-/// - Personal markers/groups are stored in character-specific JSON files
-/// - Shared markers/groups are stored in a shared JSON file accessible to all characters
-/// - The CharacterHash is a truncated SHA-256 of the character's content ID — no raw IDs stored
+/// Service responsible for managing map marker, group, and template persistence.
+///
+/// Architecture (v2):
+/// - Each marker, group, and template is stored as an individual {GUID}.json file
+///   in its own directory (markers/, groups/, templates/).
+/// - Uses <see cref="EntityFileStore{T}"/> backed by Dalamud's <see cref="IReliableFileStorage"/>
+///   for atomic writes with automatic DB-backed corruption recovery.
+/// - Personal vs. shared scoping is determined at runtime by comparing each entity's
+///   CharacterHash against the currently logged-in character. All entities live in the
+///   same flat directories — no separate personal/shared file paths.
+/// - Group membership is stored on the group (MarkerGroup.MarkerIds), not on the marker.
+///   An in-memory reverse lookup (markerToGroupMap) is built at load time for efficient
+///   "which group does this marker belong to?" queries.
+///
+/// Legacy migration:
+/// - On first load, <see cref="LegacyStorageMigrator"/> automatically detects old-format
+///   files (*_waymarks.json, shared_waymarks.json) and migrates them to individual files.
 /// </summary>
 public sealed class MarkerStorageService
 {
-    private readonly MarkerMigrationService migrationService = new();
-
     private readonly string pluginConfigDir;
-    private readonly string sharedMarkersPath;
-    private string? personalMarkersPath;
-
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true,
-        IncludeFields = true
-    };
+    private readonly EntityFileStore<Marker> markerStore;
+    private readonly EntityFileStore<MarkerGroup> groupStore;
+    private readonly EntityFileStore<MarkerTemplate> templateStore;
 
     /// <summary>
     /// Hashed identifier for the currently logged-in character.
-    /// Computed once on login, used to filter personal markers.
     /// Null when no character is logged in.
     /// </summary>
     public string? CurrentCharacterHash { get; private set; }
 
-    /// <summary>
-    /// In-memory cache of shared markers to avoid constant disk reads.
-    /// </summary>
-    public List<Marker> SharedMarkers { get; private set; } = [];
-
-    /// <summary>
-    /// In-memory cache of shared groups.
-    /// </summary>
-    public List<MarkerGroup> SharedGroups { get; private set; } = [];
-
-    /// <summary>
-    /// In-memory cache of personal markers for the current character.
-    /// </summary>
-    public List<Marker> PersonalMarkers { get; private set; } = [];
-
-    /// <summary>
-    /// In-memory cache of personal groups for the current character.
-    /// </summary>
-    public List<MarkerGroup> PersonalGroups { get; private set; } = [];
-
-    // Cached combined lists to avoid per-frame allocations
+    // Holds the currently visible markers and groups based on the
+    // current character hash and scopes.
     private List<Marker>? cachedVisibleMarkers;
     private List<MarkerGroup>? cachedVisibleGroups;
     private bool cacheInvalidated = true;
 
-    public MarkerStorageService(string pluginConfigDir)
+    /// <summary>
+    /// Reverse lookup: markerId → groupId.
+    /// Built from all groups' MarkerIds lists at load time.
+    /// </summary>
+    private Dictionary<Guid, Guid> markerToGroupMap = [];
+
+    public MarkerStorageService(string pluginConfigDir, IReliableFileStorage reliableFileStorage)
     {
         this.pluginConfigDir = pluginConfigDir;
-        // Note: file names remain historic 'waymarks' for compatibility with existing data
-        sharedMarkersPath = Path.Combine(pluginConfigDir, "shared_waymarks.json");
-        LoadSharedMarkers();
+
+        // Each store manages a subdirectory of the plugin config dir
+        markerStore = new EntityFileStore<Marker>(
+            reliableFileStorage,
+            Path.Combine(pluginConfigDir, "markers"),
+            m => m.Id,
+            "Marker");
+
+        groupStore = new EntityFileStore<MarkerGroup>(
+            reliableFileStorage,
+            Path.Combine(pluginConfigDir, "groups"),
+            g => g.Id,
+            "Group");
+
+        templateStore = new EntityFileStore<MarkerTemplate>(
+            reliableFileStorage,
+            Path.Combine(pluginConfigDir, "templates"),
+            t => t.Id,
+            "Template");
+
+        var migrated = MigrateFromLegacyIfNeeded();
+
+        if (migrated)
+        {
+            // Caches were populated during migration via Save(), just build derived state
+            RebuildMarkerToGroupMap();
+            InvalidateCache();
+        }
+        else
+        {
+            // Normal startup: load all entities from their individual files on disk
+            LoadAll();
+        }
+    }
+
+    #region Query Methods
+
+    /// <summary>
+    /// Loads all markers, groups, and templates from their respective directories.
+    /// </summary>
+    private void LoadAll()
+    {
+        markerStore.LoadAll();
+        groupStore.LoadAll();
+        templateStore.LoadAll();
+        RebuildMarkerToGroupMap();
+        InvalidateCache();
     }
 
     /// <summary>
-    /// Invalidates the visible markers/groups cache.
+    /// Marks the current caches as stale.
     /// </summary>
     private void InvalidateCache()
     {
         cacheInvalidated = true;
+        cachedVisibleMarkers = null;
+        cachedVisibleGroups = null;
     }
 
-    private void CheckMarkerCache()
+    /// <summary>
+    /// Rebuilds visibility caches if they've been invalidated.
+    /// </summary>
+    /// <remarks>
+    /// Filters entities based on scope + current character hash:
+    /// <para>
+    /// - Shared entities: always visible
+    /// </para>
+    /// <para>
+    /// - Personal entities: only visible when CharacterHash matches current
+    /// </para>
+    /// </remarks>
+    private void RebuildCacheIfNeeded()
     {
-        if (cacheInvalidated || cachedVisibleMarkers == null || cachedVisibleGroups == null)
+        if (!cacheInvalidated && cachedVisibleMarkers != null && cachedVisibleGroups != null)
+            return;
+
+        cachedVisibleMarkers = markerStore.Items
+            .Where(m => m.Scope == MarkerScope.Shared ||
+                        (m.Scope == MarkerScope.Personal && m.CharacterHash == CurrentCharacterHash))
+            .ToList();
+
+        cachedVisibleGroups = groupStore.Items
+            .Where(g => g.Scope == MarkerScope.Shared ||
+                        (g.Scope == MarkerScope.Personal && g.CreatorHash == CurrentCharacterHash))
+            .ToList();
+
+        cacheInvalidated = false;
+    }
+
+    /// <summary>
+    /// Rebuilds the map from all groups' MarkerIds lists.
+    /// </summary>
+    /// <remarks>
+    /// Each marker can only be in one group — if a marker appears in 
+    /// multiple groups' MarkerIds (shouldn't happen), the last one wins.
+    /// </remarks>
+    private void RebuildMarkerToGroupMap()
+    {
+        markerToGroupMap = [];
+        foreach (var group in groupStore.Items)
         {
-            cachedVisibleMarkers = [.. PersonalMarkers, .. SharedMarkers];
-            cachedVisibleGroups = [.. PersonalGroups, .. SharedGroups];
-            cacheInvalidated = false;
+            foreach (var markerId in group.MarkerIds)
+            {
+                markerToGroupMap[markerId] = group.Id;
+            }
         }
     }
 
     /// <summary>
-    /// Computes and caches the character hash from the player's content ID.
-    /// Should be called on character login / territory change when player is available.
+    /// Returns all markers visible to the current session
+    /// (shared + personal for the logged-in character).
     /// </summary>
-    /// <param name="contentId">The character's content ID.</param>
-    public void SetCharacterHash(ulong contentId)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(contentId.ToString()));
-        CurrentCharacterHash = Convert.ToHexString(bytes)[..16];
-        // Personal file name retains legacy 'waymarks' suffix for backward compatibility
-        personalMarkersPath = Path.Combine(pluginConfigDir, $"{CurrentCharacterHash}_waymarks.json");
-        LoadPersonalMarkers();
-        Plugin.Log.Debug($"Character hash set for current character.");
-    }
-
-    /// <summary>
-    /// Clears the character hash (e.g., on logout).
-    /// </summary>
-    public void ClearCharacterHash()
-    {
-        CurrentCharacterHash = null;
-        personalMarkersPath = null;
-        PersonalMarkers.Clear();
-        PersonalGroups.Clear();
-        InvalidateCache();
-    }
-
-    /// <summary>
-    /// Gets the number of markers that have been shared and created by the current character.
-    /// </summary>
-    /// <remarks>Ensure that the current character hash and marker cache is set appropriately before calling this method.
-    /// Only markers associated with the current character are included in the count.</remarks>
-    /// <returns>The number of shared markers created by the character identified by the current character hash.</returns>
-    public int GetSharedCreatedMarkersCount()
-    {
-        CheckMarkerCache();
-        var count = cachedVisibleMarkers!.Count(w => w.CharacterHash == CurrentCharacterHash && w.Scope == MarkerScope.Shared);
-        return count;
-    }
-
-    /// <summary>
-    /// Returns all markers that should be visible to the current session.
-    /// </summary>
-    /// <remarks>
-    /// Returns a merged list of personal markers for the current character and shared markers.
-    /// </remarks>
     public List<Marker> GetVisibleMarkers()
     {
-        CheckMarkerCache();
+        RebuildCacheIfNeeded();
         return cachedVisibleMarkers!;
     }
 
     /// <summary>
-    /// Returns all groups that should be visible to the current session.
+    /// Returns all groups visible to the current session.
     /// </summary>
-    /// <remarks>
-    /// This merges:
-    /// - Personal groups for the current character
-    /// - Shared groups
-    /// Results are cached to avoid per-frame allocations.
-    /// </remarks>
     public List<MarkerGroup> GetVisibleGroups()
     {
-        CheckMarkerCache();
+        RebuildCacheIfNeeded();
         return cachedVisibleGroups!;
     }
 
     /// <summary>
-    /// Loads shared markers and groups into memory from the shared JSON file.
+    /// Returns all templates for the current character (personal-only).
     /// </summary>
-    public void LoadSharedMarkers()
+    public List<MarkerTemplate> GetTemplates()
     {
-        if (!File.Exists(sharedMarkersPath))
-        {
-            SharedMarkers = [];
-            SharedGroups = [];
-            InvalidateCache();
-            return;
-        }
+        return templateStore.Items
+            .Where(t => t.CharacterHash == CurrentCharacterHash)
+            .ToList();
+    }
 
-        try
-        {
-            var json = File.ReadAllText(sharedMarkersPath);
-            var data = JsonSerializer.Deserialize<PlayerMarkerData>(json, JsonOptions);
+    /// <summary>
+    /// Returns the total count of all loaded markers (across all characters/scopes).
+    /// </summary>
+    public int GetTotalMarkerCount() => markerStore.Items.Count;
 
-            if (data != null)
-            {
-                var migrated = migrationService.MigratePlayerMarkerData(data);
-                SharedMarkers = data.Markers;
-                SharedGroups = data.Groups;
+    /// <summary>
+    /// Gets the group ID that a marker belongs to, or null if ungrouped.
+    /// </summary>
+    public Guid? GetGroupIdForMarker(Guid markerId) =>
+        markerToGroupMap.TryGetValue(markerId, out var groupId) ? groupId : null;
 
-                if (migrated)
-                {
-                    Plugin.Log.Info($"Migrated shared markers to schema version {migrationService.CurrentPlayerDataSchemaVersion}. Saving updated data.");
-                    var migratedJson = JsonSerializer.Serialize(data, JsonOptions);
-                    File.WriteAllText(sharedMarkersPath, migratedJson);
-                }
-            }
-            else
-            {
-                SharedMarkers = [];
-                SharedGroups = [];
-            }
-        }
-        catch (Exception ex)
-        {
-            Plugin.Log.Error($"Failed to load shared markers: {ex.Message}");
-            SharedMarkers = [];
-            SharedGroups = [];
-        }
+    /// <summary>
+    /// Returns all visible markers that belong to a specific group.
+    /// Filters from the visible markers cache.
+    /// </summary>
+    public List<Marker> GetMarkersInGroup(Guid groupId)
+    {
+        RebuildCacheIfNeeded();
+        var group = groupStore.FindById(groupId);
+        if (group == null) return [];
 
+        // Use the group's MarkerIds to find matching visible markers.
+        var memberIds = new HashSet<Guid>(group.MarkerIds);
+        return cachedVisibleMarkers!.Where(m => memberIds.Contains(m.Id)).ToList();
+    }
+
+    /// <summary>
+    /// Returns all visible markers that are not in any group.
+    /// </summary>
+    public List<Marker> GetUngroupedMarkers()
+    {
+        RebuildCacheIfNeeded();
+        return cachedVisibleMarkers!.Where(m => !markerToGroupMap.ContainsKey(m.Id)).ToList();
+    }
+
+    #endregion
+    #region Marker CRUD
+
+    /// <summary>
+    /// Saves a marker to disk (create or update) and updates the in-memory cache.
+    /// </summary>
+    public void SaveMarker(Marker marker)
+    {
+        markerStore.Save(marker);
         InvalidateCache();
     }
 
     /// <summary>
-    /// Saves the in-memory shared markers and groups out to the JSON file.
+    /// Deletes a marker from disk and removes it from any group's MarkerIds.
     /// </summary>
-    public void SaveSharedMarkers()
+    public void DeleteMarker(Guid markerId)
     {
-        try
+        // Remove from any group that contains this marker
+        var groupId = GetGroupIdForMarker(markerId);
+        if (groupId.HasValue)
         {
-            var data = new PlayerMarkerData
+            var group = groupStore.FindById(groupId.Value);
+            if (group != null)
             {
-                SchemaVersion = migrationService.CurrentPlayerDataSchemaVersion,
-                Markers = SharedMarkers,
-                Groups = SharedGroups
-            };
-
-            var json = JsonSerializer.Serialize(data, JsonOptions);
-            File.WriteAllText(sharedMarkersPath, json);
-            InvalidateCache();
+                group.MarkerIds.Remove(markerId);
+                groupStore.Save(group);
+            }
         }
-        catch (Exception ex)
+
+        // Remove from map
+        markerToGroupMap.Remove(markerId);
+
+        // Delete the marker file + remove from cache
+        markerStore.Delete(markerId);
+        InvalidateCache();
+    }
+
+    #endregion
+    #region Group CRUD
+
+    /// <summary>
+    /// Saves a group to disk (create or update) and updates the in-memory cache.
+    /// </summary>
+    public void SaveGroup(MarkerGroup group)
+    {
+        groupStore.Save(group);
+        // Rebuild the reverse map in case the MarkerIds list changed
+        RebuildMarkerToGroupMap();
+        InvalidateCache();
+    }
+
+    /// <summary>
+    /// Deletes a group from disk. Does NOT delete the markers in the group. 
+    /// The caller decides whether to delete child markers or keep them.
+    /// </summary>
+    public void DeleteGroup(Guid groupId)
+    {
+        // Remove all reverse-lookup entries pointing to this group
+        var markerIdsToUngroup = markerToGroupMap
+            .Where(kvp => kvp.Value == groupId)
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        foreach (var markerId in markerIdsToUngroup)
+            markerToGroupMap.Remove(markerId);
+
+        // Delete the group file
+        groupStore.Delete(groupId);
+        InvalidateCache();
+    }
+
+    #endregion
+
+    #region Group Membership Management
+
+    /// <summary>
+    /// Adds a marker to a group's MarkerIds list and saves the group.
+    /// If the marker is already in another group, it's removed from the old one first.
+    /// </summary>
+    public void AddMarkerToGroup(Guid markerId, Guid groupId)
+    {
+        // Remove from current group if any
+        var currentGroupId = GetGroupIdForMarker(markerId);
+        if (currentGroupId.HasValue && currentGroupId.Value != groupId)
+            RemoveMarkerFromGroup(markerId, currentGroupId.Value);
+
+        // Add to new group
+        var group = groupStore.FindById(groupId);
+        if (group == null)
         {
-            Plugin.Log.Error($"Failed to save shared markers: {ex.Message}");
+            Plugin.Log.Warning($"Cannot add marker to group '{groupId}': group not found.");
+            return;
+        }
+
+        if (!group.MarkerIds.Contains(markerId))
+        {
+            group.MarkerIds.Add(markerId);
+            groupStore.Save(group);
+        }
+
+        // Update reverse lookup
+        markerToGroupMap[markerId] = groupId;
+        InvalidateCache();
+    }
+
+    /// <summary>
+    /// Removes a marker from a specific group's MarkerIds list and saves the group.
+    /// </summary>
+    public void RemoveMarkerFromGroup(Guid markerId, Guid groupId)
+    {
+        var group = groupStore.FindById(groupId);
+        if (group == null) return;
+
+        group.MarkerIds.Remove(markerId);
+        groupStore.Save(group);
+        markerToGroupMap.Remove(markerId);
+        InvalidateCache();
+    }
+
+    /// <summary>
+    /// Moves a marker from one group to another (or to/from ungrouped).
+    /// Handles all combinations: ungrouped → group, group → ungrouped, group → group.
+    /// </summary>
+    /// <param name="markerId">The marker to move.</param>
+    /// <param name="newGroupId">
+    /// The target group ID, or null to make the marker ungrouped.
+    /// </param>
+    public void MoveMarkerToGroup(Guid markerId, Guid? newGroupId)
+    {
+        var currentGroupId = GetGroupIdForMarker(markerId);
+
+        // No change needed
+        if (currentGroupId == newGroupId)
+            return;
+
+        // Remove from old group (if any)
+        if (currentGroupId.HasValue)
+        {
+            RemoveMarkerFromGroup(markerId, currentGroupId.Value);
+        }
+
+        // Add to new group (if any — null means ungrouped)
+        if (newGroupId.HasValue)
+        {
+            AddMarkerToGroup(markerId, newGroupId.Value);
         }
     }
 
+    #endregion
+    #region Template CRUD
+
+    /// <summary>
+    /// Saves a template to disk (create or update).
+    /// </summary>
+    public void SaveTemplate(MarkerTemplate template)
+    {
+        templateStore.Save(template);
+    }
+
+    /// <summary>
+    /// Deletes a template from disk.
+    /// </summary>
+    public void DeleteTemplate(Guid templateId)
+    {
+        templateStore.Delete(templateId);
+    }
+
+    #endregion
+
+    #region Lookup Helpers
+
+    /// <summary>
+    /// Finds a visible group by exact name (case-insensitive).
+    /// </summary>
+    public MarkerGroup? FindGroupByName(string name)
+    {
+        return GetVisibleGroups()
+            .FirstOrDefault(g => g.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Finds a visible group by its GUID.
+    /// </summary>
+    public MarkerGroup? FindGroupById(Guid id) => groupStore.FindById(id);
+
+    /// <summary>
+    /// Finds a template by its GUID.
+    /// </summary>
+    public MarkerTemplate? FindTemplateById(Guid id) => templateStore.FindById(id);
+
+    /// <summary>
+    /// Finds a template by exact name (case-insensitive), scoped to the current character.
+    /// </summary>
+    public MarkerTemplate? FindTemplateByName(string name)
+    {
+        return GetTemplates()
+            .FirstOrDefault(t => t.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    #endregion
+
+    #region Character Hash Management
+
+    /// <summary>
+    /// Computes and caches the character hash from the player's content ID.
+    /// </summary>
+    /// <remarks>
+    /// Visibility caches are rebuilt to show/hide personal markers for the 
+    /// newly logged-in character.
+    /// </remarks>
+    public void SetCharacterHash(ulong contentId)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(contentId.ToString()));
+        CurrentCharacterHash = Convert.ToHexString(bytes)[..16];
+        InvalidateCache();
+        Plugin.Log.Debug("Character hash set for current character.");
+    }
+
+    /// <summary>
+    /// Clears the character hash (e.g., on logout).
+    /// After clearing, only shared entities will be visible.
+    /// </summary>
+    public void ClearCharacterHash()
+    {
+        CurrentCharacterHash = null;
+        InvalidateCache();
+    }
+
+    #endregion
+
+    #region Marker Management
+
+    /// <summary>
+    /// Gets the number of shared markers created by the current character.
+    /// </summary>
+    public int GetSharedCreatedMarkersCount()
+    {
+        RebuildCacheIfNeeded();
+        return cachedVisibleMarkers!.Count(m =>
+            m.CharacterHash == CurrentCharacterHash &&
+            m.Scope == MarkerScope.Shared);
+    }
+
+    /// <summary>
+    /// Deletes all shared markers created by the current character.
+    /// Used by the "Erase All" function in ConfigWindow.
+    /// </summary>
     public void EraseCreatedSharedMarkers()
     {
         if (CurrentCharacterHash == null)
@@ -234,84 +483,79 @@ public sealed class MarkerStorageService
             Plugin.Log.Warning("Cannot erase created shared markers: no character hash set.");
             return;
         }
-        SharedMarkers.RemoveAll(w => w.CharacterHash == CurrentCharacterHash);
-        SaveSharedMarkers();
+
+        var toDelete = markerStore.Items
+            .Where(m => m.CharacterHash == CurrentCharacterHash && m.Scope == MarkerScope.Shared)
+            .Select(m => m.Id)
+            .ToList();
+
+        foreach (var id in toDelete)
+            DeleteMarker(id);
     }
 
     /// <summary>
-    /// Loads personal markers and groups for the current character.
+    /// Deletes all personal markers for the current character.
+    /// Used by the "Erase All" function in ConfigWindow.
     /// </summary>
-    public void LoadPersonalMarkers()
+    public void ErasePersonalMarkers()
     {
-        if (string.IsNullOrEmpty(personalMarkersPath) || !File.Exists(personalMarkersPath))
+        if (CurrentCharacterHash == null)
         {
-            PersonalMarkers = [];
-            PersonalGroups = [];
-            InvalidateCache();
+            Plugin.Log.Warning("Cannot erase personal markers: no character hash set.");
             return;
         }
 
-        try
-        {
-            var json = File.ReadAllText(personalMarkersPath);
-            var data = JsonSerializer.Deserialize<PlayerMarkerData>(json, JsonOptions);
+        var toDelete = markerStore.Items
+            .Where(m => m.CharacterHash == CurrentCharacterHash && m.Scope == MarkerScope.Personal)
+            .Select(m => m.Id)
+            .ToList();
 
-            if (data != null)
-            {
-                var migrated = migrationService.MigratePlayerMarkerData(data);
-                PersonalMarkers = data.Markers;
-                PersonalGroups = data.Groups;
+        foreach (var id in toDelete)
+            DeleteMarker(id);
+    }
 
-                if (migrated)
-                {
-                    Plugin.Log.Info($"Migrated personal markers for character hash {CurrentCharacterHash} to schema version {migrationService.CurrentPlayerDataSchemaVersion}. Saving updated data.");
-                    var migratedJson = JsonSerializer.Serialize(data, JsonOptions);
-                    File.WriteAllText(personalMarkersPath!, migratedJson);
-                }
-            }
-            else
-            {
-                PersonalMarkers = [];
-                PersonalGroups = [];
-            }
-        }
-        catch (Exception ex)
-        {
-            Plugin.Log.Error($"Failed to load personal markers: {ex.Message}");
-            PersonalMarkers = [];
-            PersonalGroups = [];
-        }
+    #endregion
 
-        InvalidateCache();
+    #region Scope Management
+
+    /// <summary>
+    /// Changes a marker's scope and updates its CharacterHash accordingly.
+    /// </summary>
+    public void ChangeMarkerScope(Marker marker, MarkerScope newScope)
+    {
+        marker.Scope = newScope;
+        marker.CharacterHash = CurrentCharacterHash;
+        SaveMarker(marker);
     }
 
     /// <summary>
-    /// Saves the in-memory personal markers and groups for the current character.
+    /// Changes a group's scope and migrates all child markers to the new scope.
     /// </summary>
-    public void SavePersonalMarkers()
+    public void ChangeGroupScope(MarkerGroup group, MarkerScope newScope)
     {
-        if (string.IsNullOrEmpty(personalMarkersPath))
-        {
-            Plugin.Log.Warning("Cannot save personal markers: no character hash set.");
-            return;
-        }
+        group.Scope = newScope;
+        group.CreatorHash = CurrentCharacterHash;
+        SaveGroup(group);
 
-        try
+        // Migrate all child markers to the same scope
+        var childMarkers = GetMarkersInGroup(group.Id);
+        foreach (var marker in childMarkers)
         {
-            var data = new PlayerMarkerData
-            {
-                SchemaVersion = migrationService.CurrentPlayerDataSchemaVersion,
-                Markers = PersonalMarkers,
-                Groups = PersonalGroups
-            };
-
-            var json = JsonSerializer.Serialize(data, JsonOptions);
-            File.WriteAllText(personalMarkersPath, json);
-            InvalidateCache();
-        }
-        catch (Exception ex)
-        {
-            Plugin.Log.Error($"Failed to save personal markers: {ex.Message}");
+            ChangeMarkerScope(marker, newScope);
         }
     }
+
+    #endregion
+    #region Migration
+
+    /// <summary>
+    /// Checks for and migrates legacy monolithic storage files to the new per-entity format.
+    /// </summary>
+    /// <returns>True if migration was performed, false if skipped.</returns>
+    private bool MigrateFromLegacyIfNeeded()
+    {
+        var migrator = new LegacyStorageMigrator(pluginConfigDir, markerStore, groupStore);
+        return migrator.MigrateIfNeeded();
+    }
+    #endregion
 }

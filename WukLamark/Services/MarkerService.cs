@@ -1,7 +1,7 @@
-using FFXIVClientStructs.FFXIV.Client.Game;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using WukLamark.Models;
 using WukLamark.Utils;
 
@@ -17,9 +17,9 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
     private readonly MarkerStorageService storageService = storageService;
 
     /// <summary>
-    /// Undo buffer for recently deleted markers.
+    /// Undo buffer for recently deleted markers. Stores the marker and its original group ID.
     /// </summary>
-    private readonly LinkedList<Marker> deletedMarkers = new();
+    private readonly LinkedList<(Marker Marker, Guid? GroupId)> deletedMarkers = new();
 
     /// <summary>Maximum number of deletions to remember for undo.</summary>
     private const int MaxUndoHistory = 10;
@@ -90,7 +90,7 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
         }
 
         // Create a new marker with current location data
-        var totalCount = storageService.PersonalMarkers.Count + storageService.SharedMarkers.Count;
+        var totalCount = storageService.GetTotalMarkerCount();
         var marker = new Marker
         {
             Position = player.Position,
@@ -106,24 +106,18 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
                 SourceType = MarkerIconType.Shape,
             },
             CreatedAt = DateTime.Now,
-            GroupId = group?.Id,
             Scope = scope,
-            CharacterHash = storageService.CurrentCharacterHash, // Set creator for both personal and shared
-            IsReadOnly = group?.IsReadOnly ?? false, // Use group's read-only status if available
+            CharacterHash = storageService.CurrentCharacterHash,
+            IsReadOnly = group?.IsReadOnly ?? false,
             AppliesToAllWorlds = crossworld
         };
 
-        // Persist to correct storage based on scope
-        if (scope == MarkerScope.Shared)
-        {
-            storageService.SharedMarkers.Add(marker);
-            storageService.SaveSharedMarkers();
-        }
-        else
-        {
-            storageService.PersonalMarkers.Add(marker);
-            storageService.SavePersonalMarkers();
-        }
+        // Persist marker to its own {Id}.json file
+        storageService.SaveMarker(marker);
+
+        // If a group was specified, add this marker to the group's MarkerIds list
+        if (group != null)
+            storageService.AddMarkerToGroup(marker.Id, group.Id);
 
         // Provide user feedback
         if (group != null)
@@ -164,17 +158,14 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
             deletedMarkers.RemoveLast();
         }
 
+        // Get group membership before deleting
+        var groupId = storageService.GetGroupIdForMarker(marker.Id);
+
         // Add newest entry at front
-        deletedMarkers.AddFirst(marker);
+        deletedMarkers.AddFirst((marker, groupId));
 
-        // Remove from whichever storage contains it
-        var removedFromPersonal = storageService.PersonalMarkers.Remove(marker);
-        var removedFromShared = storageService.SharedMarkers.Remove(marker);
-
-        if (removedFromPersonal)
-            storageService.SavePersonalMarkers();
-        if (removedFromShared)
-            storageService.SaveSharedMarkers();
+        // Delete from storage (also removes from any group's MarkerIds)
+        storageService.DeleteMarker(marker.Id);
 
         Plugin.Log.Information($"Deleted marker: {marker.Name} (undo available)");
     }
@@ -189,19 +180,15 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
             return null;
 
         // Remove from front (most recent)
-        var marker = deletedMarkers.First!.Value;
+        var (marker, groupId) = deletedMarkers.First!.Value;
         deletedMarkers.RemoveFirst();
 
-        if (marker.Scope == MarkerScope.Shared)
-        {
-            storageService.SharedMarkers.Add(marker);
-            storageService.SaveSharedMarkers();
-        }
-        else
-        {
-            storageService.PersonalMarkers.Add(marker);
-            storageService.SavePersonalMarkers();
-        }
+        // Re-save the marker (creates a new file since the old one was deleted)
+        storageService.SaveMarker(marker);
+
+        // Restore to original group if it had one
+        if (groupId.HasValue)
+            storageService.AddMarkerToGroup(marker.Id, groupId.Value);
 
         Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage($"Restored map marker '{marker.Name}'."));
         Plugin.Log.Information($"Undo delete: restored map marker '{marker.Name}' (Scope: {marker.Scope})");

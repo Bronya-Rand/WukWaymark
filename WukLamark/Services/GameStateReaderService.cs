@@ -1,5 +1,5 @@
-using Dalamud.Plugin.Services;
 using System;
+using Dalamud.Plugin.Services;
 
 namespace WukLamark.Services
 {

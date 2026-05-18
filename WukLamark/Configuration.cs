@@ -1,6 +1,6 @@
+using System;
 using Dalamud.Configuration;
 using Newtonsoft.Json;
-using System;
 using WukLamark.Models;
 
 namespace WukLamark;

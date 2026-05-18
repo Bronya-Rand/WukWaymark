@@ -1,11 +1,11 @@
+using System;
+using System.Collections.Generic;
+using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Utility;
-using System;
-using System.Collections.Generic;
-using System.Numerics;
 using WukLamark.Helpers;
 using WukLamark.Models;
 using WukLamark.Services;
@@ -350,7 +350,7 @@ internal sealed class MarkerTableComponent
         pendingEditMarker = marker;
         pendingEditParentGroup = parentGroup;
         pendingEditPopupOpenRequested = true;
-        editPopup.LoadFromMarker(marker);
+        editPopup.LoadFromMarker(marker, parentGroup);
     }
     private void GetPermissionsForMarker(Marker marker, MarkerGroup? parentGroup, out bool isLoggedIn, out bool isCreator, out bool canEdit, out bool canDelete)
     {
