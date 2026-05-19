@@ -228,7 +228,7 @@ namespace WukLamark.Windows.Components
                     inPvP ? "Saving markers is disabled in PvP zones." :
                     inCombat ? "Saving markers is disabled in combat." :
                     !isCreator && template.DefaultScope == MarkerScope.Personal ? "Only the template's creator can save markers using this template." :
-                    "Save current location to this template.";
+                    "Save current location with thiis template applied.";
                 ImGui.SetTooltip(tooltip);
             }
         }
@@ -279,8 +279,8 @@ namespace WukLamark.Windows.Components
             }
 
             var deleteLabel = deletableCount > 0 && deletableCount < selectedTemplates.Count
-            ? $"Delete {deletableCount} of {selectedTemplates.Count} Selected Markers"
-            : "Delete Selected Markers";
+            ? $"Delete {deletableCount} of {selectedTemplates.Count} Selected Templates"
+            : "Delete Selected Templates";
 
             using (ImRaii.Disabled(deletableCount == 0))
             {
@@ -288,7 +288,7 @@ namespace WukLamark.Windows.Components
                     OnDeleteRequested?.Invoke(selectedTemplates);
             }
             if (deletableCount == 0 && ImWuk.IsItemHoveredWhenDisabled())
-                ImGui.SetTooltip("None of the selected markers can be deleted due to ownership or read-only restrictions.");
+                ImGui.SetTooltip("None of the selected templates can be deleted due to ownership or read-only restrictions.");
         }
         private void HandleRowSelection(List<MarkerTemplate> markerTemplates, int clickedIndex)
         {
