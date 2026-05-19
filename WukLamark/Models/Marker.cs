@@ -63,6 +63,15 @@ public class Marker
     public string Notes { get; set; } = string.Empty;
 
     /// <summary>
+    /// Defines the template this marker should use.
+    /// </summary>
+    /// <remarks>
+    /// Null should allow for customization of all fields. When set, the marker should inherit
+    /// either the default template values or a specific template's values.
+    /// </remarks>
+    public Guid? TemplateId { get; set; } = null;
+
+    /// <summary>
     /// Group this marker belongs to. Null means ungrouped.
     /// </summary>
     [JsonIgnore]

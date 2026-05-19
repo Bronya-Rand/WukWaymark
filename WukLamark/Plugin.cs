@@ -124,7 +124,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Initialize UI windows
         ConfigWindow = new ConfigWindow(this);
-        MainWindow = new MainWindow(this);
+        MainWindow = new MainWindow(this, GameStateReaderService);
         MarkerMapService = new MarkerMapService(this);
         MarkerMinimapService = new MarkerMinimapService(this);
 

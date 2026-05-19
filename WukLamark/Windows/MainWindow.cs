@@ -3,6 +3,7 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using WukLamark.Services;
 using WukLamark.Windows.Tabs.MarkerList;
 using WukLamark.Windows.Tabs.Settings;
 using WukLamark.Windows.Tabs.Template;
@@ -15,7 +16,7 @@ public sealed class MainWindow : Window, IDisposable
     private readonly TemplateTab templateTab;
     private readonly SettingsTab settingsTab;
 
-    public MainWindow(Plugin plugin)
+    public MainWindow(Plugin plugin, GameStateReaderService gameStateReaderService)
         : base("WukLamark##WWMain", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         SizeConstraints = new WindowSizeConstraints
@@ -25,7 +26,7 @@ public sealed class MainWindow : Window, IDisposable
         };
 
         markerListTab = new MarkerListTab(plugin);
-        templateTab = new TemplateTab();
+        templateTab = new TemplateTab(plugin, gameStateReaderService);
         settingsTab = new SettingsTab(plugin);
     }
     public override void Draw()

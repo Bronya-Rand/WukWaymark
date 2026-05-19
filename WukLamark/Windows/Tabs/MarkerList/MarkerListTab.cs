@@ -85,10 +85,7 @@ namespace WukLamark.Windows.Tabs.MarkerList
 
             groupEditorModal = new GroupEditorModal
             {
-                OnSave = (group, isEditing) =>
-                {
-                    HandleGroupSave(group, isEditing);
-                },
+                OnSave = HandleGroupSave,
             };
 
             customIconImageUploadModal = new CustomIconImageUploadModal

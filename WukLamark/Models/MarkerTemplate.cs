@@ -2,12 +2,21 @@ using System;
 
 namespace WukLamark.Models
 {
+    /// <summary>
+    /// Represents a template for creating and configuring marker definitions, including default icon, scope, and
+    /// grouping information.
+    /// </summary>
+    /// <remarks>
+    /// Marker templates encapsulate default appearance, grouping, and scope settings, enabling consistent
+    /// marker creation across different scenarios.
+    /// </remarks>
     [Serializable]
     public class MarkerTemplate
     {
         public int FileVersion { get; set; } = 1;
         public Guid Id { get; set; } = Guid.NewGuid();
         public string Name { get; set; } = "New Template";
+        public Guid? GroupId { get; set; } = null;
         public MarkerIcon DefaultIcon { get; set; } = new MarkerIcon
         {
             SourceType = MarkerIconType.Shape,

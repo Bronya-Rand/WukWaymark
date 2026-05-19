@@ -73,7 +73,7 @@ internal sealed class MarkerTableComponent
                 var rowHeight = Math.Max(ImGui.GetFrameHeight(), 20f * ImGuiHelpers.GlobalScale);
 
                 var isSelected = SelectedMarkerIds.Contains(marker.Id);
-                var rowClicked = ImGui.Selectable($"##row_{marker.Id}",
+                var rowClicked = ImGui.Selectable($"##Mrow_{marker.Id}",
                     isSelected,
                     ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap | ImGuiSelectableFlags.AllowDoubleClick,
                     new Vector2(0, rowHeight));
@@ -430,12 +430,7 @@ internal sealed class MarkerTableComponent
     }
     private bool CanDeleteMarker(Marker marker)
     {
-        var currentPlayerHash = plugin.MarkerStorageService.CurrentCharacterHash;
-        var isCreator = marker.CharacterHash != null &&
-                        currentPlayerHash != null &&
-                        marker.CharacterHash == currentPlayerHash;
-
-        return (marker.Scope == MarkerScope.Shared && !marker.IsReadOnly) ||
-               (marker.Scope == MarkerScope.Personal && isCreator);
+        GetPermissionsForMarker(marker, null, out var _, out var _, out var _, out var canDelete);
+        return canDelete;
     }
 }

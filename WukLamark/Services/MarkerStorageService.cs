@@ -195,9 +195,29 @@ public sealed class MarkerStorageService
     }
 
     /// <summary>
+    /// Retrieves a list of markers that use the specified template identifier.
+    /// </summary>
+    /// <param name="templateId">The unique identifier of the template to filter markers by.</param>
+    /// <returns>A list of markers associated with the specified template. The list is empty if no markers use the given
+    /// template.</returns>
+    public List<Marker> GetMarkersUsingTemplate(Guid templateId)
+    {
+        RebuildCacheIfNeeded();
+        return cachedVisibleMarkers!.Where(m => m.TemplateId == templateId).ToList();
+    }
+
+    /// <summary>
     /// Returns the total count of all loaded markers (across all characters/scopes).
     /// </summary>
     public int GetTotalMarkerCount() => markerStore.Items.Count;
+
+    /// <summary>
+    /// Returns the total number of markers that use the specified template.
+    /// </summary>
+    /// <param name="templateId">The unique identifier of the template to match markers against.</param>
+    /// <returns>The number of markers associated with the specified template. Returns 0 if no markers use the template.</returns>
+    public int GetTotalMarkersUsingTemplate(Guid templateId) =>
+        markerStore.Items.Count(m => m.TemplateId == templateId);
 
     /// <summary>
     /// Gets the group ID that a marker belongs to, or null if ungrouped.
@@ -394,6 +414,24 @@ public sealed class MarkerStorageService
     public void DeleteTemplate(Guid templateId)
     {
         templateStore.Delete(templateId);
+    }
+
+    /// <summary>
+    /// Updates the group association for all markers that use the specified template.
+    /// </summary>
+    /// <remarks>
+    /// This method reassigns all markers referencing the given template to the group specified by
+    /// the template's GroupId property. Makes sure markers stay in sync with template group changes.
+    /// </remarks>
+    /// <param name="template">The marker template whose associated markers will be moved to the template's group. Cannot be null.</param>
+    public void UpdateMarkersTemplateGroup(MarkerTemplate template)
+    {
+        // Get all markers using this template 
+        var affectedMarkers = GetMarkersUsingTemplate(template.Id);
+
+        // Update each marker's template group reference
+        foreach (var marker in affectedMarkers)
+            MoveMarkerToGroup(marker.Id, template.GroupId);
     }
 
     #endregion
