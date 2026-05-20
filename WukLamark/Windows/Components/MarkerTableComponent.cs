@@ -159,12 +159,7 @@ internal sealed class MarkerTableComponent
     {
         ImGui.TableSetColumnIndex(0);
 
-        MarkerTemplate? template = null;
-        if (marker.TemplateId == Guid.Empty)
-            template = plugin.Configuration.DefaultTemplate;
-        else if (marker.TemplateId != null)
-            template = plugin.MarkerStorageService.FindTemplateById(marker.TemplateId.Value);
-
+        var template = plugin.MarkerStorageService.ResolveTemplate(marker.TemplateId);
         var icon = marker.GetEffectiveIcon(template);
 
         var colorU32 = ImGui.ColorConvertFloat4ToU32(icon.Color);
@@ -186,15 +181,11 @@ internal sealed class MarkerTableComponent
     {
         ImGui.TableSetColumnIndex(1);
 
-        MarkerTemplate? template = null;
-        if (marker.TemplateId == Guid.Empty)
-            template = plugin.Configuration.DefaultTemplate;
-        else if (marker.TemplateId != null)
-            template = plugin.MarkerStorageService.FindTemplateById(marker.TemplateId.Value);
-
+        var template = plugin.MarkerStorageService.ResolveTemplate(marker.TemplateId);
         var effectiveScope = marker.GetEffectiveScope(template);
+        var markerGroup = plugin.MarkerStorageService.GetGroupIdForMarker(marker.Id);
 
-        if (marker.GroupId == null)
+        if (markerGroup == null)
         {
             using (ImRaii.PushFont(UiBuilder.IconFont))
             {
@@ -226,12 +217,7 @@ internal sealed class MarkerTableComponent
     {
         ImGui.TableSetColumnIndex(2);
 
-        MarkerTemplate? template = null;
-        if (marker.TemplateId == Guid.Empty)
-            template = plugin.Configuration.DefaultTemplate;
-        else if (marker.TemplateId != null)
-            template = plugin.MarkerStorageService.FindTemplateById(marker.TemplateId.Value);
-
+        var template = plugin.MarkerStorageService.ResolveTemplate(marker.TemplateId);
         var effectiveAllWorlds = marker.GetEffectiveAppliesToAllWorlds(template);
 
         var locationText = LocationHelper.GetLocationName(marker.TerritoryId, marker.WorldId, marker.WardId, effectiveAllWorlds);

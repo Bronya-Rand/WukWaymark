@@ -44,6 +44,7 @@ public sealed class MarkerStorageService
 
     // Holds the currently visible markers and groups based on the
     // current character hash and scopes.
+    private List<MarkerTemplate>? cachedVisibleTemplates;
     private List<Marker>? cachedVisibleMarkers;
     private List<MarkerGroup>? cachedVisibleGroups;
     private bool cacheInvalidated = true;
@@ -53,6 +54,8 @@ public sealed class MarkerStorageService
     /// Built from all groups' MarkerIds lists at load time.
     /// </summary>
     private Dictionary<Guid, Guid> markerToGroupMap = [];
+
+    private Dictionary<Guid, int> markerTemplateMarkerCount = [];
 
     private readonly Configuration configuration;
     public MarkerStorageService(string pluginConfigDir, Configuration configuration, IReliableFileStorage reliableFileStorage)
@@ -105,6 +108,7 @@ public sealed class MarkerStorageService
         groupStore.LoadAll();
         templateStore.LoadAll();
         RebuildMarkerToGroupMap();
+        RebuildTemplateCountMap();
         InvalidateCache();
     }
 
@@ -116,6 +120,8 @@ public sealed class MarkerStorageService
         cacheInvalidated = true;
         cachedVisibleMarkers = null;
         cachedVisibleGroups = null;
+        cachedVisibleTemplates = null;
+        RebuildTemplateCountMap();
     }
 
     /// <summary>
@@ -132,21 +138,18 @@ public sealed class MarkerStorageService
     /// </remarks>
     private void RebuildCacheIfNeeded()
     {
-        if (!cacheInvalidated && cachedVisibleMarkers != null && cachedVisibleGroups != null)
+        if (!cacheInvalidated && cachedVisibleMarkers != null && cachedVisibleGroups != null && cachedVisibleTemplates != null)
             return;
+
+        cachedVisibleTemplates = templateStore.Items
+            .Where(t => t.DefaultScope == MarkerScope.Shared || t.CharacterHash == CurrentCharacterHash)
+            .ToList();
 
         cachedVisibleMarkers = markerStore.Items
             .Where(m =>
             {
-                MarkerTemplate? template = null;
-
-                if (m.TemplateId == Guid.Empty)
-                    template = configuration.DefaultTemplate;
-                else if (m.TemplateId != null)
-                    template = templateStore.FindById(m.TemplateId.Value);
-
+                var template = ResolveTemplate(m.TemplateId);
                 var effectiveScope = m.GetEffectiveScope(template);
-
                 return effectiveScope == MarkerScope.Shared ||
                        (effectiveScope == MarkerScope.Personal && m.CharacterHash == CurrentCharacterHash);
             })
@@ -179,6 +182,17 @@ public sealed class MarkerStorageService
         }
     }
 
+    private void RebuildTemplateCountMap()
+    {
+        markerTemplateMarkerCount = [];
+        foreach (var template in templateStore.Items)
+        {
+            // Get count of markers using this template
+            var markersUsingTemplate = GetMarkersUsingTemplate(template.Id);
+            markerTemplateMarkerCount[template.Id] = markersUsingTemplate.Count;
+        }
+    }
+
     /// <summary>
     /// Returns all markers visible to the current session
     /// (shared + personal for the logged-in character).
@@ -199,6 +213,15 @@ public sealed class MarkerStorageService
     }
 
     /// <summary>
+    /// Returns all templates for the current character (personal-only).
+    /// </summary>
+    public List<MarkerTemplate> GetTemplates()
+    {
+        RebuildCacheIfNeeded();
+        return cachedVisibleTemplates!;
+    }
+
+    /// <summary>
     /// Returns a list of marker groups that are visible within the specified scope.
     /// </summary>
     /// <param name="scope">The scope used to filter visible marker groups.</param>
@@ -206,16 +229,6 @@ public sealed class MarkerStorageService
     {
         RebuildCacheIfNeeded();
         return cachedVisibleGroups!.Where(g => g.Scope == scope).ToList();
-    }
-
-    /// <summary>
-    /// Returns all templates for the current character (personal-only).
-    /// </summary>
-    public List<MarkerTemplate> GetTemplates()
-    {
-        return templateStore.Items
-            .Where(t => t.DefaultScope == MarkerScope.Shared || t.CharacterHash == CurrentCharacterHash)
-            .ToList();
     }
 
     /// <summary>
@@ -241,7 +254,7 @@ public sealed class MarkerStorageService
     /// <param name="templateId">The unique identifier of the template to match markers against.</param>
     /// <returns>The number of markers associated with the specified template. Returns 0 if no markers use the template.</returns>
     public int GetTotalMarkersUsingTemplate(Guid templateId) =>
-        markerStore.Items.Count(m => m.TemplateId == templateId);
+        markerTemplateMarkerCount.GetValueOrDefault(templateId, 0);
 
     /// <summary>
     /// Gets the group ID that a marker belongs to, or null if ungrouped.
@@ -437,7 +450,14 @@ public sealed class MarkerStorageService
     /// </summary>
     public void DeleteTemplate(Guid templateId)
     {
+        var markersToUnlink = markerStore.Items.Where(m => m.TemplateId == templateId).ToList();
+        foreach (var marker in markersToUnlink)
+        {
+            marker.TemplateId = null;
+            markerStore.Save(marker);
+        }
         templateStore.Delete(templateId);
+        InvalidateCache();
     }
 
     /// <summary>
@@ -451,7 +471,7 @@ public sealed class MarkerStorageService
     public void UpdateMarkersTemplateGroup(MarkerTemplate template)
     {
         // Get all markers using this template 
-        var affectedMarkers = GetMarkersUsingTemplate(template.Id);
+        var affectedMarkers = markerStore.Items.Where(m => m.TemplateId == template.Id).ToList();
 
         // Update each marker's template group reference
         foreach (var marker in affectedMarkers)
@@ -488,6 +508,21 @@ public sealed class MarkerStorageService
     {
         return GetTemplates()
             .FirstOrDefault(t => t.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Resolves and returns the marker template associated with the specified template identifier.
+    /// </summary>
+    /// <param name="templateId">The unique identifier of the marker template to resolve. If <paramref name="templateId"/> is <see
+    /// langword="null"/>, no template is resolved. If <paramref name="templateId"/> is <see cref="Guid.Empty"/>, the
+    /// default template is returned.</param>
+    /// <returns>The resolved <see cref="MarkerTemplate"/> if found; the default template if <paramref name="templateId"/> is
+    /// <see cref="Guid.Empty"/>; otherwise, <see langword="null"/>.</returns>
+    public MarkerTemplate? ResolveTemplate(Guid? templateId)
+    {
+        if (templateId == Guid.Empty) return configuration.DefaultTemplate;
+        if (templateId != null) return FindTemplateById(templateId.Value);
+        return null;
     }
 
     #endregion

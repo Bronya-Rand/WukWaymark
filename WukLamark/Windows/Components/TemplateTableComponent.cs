@@ -113,7 +113,7 @@ namespace WukLamark.Windows.Components
                     {
                         if (popup)
                             if (IsMultiSelect)
-                                DrawMultiMarkerTemplateContextMenu();
+                                DrawMultiMarkerTemplateContextMenu(markerTemplates);
                             else
                                 DrawMarkerTemplateContextMenu(template);
                     }
@@ -176,7 +176,7 @@ namespace WukLamark.Windows.Components
             );
             ImGui.Dummy(new Vector2(40 * globalScale, 20 * globalScale));
         }
-        private static void DrawNameColumn(MarkerTemplate template)
+        private void DrawNameColumn(MarkerTemplate template)
         {
             ImGui.TableSetColumnIndex(1);
 
@@ -195,6 +195,16 @@ namespace WukLamark.Windows.Components
             }
             ImGui.SameLine();
             ImGui.Text(template.Name);
+
+            var count = plugin.MarkerStorageService.GetTotalMarkersUsingTemplate(template.Id);
+            if (count > 0)
+            {
+                ImGui.SameLine();
+                ImGui.TextDisabled($"({count})");
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip($"{count} marker{(count > 1 ? "s" : "")} using this template.");
+            }
+
         }
         private static void DrawCreatedColumn(MarkerTemplate marker)
         {
@@ -228,7 +238,7 @@ namespace WukLamark.Windows.Components
                     inPvP ? "Saving markers is disabled in PvP zones." :
                     inCombat ? "Saving markers is disabled in combat." :
                     !isCreator && template.DefaultScope == MarkerScope.Personal ? "Only the template's creator can save markers using this template." :
-                    "Save current location with thiis template applied.";
+                    "Save current location with this template applied.";
                 ImGui.SetTooltip(tooltip);
             }
         }
@@ -251,7 +261,7 @@ namespace WukLamark.Windows.Components
 
             using (ImRaii.Disabled(!canDelete))
             {
-                if (ImGui.MenuItem("Delete Marker"))
+                if (ImGui.MenuItem("Delete Template"))
                 {
                     var temp = new List<MarkerTemplate> { template };
                     OnDeleteRequested?.Invoke(temp);
@@ -264,12 +274,11 @@ namespace WukLamark.Windows.Components
                     ImGui.SetTooltip(tooltip);
             }
         }
-        private void DrawMultiMarkerTemplateContextMenu()
+        private void DrawMultiMarkerTemplateContextMenu(List<MarkerTemplate> markerTemplates)
         {
             if (!IsMultiSelect) return;
 
-            var allTemplates = plugin.MarkerStorageService.GetTemplates();
-            var selectedTemplates = allTemplates.FindAll(t => SelectedMarkerTemplateIds.Contains(t.Id));
+            var selectedTemplates = markerTemplates.FindAll(t => SelectedMarkerTemplateIds.Contains(t.Id));
 
             var deletableCount = 0;
             foreach (var m in selectedTemplates)

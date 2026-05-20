@@ -120,11 +120,11 @@ public sealed class MarkerService(Configuration configuration, MarkerStorageServ
             WorldId = currentWorldId,
             WardId = wardId,
             Name = $"Marker {totalCount + 1}",
-            Icon = new MarkerIcon
+            Icon = template?.DefaultIcon ?? new MarkerIcon
             {
                 Color = Colors.GetNextColor(totalCount),
-                Shape = template?.DefaultIcon.Shape ?? MarkerShape.Circle,
-                SourceType = template?.DefaultIcon.SourceType ?? MarkerIconType.Shape,
+                Shape = MarkerShape.Circle,
+                SourceType = MarkerIconType.Shape,
             },
             CreatedAt = DateTime.Now,
             Scope = template?.DefaultScope ?? scope,

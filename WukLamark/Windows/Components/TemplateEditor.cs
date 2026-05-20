@@ -26,6 +26,7 @@ internal sealed class TemplateEditor
 {
     private readonly Plugin plugin;
     private readonly IconEditFields iconEditFields;
+    private bool shouldOpenModal;
 
     #region Editing State
 
@@ -81,6 +82,7 @@ internal sealed class TemplateEditor
                 CustomIconName = null,
             });
         }
+        shouldOpenModal = true;
     }
 
     /// <summary>
@@ -112,7 +114,10 @@ internal sealed class TemplateEditor
         // Block editing of someone else's personal template
         if (editingTemplate != null)
         {
-            var isCreator = editingTemplate.CharacterHash == plugin.MarkerStorageService.CurrentCharacterHash;
+            var isCreator = editingTemplate.CharacterHash != null &&
+                plugin.MarkerStorageService.CurrentCharacterHash != null &&
+                editingTemplate.CharacterHash == plugin.MarkerStorageService.CurrentCharacterHash;
+
             if (editingTemplate.DefaultScope == MarkerScope.Personal && !isCreator)
             {
                 Plugin.Log.Warning("Attempted to edit someone else's personal template. Action blocked.");
@@ -125,7 +130,11 @@ internal sealed class TemplateEditor
         var modalTitle = isEditing ? "Edit Template" : "Create Template";
         var modalId = $"{modalTitle}##WWTemplateEditorModal";
 
-        ImGui.OpenPopup(modalId);
+        if (shouldOpenModal)
+        {
+            ImGui.OpenPopup(modalId);
+            shouldOpenModal = false;
+        }
 
         var center = ImGui.GetMainViewport().GetCenter();
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));

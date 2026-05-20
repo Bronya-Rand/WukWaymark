@@ -18,13 +18,7 @@ public sealed class DeleteGroupModal
 
     public Action<MarkerGroup, bool>? OnConfirmDelete { get; set; }
 
-    public void Open(MarkerGroup group)
-    {
-        keepMarkers = true;
-        confirmationModal.Open([group]);
-    }
-
-    public void Draw(Plugin plugin)
+    public DeleteGroupModal(Plugin plugin)
     {
         confirmationModal.CanDelete = (group, servicePlugin) =>
         {
@@ -55,6 +49,12 @@ public sealed class DeleteGroupModal
         };
 
         confirmationModal.OnConfirmDelete = groups => OnConfirmDelete?.Invoke(groups[0], keepMarkers);
-        confirmationModal.Draw(plugin);
     }
+
+    public void Open(MarkerGroup group)
+    {
+        keepMarkers = true;
+        confirmationModal.Open([group]);
+    }
+    public void Draw(Plugin plugin) => confirmationModal.Draw(plugin);
 }

@@ -43,7 +43,7 @@ namespace WukLamark.Windows.Tabs.MarkerList
             this.plugin = plugin;
 
             // Initialize modals
-            deleteMarkerModal = new DeleteMarkerModal
+            deleteMarkerModal = new DeleteMarkerModal(plugin)
             {
                 OnConfirmDelete = markers =>
                 {
@@ -52,7 +52,7 @@ namespace WukLamark.Windows.Tabs.MarkerList
                 },
             };
 
-            deleteGroupModal = new DeleteGroupModal
+            deleteGroupModal = new DeleteGroupModal(plugin)
             {
                 OnConfirmDelete = (group, keepMarkers) =>
                 {

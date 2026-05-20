@@ -279,20 +279,7 @@ namespace WukLamark.Services
                     isClamped = true;
 
                 // Resolve template overrides
-                MarkerTemplate? template;
-                if (marker.TemplateId != null)
-                {
-                    if (marker.TemplateId == Guid.Empty)
-                        template = plugin.Configuration.DefaultTemplate;
-                    else
-                    {
-                        template = plugin.MarkerStorageService.FindTemplateById(marker.TemplateId.Value);
-                        if (template == null)
-                            Plugin.Log.Debug($"Marker {marker.Name} references missing template {marker.TemplateId.Value}");
-                    }
-                }
-                else
-                    template = null;
+                var template = plugin.MarkerStorageService.ResolveTemplate(marker.TemplateId);
 
                 // Determine final marker appearance, with template overrides if applicable
                 var markerShape = template?.DefaultIcon.Shape ?? marker.Icon.Shape;

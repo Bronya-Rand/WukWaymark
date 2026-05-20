@@ -22,12 +22,7 @@ public sealed class DeleteMarkerModal
         set => confirmationModal.OnConfirmDelete = value;
     }
 
-    public void Open(List<Marker> marker)
-    {
-        confirmationModal.Open(marker);
-    }
-
-    public void Draw(Plugin plugin)
+    public DeleteMarkerModal(Plugin plugin)
     {
         confirmationModal.CanDelete = (marker, servicePlugin) =>
         {
@@ -58,7 +53,8 @@ public sealed class DeleteMarkerModal
                 }
             }
         };
-
-        confirmationModal.Draw(plugin);
     }
+
+    public void Open(List<Marker> marker) => confirmationModal.Open(marker);
+    public void Draw(Plugin plugin) => confirmationModal.Draw(plugin);
 }

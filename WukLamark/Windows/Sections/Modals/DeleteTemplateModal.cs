@@ -18,12 +18,7 @@ namespace WukLamark.Windows.Sections.Modals
             set => confirmationModal.OnConfirmDelete = value;
         }
 
-        public void Open(List<MarkerTemplate> templates)
-        {
-            confirmationModal.Open(templates);
-        }
-
-        public void Draw(Plugin plugin)
+        public DeleteTemplateModal(Plugin plugin)
         {
             confirmationModal.CanDelete = (template, servicePlugin) =>
             {
@@ -37,8 +32,9 @@ namespace WukLamark.Windows.Sections.Modals
             confirmationModal.PrimaryText = templates => templates.Count == 1
                 ? $"Are you sure you want to delete the template \"{templates[0].Name}\"?"
                 : $"Are you sure you want to delete these {templates.Count} templates?";
-
-            confirmationModal.Draw(plugin);
         }
+
+        public void Open(List<MarkerTemplate> templates) => confirmationModal.Open(templates);
+        public void Draw(Plugin plugin) => confirmationModal.Draw(plugin);
     }
 }

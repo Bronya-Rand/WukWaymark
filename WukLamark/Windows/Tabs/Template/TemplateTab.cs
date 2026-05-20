@@ -26,14 +26,12 @@ namespace WukLamark.Windows.Tabs.Template
         {
             this.plugin = plugin;
 
-            deleteMarkerTemplateModal = new DeleteTemplateModal
+            deleteMarkerTemplateModal = new DeleteTemplateModal(plugin)
             {
                 OnConfirmDelete = templates =>
                 {
                     foreach (var template in templates)
-                    {
                         plugin.MarkerStorageService.DeleteTemplate(template.Id);
-                    }
                 }
             };
 
@@ -82,50 +80,30 @@ namespace WukLamark.Windows.Tabs.Template
         }
         private void HandleMarkerTemplatePopupSave(MarkerTemplate template, MarkerTemplateEditResult result)
         {
-            if (template.Id == Guid.Empty)
+            var updatedTemplate = new MarkerTemplate
             {
-                var existing = plugin.Configuration.DefaultTemplate;
-                var oldGroupId = existing.GroupId;
+                Id = template.Id,
+                Name = result.Name,
+                DefaultIcon = result.Icon,
+                DefaultScope = result.Scope,
+                DefaultAppliesToAllWorlds = result.AppliesToAllWorlds,
+                GroupId = result.GroupId
+            };
 
-                existing.Name = result.Name;
-                existing.DefaultIcon = result.Icon;
-                existing.DefaultScope = result.Scope;
-                existing.DefaultAppliesToAllWorlds = result.AppliesToAllWorlds;
-                existing.GroupId = result.GroupId;
-
-                if (oldGroupId != result.GroupId)
-                    plugin.MarkerStorageService.UpdateMarkersTemplateGroup(existing);
-
-                plugin.Configuration.Save();
-            }
-            else
-            {
-                var existing = plugin.MarkerStorageService.FindTemplateById(template.Id);
-                if (existing != null)
-                {
-                    var oldGroupId = existing.GroupId;
-
-                    existing.Name = result.Name;
-                    existing.DefaultIcon = result.Icon;
-                    existing.DefaultScope = result.Scope;
-                    existing.DefaultAppliesToAllWorlds = result.AppliesToAllWorlds;
-                    existing.GroupId = result.GroupId;
-
-                    plugin.MarkerStorageService.SaveTemplate(existing);
-
-                    if (oldGroupId != result.GroupId)
-                        plugin.MarkerStorageService.UpdateMarkersTemplateGroup(existing);
-                }
-            }
+            HandleMarkerTemplateSave(updatedTemplate, true);
         }
+
         private void HandleMarkerTemplateSave(MarkerTemplate template, bool isEditing)
         {
             Plugin.Log.Debug($"Saving template: {template.Name} (ID: {template.Id}) - IsEditing: {isEditing}");
             if (isEditing)
             {
-                if (template.Id == Guid.Empty)
+                var existing = template.Id == Guid.Empty
+                    ? plugin.Configuration.DefaultTemplate
+                    : plugin.MarkerStorageService.FindTemplateById(template.Id);
+
+                if (existing != null)
                 {
-                    var existing = plugin.Configuration.DefaultTemplate;
                     var oldGroupId = existing.GroupId;
 
                     existing.Name = template.Name;
@@ -134,34 +112,15 @@ namespace WukLamark.Windows.Tabs.Template
                     existing.DefaultAppliesToAllWorlds = template.DefaultAppliesToAllWorlds;
                     existing.GroupId = template.GroupId;
 
+                    if (template.Id == Guid.Empty)
+                        plugin.Configuration.Save();
+                    else
+                        plugin.MarkerStorageService.SaveTemplate(existing);
+
                     // If group changed, update all markers using this template
                     if (oldGroupId != template.GroupId)
                     {
-                        plugin.MarkerStorageService.UpdateMarkersTemplateGroup(template);
-                    }
-                    plugin.Configuration.Save();
-                }
-                else
-                {
-                    // Find the existing template
-                    var existing = plugin.MarkerStorageService.FindTemplateById(template.Id);
-                    if (existing != null)
-                    {
-                        var oldGroupId = existing.GroupId;
-
-                        existing.Name = template.Name;
-                        existing.DefaultScope = template.DefaultScope;
-                        existing.DefaultIcon = template.DefaultIcon;
-                        existing.DefaultAppliesToAllWorlds = template.DefaultAppliesToAllWorlds;
-                        existing.GroupId = template.GroupId;
-
-                        plugin.MarkerStorageService.SaveTemplate(existing);
-
-                        // If group changed, update all markers using this template
-                        if (oldGroupId != template.GroupId)
-                        {
-                            plugin.MarkerStorageService.UpdateMarkersTemplateGroup(template);
-                        }
+                        plugin.MarkerStorageService.UpdateMarkersTemplateGroup(existing);
                     }
                 }
             }
