@@ -1,6 +1,6 @@
+using System.Numerics;
 using Dalamud.Interface.Textures.Internal;
 using Dalamud.Interface.Textures.TextureWraps;
-using System.Numerics;
 
 namespace WukLamark.Helpers
 {

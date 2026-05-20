@@ -1,10 +1,9 @@
+using System;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
-using System;
-using System.Numerics;
 using WukLamark.Models;
 using WukLamark.Services;
 using WukLamark.Utils;
@@ -17,12 +16,13 @@ internal sealed class HeaderSection(Configuration configuration, GameStateReader
     private readonly GameStateReaderService gameStateReaderService = gameStateReaderService;
     private readonly MarkerStorageService markerStorageService = markerStorageService;
 
+    private const int ButtonCount = 5;
+
     public Action<ImportResult, MarkerGroup?>? OnImport { get; set; }
     public Action? OnExportSelected { get; set; }
     public Func<bool>? CanExportMarkers { get; set; }
     public Action<bool>? OnSaveLocation { get; set; }
     public Action? OnToggleView { get; set; }
-    public Action? OnSettingsClicked { get; set; }
     public Action? OnImageUploadClicked { get; set; }
 
     public void Draw()
@@ -34,13 +34,12 @@ internal sealed class HeaderSection(Configuration configuration, GameStateReader
         var canExportSelected = CanExportMarkers?.Invoke() ?? false;
         var isShiftHeld = ImGui.GetIO().KeyShift;
 
-        ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.0f, 1.0f), "Custom Marker Locations");
+        ImGui.Text("");
 
         // Position buttons on the right side of the header
-        var buttonCount = 6;
         var buttonWidth = ImGui.GetFrameHeight();
-        var buttonSpacing = (float)buttonCount * ImGuiHelpers.GlobalScale;
-        var totalButtonWidth = (buttonWidth * buttonCount) + (buttonSpacing * (buttonCount + 1));
+        var buttonSpacing = (float)ButtonCount * ImGuiHelpers.GlobalScale;
+        var totalButtonWidth = (buttonWidth * ButtonCount) + (buttonSpacing * (ButtonCount + 1));
         ImGui.SameLine(ImGui.GetWindowContentRegionMax().X - totalButtonWidth);
 
         // Upload custom icon button (image icon)
@@ -123,17 +122,6 @@ internal sealed class HeaderSection(Configuration configuration, GameStateReader
         if (ImGui.IsItemHovered())
         {
             ImGui.SetTooltip(viewTooltip);
-        }
-        ImGui.SameLine(0, buttonSpacing);
-
-        // Settings button (gear icon)
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.Cog))
-        {
-            OnSettingsClicked?.Invoke();
-        }
-        if (ImGui.IsItemHovered())
-        {
-            ImGui.SetTooltip("Settings");
         }
     }
 }

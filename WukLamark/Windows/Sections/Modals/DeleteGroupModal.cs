@@ -1,8 +1,6 @@
-using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Utility.Raii;
 using System;
 using System.Linq;
-using System.Numerics;
+using Dalamud.Bindings.ImGui;
 using WukLamark.Models;
 using WukLamark.Utils;
 
@@ -10,83 +8,53 @@ namespace WukLamark.Windows.Sections.Modals;
 
 public sealed class DeleteGroupModal
 {
-    private bool isOpen = false;
-    private MarkerGroup? groupToDelete = null;
-    private bool keepMarkers = false;
+    private readonly DeleteConfirmationModal<MarkerGroup> confirmationModal = new("Delete Group?##WWDeleteGroupModal")
+    {
+        ConfirmButtonLabel = "Delete",
+        NoValidTooltip = "No valid groups to delete."
+    };
+
+    private bool keepMarkers = true;
 
     public Action<MarkerGroup, bool>? OnConfirmDelete { get; set; }
 
-    public void Open(MarkerGroup group)
+    public DeleteGroupModal(Plugin plugin)
     {
-        groupToDelete = group;
-        keepMarkers = true;
-        isOpen = true;
-    }
-
-    public void Draw(Plugin plugin)
-    {
-        if (!isOpen || groupToDelete == null) return;
-
-        // Validation
-        var isCreator = groupToDelete.CreatorHash != null &&
-                        plugin.MarkerStorageService.CurrentCharacterHash != null &&
-                        groupToDelete.CreatorHash == plugin.MarkerStorageService.CurrentCharacterHash;
-
-        if (groupToDelete.IsReadOnly || !isCreator)
+        confirmationModal.CanDelete = (group, servicePlugin) =>
         {
-            Plugin.Log.Warning("Attempted to delete a group that doesn't belong to the current character. Action blocked.");
-            isOpen = false;
-            groupToDelete = null;
-            return;
-        }
+            var isCreator = group.CreatorHash != null &&
+                            servicePlugin.MarkerStorageService.CurrentCharacterHash != null &&
+                            group.CreatorHash == servicePlugin.MarkerStorageService.CurrentCharacterHash;
 
-        ImGui.OpenPopup("Delete Group?##WWDeleteGroupModal");
+            if (group.IsReadOnly || !isCreator)
+            {
+                Plugin.Log.Warning("Attempted to delete a group that doesn't belong to the current character. Action blocked.");
+                return false;
+            }
 
-        var center = ImGui.GetMainViewport().GetCenter();
-        ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
+            return true;
+        };
 
-        using var deleteGroupModal = ImRaii.PopupModal("Delete Group?##WWDeleteGroupModal", ref isOpen, ImGuiWindowFlags.AlwaysAutoResize);
-        if (deleteGroupModal)
+        confirmationModal.PrimaryText = groups => $"Are you sure you want to delete the group '{groups[0].Name}'?";
+        confirmationModal.DrawExtraContent = groups =>
         {
+            var group = groups[0];
             var allMarkers = plugin.MarkerStorageService.GetVisibleMarkers();
-            var markersInGroup = allMarkers.Where(w => w.GroupId == groupToDelete.Id).Count();
-            ImWuk.CenteredText($"Are you sure you want to delete the group '{groupToDelete.Name}'?");
+            var markersInGroup = allMarkers.Count(w => w.GroupId == group.Id);
             if (markersInGroup > 0)
             {
                 ImWuk.CenteredText($"This group contains {markersInGroup} marker(s).");
                 ImGui.Checkbox("Keep markers (move to Ungrouped)", ref keepMarkers);
             }
+        };
 
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-
-            // Center buttons
-            var buttonWidth = 120f;
-            var spacing = 10f;
-            var totalWidth = (buttonWidth * 2) + spacing;
-            var windowWidth = ImGui.GetContentRegionAvail().X;
-            var padding = (windowWidth - totalWidth) / 2;
-
-            if (padding > 0)
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + padding);
-
-            if (ImGui.Button("Delete", new Vector2(buttonWidth, 0)))
-            {
-                OnConfirmDelete?.Invoke(groupToDelete, keepMarkers);
-                isOpen = false;
-                groupToDelete = null;
-                ImGui.CloseCurrentPopup();
-            }
-
-            ImGui.SameLine(0, spacing);
-
-            if (ImGui.Button("Cancel", new Vector2(buttonWidth, 0)))
-            {
-                isOpen = false;
-                groupToDelete = null;
-                ImGui.CloseCurrentPopup();
-            }
-        }
+        confirmationModal.OnConfirmDelete = groups => OnConfirmDelete?.Invoke(groups[0], keepMarkers);
     }
+
+    public void Open(MarkerGroup group)
+    {
+        keepMarkers = true;
+        confirmationModal.Open([group]);
+    }
+    public void Draw(Plugin plugin) => confirmationModal.Draw(plugin);
 }

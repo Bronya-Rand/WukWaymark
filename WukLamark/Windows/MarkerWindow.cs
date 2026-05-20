@@ -1,7 +1,7 @@
-using Dalamud.Bindings.ImGui;
-using Dalamud.Utility;
 using System;
 using System.Numerics;
+using Dalamud.Bindings.ImGui;
+using Dalamud.Utility;
 using WukLamark.Helpers;
 using WukLamark.Services;
 

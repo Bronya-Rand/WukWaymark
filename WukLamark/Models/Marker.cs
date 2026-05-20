@@ -10,6 +10,7 @@ namespace WukLamark.Models;
 [Serializable]
 public class Marker
 {
+    public int FileVersion { get; set; } = 1;
     /// <summary>
     /// Unique identifier for this marker.
     /// </summary>
@@ -18,7 +19,7 @@ public class Marker
     /// <summary>
     /// User-defined name for this marker.
     /// </summary>
-    public string Name { get; set; } = "Unnamed Location";
+    public string Name { get; set; } = "New Marker";
 
     /// <summary>
     /// World position where the marker was created (X, Y, Z coordinates).
@@ -62,8 +63,18 @@ public class Marker
     public string Notes { get; set; } = string.Empty;
 
     /// <summary>
+    /// Defines the template this marker should use.
+    /// </summary>
+    /// <remarks>
+    /// Null should allow for customization of all fields. When set, the marker should inherit
+    /// either the default template values or a specific template's values.
+    /// </remarks>
+    public Guid? TemplateId { get; set; } = null;
+
+    /// <summary>
     /// Group this marker belongs to. Null means ungrouped.
     /// </summary>
+    [JsonIgnore]
     public Guid? GroupId { get; set; }
 
     /// <summary>
@@ -99,6 +110,34 @@ public class Marker
     /// When true, only the character whose hash matches CharacterHash can edit/delete this marker.
     /// </summary>
     public bool IsReadOnly { get; set; } = false;
+
+    #region Dynamic Resolution Methods
+
+    /// <summary>
+    /// Returns the effective icon for this marker, falling back to the template if one is provided and assigned.
+    /// </summary>
+    public MarkerIcon GetEffectiveIcon(MarkerTemplate? template)
+    {
+        return TemplateId != null && template != null ? template.DefaultIcon : Icon;
+    }
+
+    /// <summary>
+    /// Returns the effective scope for this marker, falling back to the template if one is provided and assigned.
+    /// </summary>
+    public MarkerScope GetEffectiveScope(MarkerTemplate? template)
+    {
+        return TemplateId != null && template != null ? template.DefaultScope : Scope;
+    }
+
+    /// <summary>
+    /// Returns whether this marker applies to all worlds, falling back to the template if one is provided and assigned.
+    /// </summary>
+    public bool GetEffectiveAppliesToAllWorlds(MarkerTemplate? template)
+    {
+        return TemplateId != null && template != null ? template.DefaultAppliesToAllWorlds : AppliesToAllWorlds;
+    }
+
+    #endregion
 
     #region Obsolete Properties
 

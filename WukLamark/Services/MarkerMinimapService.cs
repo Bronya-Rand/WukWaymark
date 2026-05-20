@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Numerics;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
@@ -7,9 +10,6 @@ using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using System;
-using System.Collections.Generic;
-using System.Numerics;
 using WukLamark.Helpers;
 using WukLamark.Models;
 using WukLamark.Windows;
@@ -182,26 +182,38 @@ namespace WukLamark.Services
                 if (marker.WardId != -1 && marker.WardId != wardId)
                     continue; // Wrong ward (for housing areas)
 
+                // Resolve template overrides
+                var template = plugin.MarkerStorageService.ResolveTemplate(marker.TemplateId);
+
+                // Determine final marker appearance, with template overrides if applicable
+                var markerShape = template?.DefaultIcon.Shape ?? marker.Icon.Shape;
+                var markerSize = template?.DefaultIcon.Size ?? marker.Icon.Size;
+                var markerColor = template?.DefaultIcon.Color ?? marker.Icon.Color;
+                var gameIconId = template?.DefaultIcon.GameIconId ?? marker.Icon.GameIconId;
+                var customIconName = template?.DefaultIcon.CustomIconName ?? marker.Icon.CustomIconName;
+                var useShapeColor = template?.DefaultIcon.UseShapeColor ?? marker.Icon.UseShapeColor;
+                var visibilityRadius = template?.DefaultIcon.VisibilityRadius ?? marker.Icon.VisibilityRadius;
+
                 // Visibility radius check using squared distance (avoids sqrt)
-                if (configuration.FadeWaymarkOnMinimapEdge && marker.Icon.VisibilityRadius > 0)
+                if (configuration.FadeWaymarkOnMinimapEdge && visibilityRadius > 0)
                 {
                     var distSquared = Vector3.DistanceSquared(localPlayer.Position, marker.Position);
-                    var radiusSquared = marker.Icon.VisibilityRadius * marker.Icon.VisibilityRadius;
+                    var radiusSquared = marker.Icon.VisibilityRadius * visibilityRadius;
                     if (distSquared > radiusSquared)
                         continue;
                 }
 
                 markersToRenderCache.Add(new MarkerMinimapCacheRenderData(
                     marker.Position,
-                    marker.Icon.Shape,
-                    marker.Icon.Color,
+                    markerShape,
+                    markerColor,
                     marker.Name,
                     marker.Notes.IsNullOrEmpty() ? null : marker.Notes,
-                    marker.Icon.GameIconId,
-                    marker.Icon.CustomIconName,
-                    marker.Icon.Size,
-                    marker.Icon.VisibilityRadius,
-                    marker.Icon.UseShapeColor
+                    gameIconId,
+                    customIconName,
+                    markerSize,
+                    visibilityRadius,
+                    useShapeColor
                 ));
             }
         }
@@ -210,7 +222,7 @@ namespace WukLamark.Services
         /// Prepares the markers for rendering by converting their world positions to screen coordinates.
         /// </summary>
         /// <param name="windowPos">The position of the window.</param>
-        internal unsafe void PrepareRender(Vector2 windowPos)
+        internal void PrepareRender(Vector2 windowPos)
         {
             MarkersToRender.Clear();
 

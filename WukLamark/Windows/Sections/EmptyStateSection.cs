@@ -1,9 +1,9 @@
+using System;
+using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
-using System;
-using System.Numerics;
 using WukLamark.Services;
 using WukLamark.Utils;
 

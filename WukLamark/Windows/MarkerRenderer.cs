@@ -1,9 +1,9 @@
+using System;
+using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Textures.Internal;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Utility;
-using System;
-using System.Numerics;
 using WukLamark.Models;
 
 namespace WukLamark.Windows

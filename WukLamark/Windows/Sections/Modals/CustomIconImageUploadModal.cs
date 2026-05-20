@@ -1,8 +1,8 @@
-using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.ImGuiFileDialog;
 using System;
 using System.Linq;
 using System.Numerics;
+using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.ImGuiFileDialog;
 
 namespace WukLamark.Windows.Sections.Modals
 {

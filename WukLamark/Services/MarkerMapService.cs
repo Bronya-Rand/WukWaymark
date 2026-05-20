@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Numerics;
+using System.Runtime.InteropServices;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using Dalamud.Plugin.Services;
@@ -6,10 +10,6 @@ using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using System;
-using System.Collections.Generic;
-using System.Numerics;
-using System.Runtime.InteropServices;
 using WukLamark.Helpers;
 using WukLamark.Models;
 using WukLamark.Windows;
@@ -278,22 +278,34 @@ namespace WukLamark.Services
                 if (markerScreenX <= MapMinX || markerScreenX >= MapMaxX || markerScreenY <= MapMinY || markerScreenY >= MapMaxY)
                     isClamped = true;
 
-                var colorU32 = ImGui.ColorConvertFloat4ToU32(marker.Icon.Color);
+                // Resolve template overrides
+                var template = plugin.MarkerStorageService.ResolveTemplate(marker.TemplateId);
+
+                // Determine final marker appearance, with template overrides if applicable
+                var markerShape = template?.DefaultIcon.Shape ?? marker.Icon.Shape;
+                var markerSize = template?.DefaultIcon.Size ?? marker.Icon.Size;
+                var markerColor = template?.DefaultIcon.Color ?? marker.Icon.Color;
+                var gameIconId = template?.DefaultIcon.GameIconId ?? marker.Icon.GameIconId;
+                var customIconName = template?.DefaultIcon.CustomIconName ?? marker.Icon.CustomIconName;
+                var useShapeColor = template?.DefaultIcon.UseShapeColor ?? marker.Icon.UseShapeColor;
+                var visibilityRadius = template?.DefaultIcon.VisibilityRadius ?? marker.Icon.VisibilityRadius;
+
+                var colorU32 = ImGui.ColorConvertFloat4ToU32(markerColor);
                 var baseMarkerSize = configuration.MapMarkerMapSize;
                 // Override base size if marker has an explicit size set
-                if (marker.Icon.Size > 0.0)
-                    baseMarkerSize = marker.Icon.Size;
-                var markerSize = baseMarkerSize * ImGuiHelpers.GlobalScale;
+                if (markerSize > 0.0)
+                    baseMarkerSize = markerSize;
+                var finalMarkerSize = baseMarkerSize * ImGuiHelpers.GlobalScale;
 
-                if (marker.Icon.GameIconId != null || !marker.Icon.CustomIconName.IsNullOrEmpty())
+                if (gameIconId != null || !customIconName.IsNullOrEmpty())
                 {
                     var deSize = 6.0f / areaMap->Scale * ImGuiHelpers.GlobalScale;
 
                     Vector2 iconSize;
-                    if (!marker.Icon.CustomIconName.IsNullOrEmpty())
-                        iconSize = IconHelper.GetCustomIconSize(marker.Icon.CustomIconName) ?? defaultMapMarkerSize;
-                    else if (marker.Icon.GameIconId.HasValue)
-                        iconSize = IconHelper.GetGameIconSize(marker.Icon.GameIconId.Value) ?? defaultMapMarkerSize;
+                    if (!customIconName.IsNullOrEmpty())
+                        iconSize = IconHelper.GetCustomIconSize(customIconName) ?? defaultMapMarkerSize;
+                    else if (gameIconId.HasValue)
+                        iconSize = IconHelper.GetGameIconSize(gameIconId.Value) ?? defaultMapMarkerSize;
                     else
                     {
                         Plugin.Log.Warning($"Marker {marker.Name} has no valid icon size, using default.");
@@ -312,16 +324,16 @@ namespace WukLamark.Services
 
                 // Apply visibility radius fade (last 20% of radius)
                 var targetAlpha = 1.0f;
-                if (configuration.FadeWaymarkOnMapEdge && marker.Icon.VisibilityRadius > 0)
+                if (configuration.FadeWaymarkOnMapEdge && visibilityRadius > 0)
                 {
                     var distSquared = Vector3.DistanceSquared(player.Position, marker.Position);
-                    var fadeStart = marker.Icon.VisibilityRadius * 0.8f;
+                    var fadeStart = visibilityRadius * 0.8f;
                     var fadeStartSquared = fadeStart * fadeStart;
 
                     if (distSquared > fadeStartSquared)
                     {
                         var dist = MathF.Sqrt(distSquared); // Only apply when fading
-                        targetAlpha = 1.0f - ((dist - fadeStart) / (marker.Icon.VisibilityRadius - fadeStart));
+                        targetAlpha = 1.0f - ((dist - fadeStart) / (visibilityRadius - fadeStart));
                     }
                 }
 
@@ -341,14 +353,14 @@ namespace WukLamark.Services
 
                 MarkersToRender.Add(new MarkerMapRenderData(
                     new Vector2(markerScreenX, markerScreenY),
-                    marker.Icon.Shape,
-                    markerSize,
+                    markerShape,
+                    finalMarkerSize,
                     colorU32,
                     marker.Name,
                     marker.Notes.IsNullOrEmpty() ? null : marker.Notes,
-                    marker.Icon.GameIconId,
-                    marker.Icon.CustomIconName,
-                    marker.Icon.UseShapeColor
+                    gameIconId,
+                    customIconName,
+                    useShapeColor
                 ));
             }
         }
