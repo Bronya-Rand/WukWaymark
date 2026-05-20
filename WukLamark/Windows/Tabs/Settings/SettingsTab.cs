@@ -4,7 +4,6 @@ using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
-using WukLamark.Models;
 using WukLamark.Utils;
 
 namespace WukLamark.Windows.Tabs.Settings
@@ -57,12 +56,16 @@ namespace WukLamark.Windows.Tabs.Settings
                     if (mapMarkerSize > 24.0f) mapMarkerSize = 24.0f;
 
                     configuration.MapMarkerMapSize = mapMarkerSize;
-                    configuration.Save();
                 }
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                    configuration.Save();
                 ImGui.SameLine();
                 // Reset to default button for map marker size
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.Undo))
+                {
                     configuration.MapMarkerMapSize = DefaultMapMarkerSize; // Default size
+                    configuration.Save();
+                }
                 if (ImGui.IsItemHovered())
                     ImGui.SetTooltip("Reset to default size");
 
@@ -78,12 +81,16 @@ namespace WukLamark.Windows.Tabs.Settings
                     if (minimapMarkerSize > 24.0f) minimapMarkerSize = 24.0f;
 
                     configuration.MapMarkerMinimapSize = minimapMarkerSize;
-                    configuration.Save();
                 }
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                    configuration.Save();
                 ImGui.SameLine();
                 // Reset to default button for map marker size
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.Undo))
+                {
                     configuration.MapMarkerMinimapSize = DefaultMapMarkerSize; // Default size
+                    configuration.Save();
+                }
                 if (ImGui.IsItemHovered())
                     ImGui.SetTooltip("Reset to default size");
 
@@ -116,20 +123,13 @@ namespace WukLamark.Windows.Tabs.Settings
                         if (edgeFadeAlpha > 1.0f) edgeFadeAlpha = 1.0f;
 
                         configuration.MapEdgeFadeAlpha = edgeFadeAlpha;
-                        configuration.Save();
                     }
+                    if (ImGui.IsItemDeactivatedAfterEdit())
+                        configuration.Save();
                 }
 
                 ImGui.Spacing();
 
-                ImGui.Text("Default Shape for New Markers:");
-                ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
-                var shapeIndex = (int)configuration.DefaultWaymarkShape;
-                if (ImGui.Combo("###DefaultShape", ref shapeIndex, "Circle\0Square\0Triangle\0Diamond\0Star\0", 5))
-                {
-                    configuration.DefaultWaymarkShape = (MarkerShape)shapeIndex;
-                    configuration.Save();
-                }
 
                 // Show tooltips
                 var showTooltips = configuration.ShowWaymarkTooltips;
@@ -166,7 +166,7 @@ namespace WukLamark.Windows.Tabs.Settings
                     {
                         plugin.MarkerStorageService.ErasePersonalMarkers();
                         plugin.MarkerStorageService.EraseCreatedSharedMarkers();
-                        Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage("All markers have been deleted."));
+                        ResultNotifications.SendSuccessMessage("All markers have been deleted.");
                         ImGui.CloseCurrentPopup();
                     }
 

@@ -141,7 +141,7 @@ internal sealed class TemplateEditor
     private void DrawContent()
     {
         var currentHash = plugin.MarkerStorageService.CurrentCharacterHash;
-        var isCreator = editingTemplate != null && editingTemplate.CharacterHash == currentHash;
+        var isCreator = editingTemplate != null && (editingTemplate.CharacterHash == currentHash || editingTemplate.Id == Guid.Empty);
         var isEditing = editingTemplate != null;
         var hasName = !editingName.IsNullOrEmpty();
 
@@ -156,14 +156,18 @@ internal sealed class TemplateEditor
         iconEditFields.Draw("Template", isEditing ? editingTemplate!.Name : "New Template");
 
         // Group picker
-        var groups = plugin.MarkerStorageService.GetVisibleGroups();
+        var groups = plugin.MarkerStorageService.GetVisibleGroupsByScope(editingScope);
         editingGroupId = IconEditFields.DrawGroupPicker("Template", editingGroupId, groups, currentHash);
 
         // Scope picker
-        var scopeTooltip = !isCreator
-            ? "Only the creator can change scope."
-            : "Sets the visibility of the marker to other characters on the same PC.\nPersonal markers are only visible to you, while shared markers are visible to any character that logs in to FFXIV from this PC.";
-        editingScope = IconEditFields.DrawScopePicker("Template", editingScope, false, scopeTooltip);
+        // Excluded for the default template (always shared)
+        if ((editingTemplate != null && editingTemplate.Id != Guid.Empty) || editingTemplate == null)
+        {
+            var scopeTooltip = !isCreator
+                ? "Only the creator can change scope."
+                : "Sets the visibility of the marker to other characters on the same PC.\nPersonal markers are only visible to you, while shared markers are visible to any character that logs in to FFXIV from this PC.";
+            editingScope = IconEditFields.DrawScopePicker("Template", editingScope, false, scopeTooltip);
+        }
 
         // Crossworld 
         ImGui.Checkbox("Visible Crossworld###TemplateAllWorlds", ref editingAppliesToAllWorlds);

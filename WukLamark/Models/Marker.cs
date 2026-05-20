@@ -111,6 +111,34 @@ public class Marker
     /// </summary>
     public bool IsReadOnly { get; set; } = false;
 
+    #region Dynamic Resolution Methods
+
+    /// <summary>
+    /// Returns the effective icon for this marker, falling back to the template if one is provided and assigned.
+    /// </summary>
+    public MarkerIcon GetEffectiveIcon(MarkerTemplate? template)
+    {
+        return TemplateId != null && template != null ? template.DefaultIcon : Icon;
+    }
+
+    /// <summary>
+    /// Returns the effective scope for this marker, falling back to the template if one is provided and assigned.
+    /// </summary>
+    public MarkerScope GetEffectiveScope(MarkerTemplate? template)
+    {
+        return TemplateId != null && template != null ? template.DefaultScope : Scope;
+    }
+
+    /// <summary>
+    /// Returns whether this marker applies to all worlds, falling back to the template if one is provided and assigned.
+    /// </summary>
+    public bool GetEffectiveAppliesToAllWorlds(MarkerTemplate? template)
+    {
+        return TemplateId != null && template != null ? template.DefaultAppliesToAllWorlds : AppliesToAllWorlds;
+    }
+
+    #endregion
+
     #region Obsolete Properties
 
     /// <summary>

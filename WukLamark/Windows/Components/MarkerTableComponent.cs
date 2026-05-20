@@ -155,44 +155,62 @@ internal sealed class MarkerTableComponent
         }
     }
 
-    private static void DrawMarkerColumn(Marker marker)
+    private void DrawMarkerColumn(Marker marker)
     {
         ImGui.TableSetColumnIndex(0);
 
-        var colorU32 = ImGui.ColorConvertFloat4ToU32(marker.Icon.Color);
+        MarkerTemplate? template = null;
+        if (marker.TemplateId == Guid.Empty)
+            template = plugin.Configuration.DefaultTemplate;
+        else if (marker.TemplateId != null)
+            template = plugin.MarkerStorageService.FindTemplateById(marker.TemplateId.Value);
+
+        var icon = marker.GetEffectiveIcon(template);
+
+        var colorU32 = ImGui.ColorConvertFloat4ToU32(icon.Color);
         var globalScale = ImGuiHelpers.GlobalScale;
         MarkerRenderer.RenderMarker(
             ImGui.GetWindowDrawList(),
             ImGui.GetCursorScreenPos() + new Vector2(20 * globalScale, 10 * globalScale),
-            marker.Icon.Shape,
+            icon.Shape,
             8f * globalScale,
             colorU32,
-            marker.Icon.GameIconId,
-            marker.Icon.CustomIconName,
-            marker.Icon.UseShapeColor
+            icon.GameIconId,
+            icon.CustomIconName,
+            icon.UseShapeColor
         );
         ImGui.Dummy(new Vector2(40 * globalScale, 20 * globalScale));
     }
 
-    private static void DrawNameColumn(Marker marker)
+    private void DrawNameColumn(Marker marker)
     {
         ImGui.TableSetColumnIndex(1);
+
+        MarkerTemplate? template = null;
+        if (marker.TemplateId == Guid.Empty)
+            template = plugin.Configuration.DefaultTemplate;
+        else if (marker.TemplateId != null)
+            template = plugin.MarkerStorageService.FindTemplateById(marker.TemplateId.Value);
+
+        var effectiveScope = marker.GetEffectiveScope(template);
 
         if (marker.GroupId == null)
         {
             using (ImRaii.PushFont(UiBuilder.IconFont))
             {
-                var icon = marker.Scope == MarkerScope.Personal ? FontAwesomeIcon.EyeSlash
-                    : marker.Scope == MarkerScope.Shared && marker.IsReadOnly ? FontAwesomeIcon.Lock
-                    : marker.Scope == MarkerScope.Shared ? FontAwesomeIcon.Users : FontAwesomeIcon.Question;
+                var icon = effectiveScope == MarkerScope.Personal ? FontAwesomeIcon.EyeSlash
+                    : effectiveScope == MarkerScope.Shared && marker.IsReadOnly ? FontAwesomeIcon.Lock
+                    : effectiveScope == MarkerScope.Shared ? FontAwesomeIcon.Users : FontAwesomeIcon.Question;
                 ImGui.TextDisabled(icon.ToIconString());
             }
             if (ImGui.IsItemHovered())
             {
-                var tooltip = marker.Scope == MarkerScope.Personal ? "Personal Marker" :
-                              marker.Scope == MarkerScope.Shared && marker.IsReadOnly ? "Shared Read-Only Marker" :
-                              marker.Scope == MarkerScope.Shared ? "Shared Marker" :
+                var tooltip = effectiveScope == MarkerScope.Personal ? "Personal Marker" :
+                              effectiveScope == MarkerScope.Shared && marker.IsReadOnly ? "Shared Read-Only Marker" :
+                              effectiveScope == MarkerScope.Shared ? "Shared Marker" :
                               "Unknown Scope Marker";
+                if (marker.TemplateId != null)
+                    tooltip += " (Template Enforced)";
                 ImGui.SetTooltip(tooltip);
             }
             ImGui.SameLine();
@@ -204,11 +222,19 @@ internal sealed class MarkerTableComponent
                 ImGui.SetTooltip(marker.Notes);
     }
 
-    private static void DrawLocationColumn(Marker marker)
+    private void DrawLocationColumn(Marker marker)
     {
         ImGui.TableSetColumnIndex(2);
 
-        var locationText = LocationHelper.GetLocationName(marker.TerritoryId, marker.WorldId, marker.WardId, marker.AppliesToAllWorlds);
+        MarkerTemplate? template = null;
+        if (marker.TemplateId == Guid.Empty)
+            template = plugin.Configuration.DefaultTemplate;
+        else if (marker.TemplateId != null)
+            template = plugin.MarkerStorageService.FindTemplateById(marker.TemplateId.Value);
+
+        var effectiveAllWorlds = marker.GetEffectiveAppliesToAllWorlds(template);
+
+        var locationText = LocationHelper.GetLocationName(marker.TerritoryId, marker.WorldId, marker.WardId, effectiveAllWorlds);
         ImGui.Text(locationText);
         if (ImGui.IsItemHovered())
         {
@@ -217,14 +243,14 @@ internal sealed class MarkerTableComponent
                 ImGui.Text($"Position: X: {marker.Position.X:F2}, Y: {marker.Position.Y:F2}, Z: {marker.Position.Z:F2}");
                 ImGui.Text($"Territory ID: {marker.TerritoryId}");
                 ImGui.Text($"Map ID: {marker.MapId}");
-                ImGui.Text(marker.AppliesToAllWorlds ? "World ID: All Worlds/Data Centers" : $"World ID: {marker.WorldId}");
+                ImGui.Text(effectiveAllWorlds ? "World ID: All Worlds/Data Centers" : $"World ID: {marker.WorldId}");
                 if (marker.WardId != -1)
                     ImGui.Text($"Ward ID: {marker.WardId}");
             }
         }
     }
 
-    private static void DrawCreatedColumn(Marker marker)
+    private void DrawCreatedColumn(Marker marker)
     {
         ImGui.TableSetColumnIndex(3);
         ImGui.Text(marker.CreatedAt.ToString("yyyy-MM-dd HH:mm"));

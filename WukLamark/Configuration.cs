@@ -72,12 +72,14 @@ public class Configuration : IPluginConfiguration
     public float MapEdgeFadeAlpha { get; set; } = 0.4f;
 
     /// <summary>
-    /// Default shape applied to newly created markers.
-    /// Users can customize individual markers after creation.
-    /// Options: Circle, Square, Triangle, Diamond, Star
-    /// Property name kept as 'DefaultWaymarkShape' for compatibility.
+    /// The default template applied to new markers.
     /// </summary>
-    public MarkerShape DefaultWaymarkShape { get; set; } = MarkerShape.Circle;
+    public MarkerTemplate DefaultTemplate { get; set; } = new MarkerTemplate
+    {
+        Id = Guid.Empty,
+        Name = "Default",
+        DefaultScope = MarkerScope.Shared,
+    };
 
     #region Legacy Properties
 
@@ -93,6 +95,16 @@ public class Configuration : IPluginConfiguration
             MapMarkerMinimapSize = value;
         }
     }
+
+    /// <summary>
+    /// Default shape applied to newly created markers.
+    /// Users can customize individual markers after creation.
+    /// Options: Circle, Square, Triangle, Diamond, Star
+    /// Property name kept as 'DefaultWaymarkShape' for compatibility.
+    /// </summary>
+    [Obsolete("Use DefaultTemplate.DefaultIcon.Shape instead.")]
+    [JsonIgnore]
+    public MarkerShape DefaultWaymarkShape { get; set; } = MarkerShape.Circle;
 
     #endregion
 

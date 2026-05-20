@@ -289,6 +289,41 @@ namespace WukLamark.Windows.Components
             return groupId;
         }
 
+        public static Guid? DrawTemplatePicker(string identifier, Guid? templateId, Configuration configuration, IReadOnlyList<MarkerTemplate> templates, bool disabled = false)
+        {
+            ImGui.Text("Template:");
+            ImGui.SetNextItemWidth(250 * ImGuiHelpers.GlobalScale);
+
+            var currentTemplateName = templateId == null
+                ? "Custom"
+                : templateId == Guid.Empty
+                    ? configuration.DefaultTemplate.Name
+                    : templates.FirstOrDefault(t => t.Id == templateId)?.Name ?? "Unknown";
+            using (ImRaii.Disabled(disabled))
+            {
+                using (var templateDrop = ImRaii.Combo($"###Template{identifier}", currentTemplateName))
+                {
+                    if (templateDrop.Success)
+                    {
+                        if (ImGui.Selectable("Custom", templateId == null))
+                            templateId = null;
+                        if (ImGui.Selectable(configuration.DefaultTemplate.Name, templateId == Guid.Empty))
+                            templateId = Guid.Empty;
+                        foreach (var template in templates)
+                        {
+                            if (ImGui.Selectable(template.Name, templateId == template.Id))
+                                templateId = template.Id;
+                        }
+                    }
+                }
+            }
+            if (ImWuk.IsItemHoveredWhenDisabled())
+            {
+                var tooltip = "Assigns a marker template to this marker. This will apply the default icon and scope settings from the template.";
+                ImGui.SetTooltip(tooltip);
+            }
+            return templateId;
+        }
         public static MarkerScope DrawScopePicker(string identifier, MarkerScope scope, bool disabled = false, string? tooltip = null)
         {
             ImGui.Text("Scope:");

@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using Dalamud.Game.Text.SeStringHandling;
-using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Interface.Utility.Raii;
 using WukLamark.Helpers;
 using WukLamark.Models;
@@ -108,13 +106,10 @@ namespace WukLamark.Windows.Tabs.MarkerList
                 {
                     MarkerExportService.ExportShareToClipboard(marker);
 
-                    SeString message;
                     if (marker.Count == 1)
-                        message = ResultNotifications.BuildChatSuccessMessage($"Copied marker '{marker.First().Name}' to clipboard!");
+                        ResultNotifications.SendSuccessMessage($"Copied marker '{marker.First().Name}' to clipboard!");
                     else
-                        message = ResultNotifications.BuildChatSuccessMessage($"Copied {marker.Count} markers to clipboard!");
-
-                    Plugin.ChatGui.Print(message);
+                        ResultNotifications.SendSuccessMessage($"Copied {marker.Count} markers to clipboard!");
                 },
                 OnSaveRequested = HandleMarkerSave,
             };
@@ -161,7 +156,7 @@ namespace WukLamark.Windows.Tabs.MarkerList
                 OnExportGroupMarkers = markers =>
                 {
                     MarkerExportService.ExportShareToClipboard(markers);
-                    Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage($"Copied {markers.Count} marker(s) to clipboard!"));
+                    ResultNotifications.SendSuccessMessage($"Copied {markers.Count} marker(s) to clipboard!");
                 }
             };
 
@@ -179,23 +174,42 @@ namespace WukLamark.Windows.Tabs.MarkerList
         private void HandleMarkerSave(Marker marker, MarkerEditResult result)
         {
             var oldScope = marker.Scope;
+
             marker.Name = result.Name;
             marker.Notes = result.Notes;
-            marker.Scope = result.Scope;
             marker.IsReadOnly = result.IsReadOnly;
-            marker.AppliesToAllWorlds = result.AppliesToAllWorlds;
-            marker.Icon = result.Icon;
+            marker.TemplateId = result.TemplateId;
 
-            if (oldScope != marker.Scope)
+            // If no template aka Custom, apply custom icon and scope settings.
+            if (result.TemplateId == null)
             {
-                plugin.MarkerStorageService.ChangeMarkerScope(marker, marker.Scope);
+                marker.Scope = result.Scope;
+                marker.AppliesToAllWorlds = result.AppliesToAllWorlds;
+                marker.Icon = result.Icon;
+                marker.GroupId = result.GroupId;
+
+                if (oldScope != marker.Scope)
+                {
+                    plugin.MarkerStorageService.ChangeMarkerScope(marker, marker.Scope);
+                }
+                else
+                {
+                    plugin.MarkerStorageService.SaveMarker(marker);
+                }
+
+                plugin.MarkerStorageService.MoveMarkerToGroup(marker.Id, result.GroupId);
             }
             else
             {
-                plugin.MarkerStorageService.SaveMarker(marker);
+                // For markers using a template, we save template ID and apply group changes
+                // if group change is needed.
+                var template = plugin.MarkerStorageService.FindTemplateById(result.TemplateId.Value);
+                if (template != null)
+                {
+                    plugin.MarkerStorageService.SaveMarker(marker);
+                    plugin.MarkerStorageService.MoveMarkerToGroup(marker.Id, template.GroupId);
+                }
             }
-
-            plugin.MarkerStorageService.MoveMarkerToGroup(marker.Id, result.GroupId);
         }
 
         /// <summary>
@@ -249,7 +263,7 @@ namespace WukLamark.Windows.Tabs.MarkerList
         {
             if (!result.Success)
             {
-                Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage($"Failed to import map markers: {result.ErrorMessage}"));
+                ResultNotifications.SendErrorMessage($"Failed to import map markers: {result.ErrorMessage}");
             }
             else if (result.Conflicts.Count > 0)
             {
@@ -267,12 +281,12 @@ namespace WukLamark.Windows.Tabs.MarkerList
 
             if (selected.Count == 0)
             {
-                Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage("No markers selected for export."));
+                ResultNotifications.SendErrorMessage("No markers selected for export.");
                 return;
             }
 
             MarkerExportService.ExportShareToClipboard(selected);
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage($"Copied {selected.Count} marker(s) to clipboard."));
+            ResultNotifications.SendSuccessMessage($"Copied {selected.Count} marker(s) to clipboard.");
         }
 
         /// <summary>
@@ -338,24 +352,16 @@ namespace WukLamark.Windows.Tabs.MarkerList
                 addedMarkers++;
             }
 
-            SeString chatGuiMessage;
-            Notification notificationMessage;
             if (overwrittenMarkers > 0)
             {
                 var msg = $"Imported {addedMarkers} marker(s), overwritten {overwrittenMarkers} marker(s) to WukLamark.";
-                chatGuiMessage = ResultNotifications.BuildChatSuccessMessage(msg);
-                notificationMessage = ResultNotifications.BuildDalamudSuccessMessage(msg);
-
+                ResultNotifications.SendSuccessMessage(msg, false, true);
             }
             else
             {
                 var msg = $"Imported {addedMarkers} marker(s) to WukLamark.";
-                chatGuiMessage = ResultNotifications.BuildChatSuccessMessage(msg);
-                notificationMessage = ResultNotifications.BuildDalamudSuccessMessage(msg);
+                ResultNotifications.SendSuccessMessage(msg, false, true);
             }
-
-            Plugin.ChatGui.Print(chatGuiMessage);
-            Plugin.NotificationManager.AddNotification(notificationMessage);
 
         }
         private void HandleImageUpload(string path)
@@ -364,10 +370,10 @@ namespace WukLamark.Windows.Tabs.MarkerList
             (var success, var message) = Plugin.CustomIconService.SavePNGToCustomIconsDir(path);
             if (!success)
             {
-                Plugin.ChatGui.Print(ResultNotifications.BuildChatErrorMessage($"Failed to upload custom icon: {message}"));
+                ResultNotifications.SendErrorMessage($"Failed to upload custom icon: {message}");
                 return;
             }
-            Plugin.ChatGui.Print(ResultNotifications.BuildChatSuccessMessage($"Successfully uploaded custom icon: {Path.GetFileName(path)}"));
+            ResultNotifications.SendSuccessMessage($"Successfully uploaded custom icon: {Path.GetFileName(path)}");
         }
 
         #endregion

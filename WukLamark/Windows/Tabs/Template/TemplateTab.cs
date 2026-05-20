@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
@@ -51,7 +52,7 @@ namespace WukLamark.Windows.Tabs.Template
                 OnSaveRequested = HandleMarkerTemplatePopupSave,
                 OnSaveLocationRequested = template =>
                 {
-                    plugin.MarkerService.SaveCurrentLocation(null, template.DefaultScope, template.DefaultAppliesToAllWorlds);
+                    plugin.MarkerService.SaveCurrentLocation(null, template.DefaultScope, template.DefaultAppliesToAllWorlds, template.Id, false);
                 }
             };
         }
@@ -61,7 +62,8 @@ namespace WukLamark.Windows.Tabs.Template
             deleteMarkerTemplateModal.Draw(plugin);
             templateEditor.DrawAsModal();
 
-            var templates = plugin.MarkerStorageService.GetTemplates();
+            var templates = new List<MarkerTemplate> { plugin.Configuration.DefaultTemplate };
+            templates.AddRange(plugin.MarkerStorageService.GetTemplates());
 
             DrawHeader();
             templateTableComponent.Draw(templates);
@@ -80,31 +82,86 @@ namespace WukLamark.Windows.Tabs.Template
         }
         private void HandleMarkerTemplatePopupSave(MarkerTemplate template, MarkerTemplateEditResult result)
         {
-            template.Name = result.Name;
-            template.DefaultIcon = result.Icon;
-            template.DefaultScope = result.Scope;
-            template.DefaultAppliesToAllWorlds = result.AppliesToAllWorlds;
+            if (template.Id == Guid.Empty)
+            {
+                var existing = plugin.Configuration.DefaultTemplate;
+                var oldGroupId = existing.GroupId;
+
+                existing.Name = result.Name;
+                existing.DefaultIcon = result.Icon;
+                existing.DefaultScope = result.Scope;
+                existing.DefaultAppliesToAllWorlds = result.AppliesToAllWorlds;
+                existing.GroupId = result.GroupId;
+
+                if (oldGroupId != result.GroupId)
+                    plugin.MarkerStorageService.UpdateMarkersTemplateGroup(existing);
+
+                plugin.Configuration.Save();
+            }
+            else
+            {
+                var existing = plugin.MarkerStorageService.FindTemplateById(template.Id);
+                if (existing != null)
+                {
+                    var oldGroupId = existing.GroupId;
+
+                    existing.Name = result.Name;
+                    existing.DefaultIcon = result.Icon;
+                    existing.DefaultScope = result.Scope;
+                    existing.DefaultAppliesToAllWorlds = result.AppliesToAllWorlds;
+                    existing.GroupId = result.GroupId;
+
+                    plugin.MarkerStorageService.SaveTemplate(existing);
+
+                    if (oldGroupId != result.GroupId)
+                        plugin.MarkerStorageService.UpdateMarkersTemplateGroup(existing);
+                }
+            }
         }
         private void HandleMarkerTemplateSave(MarkerTemplate template, bool isEditing)
         {
             Plugin.Log.Debug($"Saving template: {template.Name} (ID: {template.Id}) - IsEditing: {isEditing}");
-            if (isEditing && template.Id != Guid.Empty)
+            if (isEditing)
             {
-                // Find the existing template
-                var existing = plugin.MarkerStorageService.FindTemplateById(template.Id);
-                if (existing != null)
+                if (template.Id == Guid.Empty)
                 {
+                    var existing = plugin.Configuration.DefaultTemplate;
                     var oldGroupId = existing.GroupId;
 
                     existing.Name = template.Name;
                     existing.DefaultScope = template.DefaultScope;
                     existing.DefaultIcon = template.DefaultIcon;
                     existing.DefaultAppliesToAllWorlds = template.DefaultAppliesToAllWorlds;
+                    existing.GroupId = template.GroupId;
 
                     // If group changed, update all markers using this template
                     if (oldGroupId != template.GroupId)
                     {
                         plugin.MarkerStorageService.UpdateMarkersTemplateGroup(template);
+                    }
+                    plugin.Configuration.Save();
+                }
+                else
+                {
+                    // Find the existing template
+                    var existing = plugin.MarkerStorageService.FindTemplateById(template.Id);
+                    if (existing != null)
+                    {
+                        var oldGroupId = existing.GroupId;
+
+                        existing.Name = template.Name;
+                        existing.DefaultScope = template.DefaultScope;
+                        existing.DefaultIcon = template.DefaultIcon;
+                        existing.DefaultAppliesToAllWorlds = template.DefaultAppliesToAllWorlds;
+                        existing.GroupId = template.GroupId;
+
+                        plugin.MarkerStorageService.SaveTemplate(existing);
+
+                        // If group changed, update all markers using this template
+                        if (oldGroupId != template.GroupId)
+                        {
+                            plugin.MarkerStorageService.UpdateMarkersTemplateGroup(template);
+                        }
                     }
                 }
             }
@@ -113,12 +170,13 @@ namespace WukLamark.Windows.Tabs.Template
                 // Create new template
                 var newTemplate = new MarkerTemplate
                 {
-                    Id = template.Id == Guid.Empty ? Guid.NewGuid() : template.Id,
+                    Id = Guid.NewGuid(),
                     Name = template.Name,
                     CharacterHash = plugin.MarkerStorageService.CurrentCharacterHash,
                     DefaultIcon = template.DefaultIcon,
                     DefaultScope = template.DefaultScope,
                     DefaultAppliesToAllWorlds = template.DefaultAppliesToAllWorlds,
+                    GroupId = template.GroupId
                 };
                 plugin.MarkerStorageService.SaveTemplate(newTemplate);
             }

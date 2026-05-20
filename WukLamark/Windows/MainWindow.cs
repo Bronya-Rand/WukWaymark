@@ -15,6 +15,7 @@ public sealed class MainWindow : Window, IDisposable
     private readonly MarkerListTab markerListTab;
     private readonly TemplateTab templateTab;
     private readonly SettingsTab settingsTab;
+    private bool forceOpenSettingsTab;
 
     public MainWindow(Plugin plugin, GameStateReaderService gameStateReaderService)
         : base("WukLamark##WWMain", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
@@ -29,11 +30,19 @@ public sealed class MainWindow : Window, IDisposable
         templateTab = new TemplateTab(plugin, gameStateReaderService);
         settingsTab = new SettingsTab(plugin);
     }
+    public void OpenSettingsTab()
+    {
+        IsOpen = true;
+        forceOpenSettingsTab = true;
+    }
+
     public override void Draw()
     {
         using var tabBar = ImRaii.TabBar("MainTabBar");
         if (tabBar)
         {
+            var settingsFlags = forceOpenSettingsTab ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
+
             using (var markersTab = ImRaii.TabItem("Markers"))
             {
                 if (markersTab)
@@ -44,11 +53,15 @@ public sealed class MainWindow : Window, IDisposable
                 if (templatesTab)
                     templateTab.Draw();
             }
-            using (var settingsTabItem = ImRaii.TabItem("Settings"))
+            using (var settingsTabItem = ImRaii.TabItem("Settings", settingsFlags))
             {
                 if (settingsTabItem)
                     settingsTab.Draw();
             }
+
+            // Clear the flag after it's been consumed
+            if (forceOpenSettingsTab)
+                forceOpenSettingsTab = false;
         }
     }
 

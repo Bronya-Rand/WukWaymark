@@ -54,9 +54,11 @@ public sealed class MarkerStorageService
     /// </summary>
     private Dictionary<Guid, Guid> markerToGroupMap = [];
 
-    public MarkerStorageService(string pluginConfigDir, IReliableFileStorage reliableFileStorage)
+    private readonly Configuration configuration;
+    public MarkerStorageService(string pluginConfigDir, Configuration configuration, IReliableFileStorage reliableFileStorage)
     {
         this.pluginConfigDir = pluginConfigDir;
+        this.configuration = configuration;
 
         // Each store manages a subdirectory of the plugin config dir
         markerStore = new EntityFileStore<Marker>(
@@ -134,8 +136,20 @@ public sealed class MarkerStorageService
             return;
 
         cachedVisibleMarkers = markerStore.Items
-            .Where(m => m.Scope == MarkerScope.Shared ||
-                        (m.Scope == MarkerScope.Personal && m.CharacterHash == CurrentCharacterHash))
+            .Where(m =>
+            {
+                MarkerTemplate? template = null;
+
+                if (m.TemplateId == Guid.Empty)
+                    template = configuration.DefaultTemplate;
+                else if (m.TemplateId != null)
+                    template = templateStore.FindById(m.TemplateId.Value);
+
+                var effectiveScope = m.GetEffectiveScope(template);
+
+                return effectiveScope == MarkerScope.Shared ||
+                       (effectiveScope == MarkerScope.Personal && m.CharacterHash == CurrentCharacterHash);
+            })
             .ToList();
 
         cachedVisibleGroups = groupStore.Items
@@ -185,12 +199,22 @@ public sealed class MarkerStorageService
     }
 
     /// <summary>
+    /// Returns a list of marker groups that are visible within the specified scope.
+    /// </summary>
+    /// <param name="scope">The scope used to filter visible marker groups.</param>
+    public List<MarkerGroup> GetVisibleGroupsByScope(MarkerScope scope)
+    {
+        RebuildCacheIfNeeded();
+        return cachedVisibleGroups!.Where(g => g.Scope == scope).ToList();
+    }
+
+    /// <summary>
     /// Returns all templates for the current character (personal-only).
     /// </summary>
     public List<MarkerTemplate> GetTemplates()
     {
         return templateStore.Items
-            .Where(t => t.CharacterHash == CurrentCharacterHash)
+            .Where(t => t.DefaultScope == MarkerScope.Shared || t.CharacterHash == CurrentCharacterHash)
             .ToList();
     }
 

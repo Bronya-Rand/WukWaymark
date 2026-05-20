@@ -166,7 +166,7 @@ namespace WukLamark.Windows.Components
 
             MarkerRenderer.RenderMarker(
                 ImGui.GetWindowDrawList(),
-                ImGui.GetCursorScreenPos() + new Vector2(10f * globalScale, 10f * globalScale),
+                ImGui.GetCursorScreenPos() + new Vector2(20f * globalScale, 10f * globalScale),
                 template.DefaultIcon.Shape,
                 8f * globalScale,
                 colorU32,
@@ -344,7 +344,14 @@ namespace WukLamark.Windows.Components
 
             canEdit = (template.DefaultScope == MarkerScope.Shared) ||
                 (template.DefaultScope == MarkerScope.Personal && isCreator);
-            canDelete = canEdit; // For now, edit and delete permissions are the same. Adjust if they diverge in the future.
+
+            if (template.Id == Guid.Empty)
+            {
+                isCreator = true;
+                canEdit = true;
+            }
+
+            canDelete = canEdit && template.Id != Guid.Empty; // Prevent deleting Default Template
         }
         private static string GetEditMarkerTemplateTooltip(MarkerTemplate template)
         {
@@ -356,6 +363,8 @@ namespace WukLamark.Windows.Components
         }
         private static string GetDeleteMarkerTemplateTooltipText(MarkerTemplate template)
         {
+            if (template.Id == Guid.Empty) return "The default template cannot be deleted.";
+
             return template.DefaultScope switch
             {
                 MarkerScope.Personal => "Only the creator can delete this template.",

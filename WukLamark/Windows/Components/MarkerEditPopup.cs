@@ -18,6 +18,7 @@ internal sealed class MarkerEditPopup
     #region Editing State
 
     private Guid? editingGroupId;
+    private Guid? editingTemplateId;
 
     private string editingName = string.Empty;
     private string editingNote = string.Empty;
@@ -42,6 +43,7 @@ internal sealed class MarkerEditPopup
     public void LoadFromMarker(Marker marker, MarkerGroup? markerGroup)
     {
         editingGroupId = markerGroup?.Id;
+        editingTemplateId = marker.TemplateId;
 
         editingName = marker.Name;
         editingNote = marker.Notes;
@@ -145,12 +147,20 @@ internal sealed class MarkerEditPopup
 
         IconEditFields.DrawNameField(identifier, ref editingName, !canEditGeneralFields);
 
-        iconEditFields.Draw(identifier, marker.Name, !canEditGeneralFields);
+        var templates = plugin.MarkerStorageService.GetTemplates();
+        editingTemplateId = IconEditFields.DrawTemplatePicker(identifier, editingTemplateId, plugin.Configuration, templates, !canEditGeneralFields);
+
+        var isTemplateAssigned = editingTemplateId != null;
+        var disableTemplateFields = !canEditGeneralFields || isTemplateAssigned;
+
+        // When a template is assigned, we disable the individual fields. 
+        // The map renderer will read from the template instead of these local fields via GetEffective methods.
+
+        iconEditFields.Draw(identifier, marker.Name, disableTemplateFields);
 
         // Group assignment dropdown
         var groups = plugin.MarkerStorageService.GetVisibleGroups();
-        editingGroupId = IconEditFields.DrawGroupPicker(identifier, editingGroupId, groups, currentHash, !canEditGeneralFields);
-
+        editingGroupId = IconEditFields.DrawGroupPicker(identifier, editingGroupId, groups, currentHash, disableTemplateFields);
 
         IconEditFields.DrawNotesField(identifier, ref editingNote, !canEditGeneralFields);
 
@@ -162,9 +172,9 @@ internal sealed class MarkerEditPopup
                 : editingReadOnly && selectedScope == MarkerScope.Shared
                     ? "Disable read-only before changing scope."
                     : "Sets the visibility of the marker to other characters on the same PC.\nPersonal markers are only visible to you, while shared markers are visible to any character that logs in to FFXIV from this PC.";
-        editingScope = IconEditFields.DrawScopePicker(identifier, editingScope, !canEditScope, scopeTooltip);
+        editingScope = IconEditFields.DrawScopePicker(identifier, editingScope, !canEditScope || isTemplateAssigned, scopeTooltip);
 
-        using (ImRaii.Disabled(!canEditGeneralFields))
+        using (ImRaii.Disabled(disableTemplateFields))
             ImGui.Checkbox($"Visible Crossworld###AllWorlds{identifier}", ref editingAppliesToAllWorlds);
         if (ImWuk.IsItemHoveredWhenDisabled())
             ImGui.SetTooltip("When enabled, this marker appears on matching maps in all worlds/data centers.");
@@ -197,6 +207,7 @@ internal sealed class MarkerEditPopup
                     Name = editingName,
                     Notes = editingNote,
                     GroupId = editingGroupId,
+                    TemplateId = editingTemplateId,
                     Scope = isGrouped ? parentGroup!.Scope : editingScope,
                     IsReadOnly = selectedScope == MarkerScope.Shared && editingReadOnly,
                     AppliesToAllWorlds = editingAppliesToAllWorlds,
@@ -223,6 +234,7 @@ public sealed class MarkerEditResult : IEditableMarkerResult
     public string Name { get; init; } = string.Empty;
     public string Notes { get; init; } = string.Empty;
     public Guid? GroupId { get; init; }
+    public Guid? TemplateId { get; init; }
     public required MarkerIcon Icon { get; init; }
     public MarkerScope Scope { get; init; }
     public bool IsReadOnly { get; init; }
